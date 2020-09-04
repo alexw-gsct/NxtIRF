@@ -1,0 +1,48 @@
+#include <stdio.h>
+#include <string.h>
+#include <zlib.h>
+#include "includedefine.h"
+
+#define CHUNK 16384
+
+class BAMReader {
+	private:
+
+        char compressed_buffer[65536];
+
+        char buffer[65536];
+        unsigned long bufferPos;
+        unsigned long bufferMax;
+        
+        istream * IN;
+        int IS_EOF;
+        int IS_FAIL;
+        
+ 		static const int bamEOFlength = 28;
+		static const char bamEOF[bamEOFlength+1];
+
+		static const int bamGzipHeadLength = 16;  // +2 a uint16 with the full block length.
+		static const char bamGzipHead[bamGzipHeadLength+1];
+
+		union stream_int32 {
+			char c[4];
+			int32_t i;
+		};
+		union stream_int16 {
+			char c[2];
+			int16_t i;
+		};
+
+       
+    public:
+        BAMReader();
+        bool eof();
+        bool fail();
+        streamsize gcount();
+        
+        int read(char * dest, unsigned int len);
+        int ignore(unsigned int len);
+        int LoadBuffer();
+        
+        void SetInputHandle(std::istream *in_stream);
+};
