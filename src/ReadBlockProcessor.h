@@ -17,18 +17,6 @@ class ReadBlockProcessor {
 		virtual void ChrMapUpdate(const std::vector<std::string> &chrmap) = 0; //Maybe some of these funcs shouldn't be pure virtual - overloadable if needed, but default often ok.
 };
 
-
-class BED12Output : public ReadBlockProcessor {
-	private:
-		std::vector<std::string> chr_names;
-		std::ostream* out;
-	public:
-		void ProcessBlocks(const FragmentBlocks &fragblock);
-		void ChrMapUpdate(const std::vector<std::string> &chrmap);
-		void SetOutputStream(std::ostream *os);
-};
-
-
 class JunctionCount : public ReadBlockProcessor {
 	private:
 		std::map<string, std::map<std::pair<unsigned int,unsigned int>,unsigned int[3]>> chrName_junc_count;

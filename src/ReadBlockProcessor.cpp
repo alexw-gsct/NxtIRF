@@ -2,36 +2,6 @@
 #include "includedefine.h"
 // using namespace std;
 
-
-
-void BED12Output::SetOutputStream(ostream *os) {
-	out = os;
-}
-
-void BED12Output::ProcessBlocks(const FragmentBlocks &blocks) {
-	// First, check how many reads are needed.
-	for (int index = 0; index < blocks.readCount; index ++) {
-		*out << chr_names.at(blocks.chr_id) << "\t"
-			<< blocks.readStart[index] << "\t"
-			<< blocks.readEnd[index] << "\t"
-			<< blocks.readName << "\t0\t"
-			<< ((blocks.direction) ?  "+" : "-" ) << "\t"
-			<< blocks.readStart[index] << "\t"
-			<< blocks.readEnd[index] << "\t0,0,0\t"
-			<< blocks.rStarts[index].size() << "\t";
-		copy_n(blocks.rLens[index].begin(), blocks.rStarts[index].size(), infix_ostream_iterator<int>(*out, ","));
-		*out << "\t";
-		copy_n(blocks.rStarts[index].begin(), blocks.rStarts[index].size(), infix_ostream_iterator<int>(*out, ",")); 
-		*out << "\n";
-	}
-}
-
-void BED12Output::ChrMapUpdate(const std::vector<string> &chrmap) {
-	chr_names = chrmap; // copy.
-}
-
-
-
 //chrName_junc_count holds the data structure -- ChrName(string) -> Junc Start/End -> count.
 //chrID_junc_count holds the ChrID -> ...
 //  where the ChrID is the ChrID relating to the appropriate ChrName, as understood by the currently processed BAM file.
