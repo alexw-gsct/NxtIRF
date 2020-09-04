@@ -6,6 +6,19 @@
 
 using namespace Rcpp;
 
+// test_IRF
+int test_IRF(std::string bam_file, std::string reference_path, std::string output_path);
+RcppExport SEXP _rIRFinder_test_IRF(SEXP bam_fileSEXP, SEXP reference_pathSEXP, SEXP output_pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type reference_path(reference_pathSEXP);
+    Rcpp::traits::input_parameter< std::string >::type output_path(output_pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_IRF(bam_file, reference_path, output_path));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpparma_hello_world
 arma::mat rcpparma_hello_world();
 RcppExport SEXP _rIRFinder_rcpparma_hello_world() {
@@ -51,6 +64,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rIRFinder_test_IRF", (DL_FUNC) &_rIRFinder_test_IRF, 3},
     {"_rIRFinder_rcpparma_hello_world", (DL_FUNC) &_rIRFinder_rcpparma_hello_world, 0},
     {"_rIRFinder_rcpparma_outerproduct", (DL_FUNC) &_rIRFinder_rcpparma_outerproduct, 1},
     {"_rIRFinder_rcpparma_innerproduct", (DL_FUNC) &_rIRFinder_rcpparma_innerproduct, 1},

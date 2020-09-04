@@ -49,7 +49,7 @@ void BAM2blocks::readBamHeader() {
     chr_lens.push_back(i32.i);
   }
   
-  cout << samHeader << '\n';
+  // cout << samHeader << '\n';
   
 	for (auto & callback : callbacksChrMappingChange ) {
 		callback(chr_names);
