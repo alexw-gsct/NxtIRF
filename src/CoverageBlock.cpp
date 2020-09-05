@@ -14,6 +14,14 @@ CoverageBlock::CoverageBlock(unsigned int start, unsigned int end) {
     blockExtentsL = NULL;
 }
 
+CoverageBlock::~CoverageBlock(){
+    if(blockExtents != NULL) {
+        delete blockExtents;
+    }
+    if(blockExtentsL != NULL) {
+        delete blockExtentsL;
+    }
+}
 //direction -- 0=False/Neg, 1=True/Pos.
 void CoverageBlock::RecordCover(unsigned int readStart, unsigned int readEnd, bool dir) {
 	if (readStart <= blockStart && readEnd > blockStart) {

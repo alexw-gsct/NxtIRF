@@ -456,3 +456,28 @@ int FragmentsInChr::WriteOutput(std::ostream *os) const {
 	}
 	return 0;
 }
+
+JunctionCount::~JunctionCount() {
+    chrName_junc_count.clear();
+    chrName_juncLeft_count.clear();
+    chrName_juncRight_count.clear();
+}
+
+SpansPoint::~SpansPoint() {
+    chrName_pos.clear();
+    chrName_count[0].clear();
+    chrName_count[1].clear();
+}
+
+FragmentsInChr::~FragmentsInChr() {
+    chrName_count.clear();
+}
+
+FragmentsInROI::~FragmentsInROI() {
+    RegionID_counter[0].clear();
+    RegionID_counter[1].clear();
+    chrName_ROI.clear();
+    chrName_count[0].clear();
+    chrName_count[1].clear();
+    chrName_ROI_text.clear();
+}

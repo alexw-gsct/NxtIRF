@@ -452,3 +452,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 	}
 	return 0;
 }
+
+CoverageBlocks::~CoverageBlocks() {
+    chrName_CoverageBlocks.clear();
+}
