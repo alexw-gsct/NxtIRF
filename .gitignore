@@ -38,3 +38,6 @@ vignettes/*.pdf
 # Rcpp compiled code and DLLs
 *.o
 *.dll
+
+src/Makevars
+
