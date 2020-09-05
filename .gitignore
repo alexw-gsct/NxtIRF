@@ -36,5 +36,5 @@ vignettes/*.pdf
 *.knit.md
 
 # Rcpp compiled code and DLLs
-*.o
-*.dll
+# *.o
+# *.dll
