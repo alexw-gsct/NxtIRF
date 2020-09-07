@@ -109,6 +109,18 @@ class FragmentsInROI : public ReadBlockProcessor {
 		int WriteOutput(std::ostream *os) const;		
 };
 
+class FragmentsMap : public ReadBlockProcessor {
+  // Counts mappability.
+private:
+  std::map<string, std::map<unsigned int, int> > chrName_count; //only expecting 2 items in our vector.
+  std::vector<std::map<unsigned int, int>*> chrID_count;
+public:
+  ~FragmentsMap();
+  void ProcessBlocks(const FragmentBlocks &blocks);
+  void ChrMapUpdate(const std::vector<string> &chrmap);
+  int WriteOutput(std::ostream *os) const;		
+};
+
 
 /*
 class CoverageBlocks : public ReadBlockProcessor { ... }

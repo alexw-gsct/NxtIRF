@@ -10,6 +10,15 @@ run_IRFinder = function(bamfile = "Unsorted.bam", ref_path = "./REF", output_pat
     s_output = normalizePath(paste(output_path, "..", sep="/"))
   }
   system.time({
-    test_IRF(s_bam, s_ref, s_output)
+    IRF_main(s_bam, s_ref, s_output)
+  })
+}
+
+#' @export
+run_IRFinder_mappability = function(bamfile = "Unsorted.bam", ref_path = "./REF") {
+  s_bam = normalizePath(bamfile)
+  s_ref = normalizePath(ref_path)
+  system.time({
+    IRF_genmap(s_bam, s_ref)
   })
 }

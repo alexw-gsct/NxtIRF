@@ -12,7 +12,36 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-int test_IRF(std::string bam_file, std::string reference_path, std::string output_path){
+int IRF_genmap(std::string bam_file, std::string output_path){
+  std::string s_inBAM = bam_file;
+  std::string outputDir = output_path;
+  
+  FragmentsMap oFragMap;
+
+  BAM2blocks BB;
+  
+  BB.registerCallbackChrMappingChange( std::bind(&FragmentsMap::ChrMapUpdate, &oFragMap, std::placeholders::_1) );
+  BB.registerCallbackProcessBlocks( std::bind(&FragmentsMap::ProcessBlocks, &oFragMap, std::placeholders::_1) );
+    
+  BAMReader inbam;
+  std::ifstream inbam_stream;
+  inbam_stream.open(s_inBAM, std::ifstream::binary);
+  inbam.SetInputHandle(&inbam_stream);
+  
+  BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
+
+  BB.processAll();
+
+  std::ofstream outFragsMap;
+  outFragsMap.open(outputDir + "/Mappability.txt", std::ifstream::out);
+  oFragMap.WriteOutput(&outFragsMap);
+  outFragsMap.flush(); outFragsMap.close();
+
+  return(0);
+}
+
+// [[Rcpp::export]]
+int IRF_main(std::string bam_file, std::string reference_path, std::string output_path){
   
   std::string s_inBAM = bam_file;
   
