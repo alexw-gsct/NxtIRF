@@ -1,7 +1,4 @@
 
-# Github repo access token: 656275ce5c683b90ca4f6a3df724859044c01e42
-# Install using devtools::install_github("alexw-gsct/NxtIRFv3", auth_token = "656275ce5c683b90ca4f6a3df724859044c01e42")
-
 is.nan.data.frame <- function(x) do.call(cbind, lapply(x, is.nan))
 
 NxtIRF.gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
