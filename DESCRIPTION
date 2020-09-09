@@ -1,12 +1,22 @@
 Package: rIRFinder
 Type: Package
-Title: What the package does (short line)
-Version: 1.0
+Title: An R/R/Studio enhancement of IRFinder 
+Version: 0.1.0
 Date: 2020-09-04
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
-Imports: Rcpp (>= 1.0.5)
+Author: Alex C H Wong
+Maintainer: Alex C H Wong <a.wong@centenary.org.au>
+Description: rIRFinder is the next evolution for Intron Retention detection for RNA-seq 
+    data. rIRFinder is now fully compatible with Windows and Mac as well as Linux. In addition
+    to analysis of bam files aligned to the genome using a splice-aware aligner (e.g. STAR),
+    rIRFinder provides convenient pipelines for downstream analysis and publication-ready
+    visualisation. Specifically, rIRFinder:
+    - (TODO) Allows reference generation using Bioconductor/AnnotationHub
+    - (WOrking draft) Directly analyses BAM files (with compatibility for sorted or unsorted BAMs - TODO)
+    - (TODO) IRFinder output collation across multiple samples
+    - (TODO) Additionally analysis other forms of alternative splicing (using differential junction usage)
+    - (TODO) Downstream analysis (currently uses DESeq2 or DSS)
+    - (TODO) Visualisation of splice events, differential RNA-seq coverage across conditions, etc
+License: MIT
+Imports: Rcpp (>= 1.0.5), zlibbioc (>= 1.32.0)
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc
 RoxygenNote: 7.1.1

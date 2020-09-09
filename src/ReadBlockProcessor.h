@@ -30,6 +30,7 @@ class JunctionCount : public ReadBlockProcessor {
 		std::vector<std::map<unsigned int,unsigned int[2]>*> chrID_juncRight_count;
 		  //chrID_... stores a fast access pointer to the appropriate structure in chrName_... 
 	public:
+        ~JunctionCount();   // destructor
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
 		int WriteOutput(std::ostream *os) const;
@@ -61,6 +62,7 @@ class SpansPoint : public ReadBlockProcessor {
 		char overhangTotal;
 		//chrID_... stores a fast access pointer to the appropriate structure in chrName_... 
 	public:
+        ~SpansPoint();
 		void setSpanLength(unsigned int overhang_left, unsigned int overhang_right);
 		void loadRef(std::istream &IN);
 		void ProcessBlocks(const FragmentBlocks &fragblock);
@@ -77,6 +79,7 @@ class FragmentsInChr : public ReadBlockProcessor {
 		std::map<string, std::vector<unsigned int>> chrName_count; //only expecting 2 items in our vector.
 		std::vector<std::vector<unsigned int>*> chrID_count;
 	public:
+        ~FragmentsInChr();
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
 		int WriteOutput(std::ostream *os) const;		
@@ -99,10 +102,23 @@ class FragmentsInROI : public ReadBlockProcessor {
 		//   if pre-sorted, it may be easier to check for no overlapping blocks on read .. or can do this immediately after read with a single nested-walk.
 		std::map<string, std::vector<string>> chrName_ROI_text;
 	public:
+        ~FragmentsInROI();
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
 		void loadRef(std::istream &IN);
 		int WriteOutput(std::ostream *os) const;		
+};
+
+class FragmentsMap : public ReadBlockProcessor {
+  // Counts mappability.
+private:
+  std::map<string, std::map<unsigned int, int> > chrName_count; //only expecting 2 items in our vector.
+  std::vector<std::map<unsigned int, int>*> chrID_count;
+public:
+  ~FragmentsMap();
+  void ProcessBlocks(const FragmentBlocks &blocks);
+  void ChrMapUpdate(const std::vector<string> &chrmap);
+  int WriteOutput(std::ostream *os) const;		
 };
 
 

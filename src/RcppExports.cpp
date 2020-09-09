@@ -6,16 +6,66 @@
 
 using namespace Rcpp;
 
-// test_IRF
-int test_IRF(std::string bam_file, std::string reference_path, std::string output_path);
-RcppExport SEXP _rIRFinder_test_IRF(SEXP bam_fileSEXP, SEXP reference_pathSEXP, SEXP output_pathSEXP) {
+// IRF_main
+int IRF_main(std::string bam_file, std::string reference_path, std::string output_path);
+RcppExport SEXP _rIRFinder_IRF_main(SEXP bam_fileSEXP, SEXP reference_pathSEXP, SEXP output_pathSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
     Rcpp::traits::input_parameter< std::string >::type reference_path(reference_pathSEXP);
     Rcpp::traits::input_parameter< std::string >::type output_path(output_pathSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_IRF(bam_file, reference_path, output_path));
+    rcpp_result_gen = Rcpp::wrap(IRF_main(bam_file, reference_path, output_path));
+    return rcpp_result_gen;
+END_RCPP
+}
+// test_read_error
+std::string test_read_error(std::string sequence);
+RcppExport SEXP _rIRFinder_test_read_error(SEXP sequenceSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type sequence(sequenceSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_read_error(sequence));
+    return rcpp_result_gen;
+END_RCPP
+}
+// IRF_PolishGenome
+int IRF_PolishGenome(std::string genome_file, std::string out_fa);
+RcppExport SEXP _rIRFinder_IRF_PolishGenome(SEXP genome_fileSEXP, SEXP out_faSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type genome_file(genome_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_fa(out_faSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_PolishGenome(genome_file, out_fa));
+    return rcpp_result_gen;
+END_RCPP
+}
+// IRF_SupplyMappaReads
+int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos);
+RcppExport SEXP _rIRFinder_IRF_SupplyMappaReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type genome_file(genome_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_fa(out_faSEXP);
+    Rcpp::traits::input_parameter< int >::type read_len(read_lenSEXP);
+    Rcpp::traits::input_parameter< int >::type read_stride(read_strideSEXP);
+    Rcpp::traits::input_parameter< int >::type error_pos(error_posSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_SupplyMappaReads(genome_file, out_fa, read_len, read_stride, error_pos));
+    return rcpp_result_gen;
+END_RCPP
+}
+// IRF_genmap
+int IRF_genmap(std::string bam_file, std::string output_path);
+RcppExport SEXP _rIRFinder_IRF_genmap(SEXP bam_fileSEXP, SEXP output_pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type output_path(output_pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_genmap(bam_file, output_path));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -64,7 +114,11 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rIRFinder_test_IRF", (DL_FUNC) &_rIRFinder_test_IRF, 3},
+    {"_rIRFinder_IRF_main", (DL_FUNC) &_rIRFinder_IRF_main, 3},
+    {"_rIRFinder_test_read_error", (DL_FUNC) &_rIRFinder_test_read_error, 1},
+    {"_rIRFinder_IRF_PolishGenome", (DL_FUNC) &_rIRFinder_IRF_PolishGenome, 2},
+    {"_rIRFinder_IRF_SupplyMappaReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaReads, 5},
+    {"_rIRFinder_IRF_genmap", (DL_FUNC) &_rIRFinder_IRF_genmap, 2},
     {"_rIRFinder_rcpparma_hello_world", (DL_FUNC) &_rIRFinder_rcpparma_hello_world, 0},
     {"_rIRFinder_rcpparma_outerproduct", (DL_FUNC) &_rIRFinder_rcpparma_outerproduct, 1},
     {"_rIRFinder_rcpparma_innerproduct", (DL_FUNC) &_rIRFinder_rcpparma_innerproduct, 1},

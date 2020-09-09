@@ -456,3 +456,104 @@ int FragmentsInChr::WriteOutput(std::ostream *os) const {
 	}
 	return 0;
 }
+
+void FragmentsMap::ChrMapUpdate(const std::vector<string> &chrmap) {
+  chrID_count.resize(0);
+  for (unsigned int i = 0; i < chrmap.size(); i++) {
+    chrName_count[chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count.push_back( &chrName_count[chrmap.at(i)] );
+  }
+}
+
+void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
+  std::map<unsigned int, int>::iterator it_position;
+  // Contains chr, then pos, then incremental coverage (+ indicates increased coverage compared to prior loci)
+  
+  //Walk each read within the fragment (1 or 2).
+  for (int index = 0; index < blocks.readCount; index ++) {
+    //Walk each block within each read.
+    for (unsigned int j = 0; j < blocks.rLens[index].size(); j++) {
+      it_position = (*chrID_count.at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j]);
+      if (it_position == (*chrID_count.at(blocks.chr_id)).end()) {
+        (*chrID_count.at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
+      } else {
+        it_position->second += 1;
+        if(it_position->second == 0) {
+          (*chrID_count.at(blocks.chr_id)).erase(it_position);
+        }
+      }
+      it_position = (*chrID_count.at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
+      if (it_position == (*chrID_count.at(blocks.chr_id)).end()) {
+        (*chrID_count.at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
+      } else {
+        it_position->second -= 1;
+        if(it_position->second == 0) {
+          (*chrID_count.at(blocks.chr_id)).erase(it_position);
+        }
+      }
+    }
+  }
+}
+
+int FragmentsMap::WriteOutput(std::ostream *os) const {
+  for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
+    int coverage = 0;
+    bool covered = false;
+    // std::sort( itChr->second.begin(), itChr->second.end() );
+    if (itChr->second.begin()->first == 0 && itChr->second.begin()->second > 4) {
+      covered = true;
+    }
+    for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
+      coverage += it_pos->second;
+      if(coverage > 4) {
+        if(covered) {
+          // do nothing
+        } else {
+          *os << it_pos->first << '\n';
+          covered = true;
+        }
+      } else {
+        if(covered || it_pos->first == 0) {
+          *os << itChr->first << "\t"
+              << it_pos->first + 1 << "\t";
+          covered = false;
+        } else {
+          
+          // do nothing
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+
+JunctionCount::~JunctionCount() {
+    chrName_junc_count.clear();
+    chrName_juncLeft_count.clear();
+    chrName_juncRight_count.clear();
+}
+
+SpansPoint::~SpansPoint() {
+    chrName_pos.clear();
+    chrName_count[0].clear();
+    chrName_count[1].clear();
+}
+
+FragmentsInChr::~FragmentsInChr() {
+    chrName_count.clear();
+}
+
+FragmentsMap::~FragmentsMap() {
+  chrName_count.clear();
+}
+
+
+FragmentsInROI::~FragmentsInROI() {
+    RegionID_counter[0].clear();
+    RegionID_counter[1].clear();
+    chrName_ROI.clear();
+    chrName_count[0].clear();
+    chrName_count[1].clear();
+    chrName_ROI_text.clear();
+}
