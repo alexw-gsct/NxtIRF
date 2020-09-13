@@ -1,4 +1,3 @@
-
 is.nan.data.frame <- function(x) do.call(cbind, lapply(x, is.nan))
 
 NxtIRF.gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
@@ -72,7 +71,7 @@ NxtIRF.Benchmark <- function(irf = NULL, handle = "1", msg = "Time elapsed:", un
 
 	end_time <- Sys.time()
 	time_diff = round(difftime(end_time, irf@benchmarks[[handle]], units = units),2)
-	message(msg,
+	message(handle, ":", msg,
 		time_diff,
 		units(time_diff), "\n")
 	irf@benchmarks[[handle]] = NULL
@@ -80,9 +79,9 @@ NxtIRF.Benchmark <- function(irf = NULL, handle = "1", msg = "Time elapsed:", un
 	
 }
 
-NxtIRF.CheckPackageInstalled <- function(package = "DESeq2") {
+NxtIRF.CheckPackageInstalled <- function(package = "DESeq2", version = "1.0.0") {
 	assertthat::assert_that(
-		tryCatch(ifelse(packageVersion(package) == "", TRUE, TRUE),
+		tryCatch(ifelse(packageVersion(package)>=version, TRUE, FALSE),
 		error = function(e) FALSE),
 		msg = paste(package, "package is not installed; and is required for this function")
 	)
@@ -104,4 +103,8 @@ NxtIRF.SplitVector <- function(vector = "", n_workers = 1) {
 		return_val[[i]] = vector[seq(vector_starts[i], vector_starts[i+1] - 1)]
 	}
 	return(return_val)
+}
+
+semi_join.DT = function(A, B, by, nomatch = 0) {
+	A[A[B, on = by, which = TRUE, nomatch = nomatch]]
 }

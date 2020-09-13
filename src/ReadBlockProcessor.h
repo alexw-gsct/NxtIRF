@@ -33,8 +33,8 @@ class JunctionCount : public ReadBlockProcessor {
         ~JunctionCount();   // destructor
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
-		int WriteOutput(std::ostream *os) const;
-		void loadRef(std::istream &IN); //loadRef is optional, it allows directional detection to determine not just non-dir vs dir, but also which direction.
+		int WriteOutput(std::ostringstream *os) const;
+		void loadRef(std::istringstream &IN); //loadRef is optional, it allows directional detection to determine not just non-dir vs dir, but also which direction.
 
 		int Directional() const;
 		
@@ -64,11 +64,11 @@ class SpansPoint : public ReadBlockProcessor {
 	public:
         ~SpansPoint();
 		void setSpanLength(unsigned int overhang_left, unsigned int overhang_right);
-		void loadRef(std::istream &IN);
+		void loadRef(std::istringstream &IN);
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
 		//void SetOutputStream(std::ostream *os);
-		int WriteOutput(std::ostream *os) const;
+		int WriteOutput(std::ostringstream *os) const;
 		unsigned int lookup(std::string ChrName, unsigned int pos, bool direction) const;
 		unsigned int lookup(std::string ChrName, unsigned int pos) const;
 };
@@ -82,7 +82,7 @@ class FragmentsInChr : public ReadBlockProcessor {
         ~FragmentsInChr();
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
-		int WriteOutput(std::ostream *os) const;		
+		int WriteOutput(std::ostringstream *os) const;		
 };
 
 
@@ -105,8 +105,8 @@ class FragmentsInROI : public ReadBlockProcessor {
         ~FragmentsInROI();
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
-		void loadRef(std::istream &IN);
-		int WriteOutput(std::ostream *os) const;		
+		void loadRef(std::istringstream &IN);
+		int WriteOutput(std::ostringstream *os) const;		
 };
 
 class FragmentsMap : public ReadBlockProcessor {

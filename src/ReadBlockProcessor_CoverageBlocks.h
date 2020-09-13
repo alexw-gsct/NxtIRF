@@ -46,8 +46,8 @@ class CoverageBlocks : public ReadBlockProcessor {
         ~CoverageBlocks();
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
-		void loadRef(std::istream &IN);
-		int WriteOutput(std::ostream *os) const;
+		void loadRef(std::istringstream &IN);
+		int WriteOutput(std::ostringstream *os) const;
 		
 		void fillHist(std::map<unsigned int,unsigned int> &hist, const std::string &chrName, const std::vector<std::pair<unsigned int,unsigned int>> &blocks) const;
 		void fillHist(std::map<unsigned int,unsigned int> &hist, const std::string &chrName, const std::vector<std::pair<unsigned int,unsigned int>> &blocks, bool direction) const;

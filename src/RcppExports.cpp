@@ -7,15 +7,15 @@
 using namespace Rcpp;
 
 // IRF_main
-int IRF_main(std::string bam_file, std::string reference_path, std::string output_path);
-RcppExport SEXP _rIRFinder_IRF_main(SEXP bam_fileSEXP, SEXP reference_pathSEXP, SEXP output_pathSEXP) {
+int IRF_main(std::string bam_file, std::string reference_file, std::string output_file);
+RcppExport SEXP _rIRFinder_IRF_main(SEXP bam_fileSEXP, SEXP reference_fileSEXP, SEXP output_fileSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
-    Rcpp::traits::input_parameter< std::string >::type reference_path(reference_pathSEXP);
-    Rcpp::traits::input_parameter< std::string >::type output_path(output_pathSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_main(bam_file, reference_path, output_path));
+    Rcpp::traits::input_parameter< std::string >::type reference_file(reference_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type output_file(output_fileSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_main(bam_file, reference_file, output_file));
     return rcpp_result_gen;
 END_RCPP
 }

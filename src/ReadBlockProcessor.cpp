@@ -25,7 +25,7 @@ void JunctionCount::ChrMapUpdate(const std::vector<std::string> &chrmap) {
 
 }
 
-void JunctionCount::loadRef(std::istream &IN) {
+void JunctionCount::loadRef(std::istringstream &IN) {
 	// ChrName, Start, End, direction(+/-/.).
 	std::string myLine;
 	std::string myField;
@@ -90,7 +90,7 @@ void JunctionCount::ProcessBlocks(const FragmentBlocks &blocks) {
 	}
 }
 
-int JunctionCount::WriteOutput(std::ostream *os) const {
+int JunctionCount::WriteOutput(std::ostringstream *os) const {
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		string chr = itChr->first;
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
@@ -206,7 +206,7 @@ unsigned int JunctionCount::lookupRight(std::string ChrName, unsigned int right)
 
 
 
-int SpansPoint::WriteOutput(std::ostream *os) const {
+int SpansPoint::WriteOutput(std::ostringstream *os) const {
 	for (auto itChrPos=chrName_pos.begin(); itChrPos!=chrName_pos.end(); itChrPos++) {
 		string chr = itChrPos->first;
 
@@ -284,7 +284,7 @@ void SpansPoint::ProcessBlocks(const FragmentBlocks &blocks) {
 }
 
 
-void SpansPoint::loadRef(std::istream &IN) {
+void SpansPoint::loadRef(std::istringstream &IN) {
 	// TODO: will we ever want to store some additional info -- eg: String name of each position? Not right now.
 	std::string myLine;
 	std::string myField;
@@ -354,7 +354,7 @@ void FragmentsInROI::ChrMapUpdate(const std::vector<std::string> &chrmap) {
 	}
 }
 
-int FragmentsInROI::WriteOutput(std::ostream *os) const {
+int FragmentsInROI::WriteOutput(std::ostringstream *os) const {
 	for (std::map<string, unsigned long>::const_iterator itID=RegionID_counter[1].begin(); itID!=RegionID_counter[1].end(); ++itID) {
 		*os << itID->first << "\t" << (itID->second + RegionID_counter[0].at(itID->first)) << "\t" << itID->second << "\t" << RegionID_counter[0].at(itID->first) << "\n";
 		//Outputs tab separated: ROIname, total hits, positive-strand hits, negative-strand hits.
@@ -362,7 +362,7 @@ int FragmentsInROI::WriteOutput(std::ostream *os) const {
 	return 0;
 }
 
-void FragmentsInROI::loadRef(std::istream &IN) {
+void FragmentsInROI::loadRef(std::istringstream &IN) {
 
 	std::string myLine;
 	std::string myField;
@@ -447,7 +447,7 @@ void FragmentsInChr::ChrMapUpdate(const std::vector<string> &chrmap) {
 	}
 }
 
-int FragmentsInChr::WriteOutput(std::ostream *os) const {
+int FragmentsInChr::WriteOutput(std::ostringstream *os) const {
 	for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
 		*os << itChr->first << "\t"
 			<< ((itChr->second)[1] + (itChr->second)[0]) << "\t"

@@ -1,7 +1,7 @@
 #include "ReadBlockProcessor_CoverageBlocks.h"
 #include "includedefine.h"
 
-void CoverageBlocks::loadRef(std::istream &IN) {
+void CoverageBlocks::loadRef(std::istringstream &IN) {
 	std::string myLine;
 	std::string myField;
 	myLine.reserve(1000);
@@ -270,7 +270,7 @@ double CoverageBlocks::trimmedMeanFromHist(const std::map<unsigned int,unsigned 
 
 
 
-int CoverageBlocks::WriteOutput(std::ostream *os) const {
+int CoverageBlocks::WriteOutput(std::ostringstream *os) const {
 
 // This output function will be generic -- outputting Chr/Start/Stop/Name/Dir/ Score - Mean50 (that bit probably cmd line customisable).
 // The output we need will be in the extended class.
