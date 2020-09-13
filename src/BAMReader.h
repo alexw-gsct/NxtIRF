@@ -18,6 +18,9 @@ class BAMReader {
         int IS_EOF;
         int IS_FAIL;
         
+        int IS_LENGTH;
+        int EOF_POS;
+        
  		static const int bamEOFlength = 28;
 		static const char bamEOF[bamEOFlength+1];
 
@@ -32,7 +35,8 @@ class BAMReader {
 			char c[2];
 			int16_t i;
 		};
-
+        
+        // bool eof_check();
        
     public:
         BAMReader();

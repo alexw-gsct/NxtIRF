@@ -1,6 +1,9 @@
 #include <stddef.h>
 #include "BAMReader.h"
 
+#include "RcppArmadillo.h"
+using namespace Rcpp;
+
 const char BAMReader::bamEOF[BAMReader::bamEOFlength+1] =
 		"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00\x1b\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 const char BAMReader::bamGzipHead[BAMReader::bamGzipHeadLength+1] = 
@@ -12,37 +15,50 @@ BAMReader::BAMReader() {
     bufferMax = 0;
     IS_EOF = 0;
     IS_FAIL = 0;
+    IS_LENGTH = 0;
 }
 
 
 void BAMReader::SetInputHandle(std::istream *in_stream) {
 	IN = in_stream;
+    // get length of file:
+    IN->seekg (0, std::ios_base::end);
+    IS_LENGTH = IN->tellg();
+    
+    // Check EOF bit
+    IN->seekg (-bamEOFlength, std::ios_base::end);
+    
+    char check_eof_buffer[BAMReader::bamEOFlength+1];
+    IN->read(check_eof_buffer, bamEOFlength);
+         
+    if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
+        EOF_POS = IS_LENGTH - bamEOFlength;
+        Rcout << "EOF detected at position: " << EOF_POS << "\n";
+    } else {
+        Rcout << "EOF bit not detected\n";
+        EOF_POS = 0;
+    }
+    IN->seekg (0, std::ios_base::beg);    
 }
 
 int BAMReader::LoadBuffer() {
     
-    // int ret;
-
-    // cout << "reading buffer\t";
-
-    stream_int16 myInt16;
-    // discard bam gzip head
-    IN->ignore(bamGzipHeadLength);
-    IN->read(myInt16.c, 2);
-
-    // cout << myInt16.i << '\t';
-
     // read compressed buffer
-    if(IN->eof()) {
+    if(IN->tellg() >= EOF_POS) {
         IS_EOF = 1;
         return(0);
     } else if(IN->fail()) {
         IS_FAIL = 1;
         return(0);
     }
+
+    stream_int16 myInt16;
+    // discard bam gzip head. TODO: check bamGzipHead and return error if wrong
+    IN->ignore(bamGzipHeadLength);
+    IN->read(myInt16.c, 2);
+
     
     IN->read(compressed_buffer, myInt16.i + 1 - 2  - bamGzipHeadLength);
-    // IN->ignore(8);
 
     bufferMax = 65536;
     z_stream zs;
@@ -74,8 +90,6 @@ int BAMReader::LoadBuffer() {
     // cout << "CRC = " << crc << '\t';
 
     bufferPos = 0;
-    
-    // cout << '\n';
     
     return(ret);
 }
@@ -129,9 +143,17 @@ int BAMReader::ignore(unsigned int len) {
     return(0);
 }
 
-
 bool BAMReader::eof() {
-    return(IN->eof());
+    if(IS_EOF == 1) {
+        return (true);
+    } else {
+        if(IN->eof()) {
+            IS_EOF = 1;
+            return (true);
+        } else {
+            return (false);
+        }
+    }
 }
 
 bool BAMReader::fail() {

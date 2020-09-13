@@ -1,14 +1,10 @@
 # wrappers to R/C++
 
 #' @export
-run_IRFinder = function(bamfile = "Unsorted.bam", ref_path = "./REF", output_path = "./Output") {
+run_IRFinder = function(bamfile = "Unsorted.bam", ref_file = "./IRFinder.ref", output_file = "./Output.txt") {
   s_bam = normalizePath(bamfile)
-  s_ref = normalizePath(ref_path)
-  if(substr(output_path, nchar(output_path), nchar(output_path)) == "/") {
-    s_output = normalizePath(paste0(output_path, ".."))
-  } else {
-    s_output = normalizePath(paste(output_path, "..", sep="/"))
-  }
+  s_ref = normalizePath(ref_file)
+  s_output = normalizePath(output_file)
   system.time({
     IRF_main(s_bam, s_ref, s_output)
   })
