@@ -10,6 +10,7 @@ bool FastaReader::ReadSeq() {
   std::string sequence_raw;
   std::string line;
   std::string subline;
+  std::string subline2;
   
   sequence.clear();
   if(FirstSeq) {
@@ -21,10 +22,14 @@ bool FastaReader::ReadSeq() {
   
   std::stringstream sn(sequence_raw);
   while(std::getline(sn, line, '\n')){
+    // remove /r
     std::stringstream sl(line);
-    while(std::getline(sl, subline, ' ')){
+    while(std::getline(sl, subline, '\r')){
     // append subline to sequence
-      sequence.append(subline);
+    std::stringstream sl2(subline);
+      while(std::getline(sl2, subline2, ' ')){
+        sequence.append(subline2);
+      }
     }
   }
 }

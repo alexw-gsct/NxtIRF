@@ -22,19 +22,16 @@ BAM2blocks::BAM2blocks() {
 void BAM2blocks::readBamHeader() {
   char buffer[1000];
   std::string chrName;
-  //std::vector<std::string> chr_names;
-  bam_header bamhead;
 
-   cout << "reading header...\n";
+  bam_header bamhead;
 
   IN->read(bamhead.c, BAM_HEADER_BYTES);
 
-
-  //IN->ignore(bamhead.l_text);
-  char headertext[bamhead.l_text+1];
+  char * headertext = new char[bamhead.l_text+1];
   IN->read(headertext, bamhead.l_text);
   samHeader = string(headertext, bamhead.l_text);
-
+  delete headertext;
+  
   stream_int32 i32;
   IN->read(i32.c ,4);
   unsigned int n_chr = i32.i;
@@ -48,8 +45,6 @@ void BAM2blocks::readBamHeader() {
     IN->read(i32.c ,4);
     chr_lens.push_back(i32.i);
   }
-  
-  // cout << samHeader << '\n';
   
 	for (auto & callback : callbacksChrMappingChange ) {
 		callback(chr_names);
@@ -260,6 +255,7 @@ int BAM2blocks::processAll() {
 	while(1) {
 		j++;
 		if (IN->eof() && !(IN->fail()) ) {
+            cErrorReads = spare_reads.size();
 			cout << "Total reads processed: " << j-1 << endl;
 			cout << "Total nucleotides: " << totalNucleotides << endl;
 			cout << "Total singles processed: " << cSingleReads << endl;
@@ -268,11 +264,12 @@ int BAM2blocks::processAll() {
 			cout << "Intersect pairs: " << cIntersectPairs << endl;
 			cout << "Long pairs: " << cLongPairs << endl;
 			cout << "Skipped reads: " << cSkippedReads << endl;
-			cout << "Error reads: " << cErrorReads << endl;
+			cout << "Error / Unpaired reads: " << cErrorReads << endl;
 			return(0);   
 		}
 		IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
 		if (IN->fail()) {
+            cErrorReads = spare_reads.size();
 			cerr << "Input error at line:" << j << endl;
 			// cerr << "Characters read on last read call:" << IN->gcount() << endl;
 			cout << "ERR-Total reads processed: " << j-1 << endl;
@@ -283,7 +280,7 @@ int BAM2blocks::processAll() {
 			cout << "ERR-Intersect pairs: " << cIntersectPairs << endl;
 			cout << "ERR-Long pairs: " << cLongPairs << endl;
 			cout << "ERR-Skipped reads: " << cSkippedReads << endl;
-			cout << "ERR-Error reads: " << cErrorReads << endl;
+			cout << "ERR-Error / Unpaired reads: " << cErrorReads << endl;
 			return(1);
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.
@@ -303,35 +300,24 @@ int BAM2blocks::processAll() {
 			totalNucleotides += processSingle(&reads[idx]);
 		}else{
 			/* If it is potentially a paired read, store it in our buffer, process the pair together when it is complete */
-			pair++;
 
-			if (pair >= 2) {
-				//There are now 2 reads sitting in the buffer. Maybe they are a true pair.
-				if (reads[0].refID == reads[1].refID
-						&& reads[0].l_read_name == reads[1].l_read_name
-						&& strncmp(reads[0].read_name, reads[1].read_name, reads[0].l_read_name)==0) {
-					cPairedReads ++;
-					if (reads[0].pos <= reads[1].pos) {
-						//cout << "procesPair call1" << endl;        
-						totalNucleotides += processPair(&reads[0], &reads[1]);
-					}else{
-						//cout << "procesPair call2" << endl;                
-						totalNucleotides += processPair(&reads[1], &reads[0]);
-					}
-					pair = 0;
-				}else{
-					cErrorReads++;
-					//Bad pair? TODO.
-					//The most likely cause is the user has provided a sorted BAM file, rather than one with reads of the pair next to each other. The ErrorReads counter implies this, and can be picked up by the cleanup QC script.
-					// Process as a single?
-					// Increment error counter?
-					// -- for single end read we are expecting to process as a single.
-					// -- need to eat the oldest & process it, allow the next to potentially pair.
-				}
-			}    
-			//The index is only moved in case of pair storage.
-			idx++;
-			if (idx > 1) idx = 0;
+            std::string read_name = string(reads[0].read_name);
+            auto it_read = spare_reads.find(read_name);
+            
+            if(it_read != spare_reads.end()){
+                cPairedReads ++;
+                if (reads[0].pos <= it_read->second.pos) {
+                    //cout << "procesPair call1" << endl;        
+                    totalNucleotides += processPair(&reads[0], &(it_read->second));
+                    spare_reads.erase(read_name);
+                }else{
+                    //cout << "procesPair call2" << endl;                
+                    totalNucleotides += processPair(&(it_read->second), &reads[0]);
+                    spare_reads.erase(read_name);
+                }                
+            } else {
+                spare_reads[read_name] = reads[0];
+            }
 		}
 	}
 	return(0);

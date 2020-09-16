@@ -6,6 +6,18 @@
 
 using namespace Rcpp;
 
+// IRF_gunzip
+int IRF_gunzip(std::string s_in, std::string s_out);
+RcppExport SEXP _rIRFinder_IRF_gunzip(SEXP s_inSEXP, SEXP s_outSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type s_in(s_inSEXP);
+    Rcpp::traits::input_parameter< std::string >::type s_out(s_outSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_gunzip(s_in, s_out));
+    return rcpp_result_gen;
+END_RCPP
+}
 // IRF_main
 int IRF_main(std::string bam_file, std::string reference_file, std::string output_file);
 RcppExport SEXP _rIRFinder_IRF_main(SEXP bam_fileSEXP, SEXP reference_fileSEXP, SEXP output_fileSEXP) {
@@ -19,26 +31,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// test_read_error
-std::string test_read_error(std::string sequence);
-RcppExport SEXP _rIRFinder_test_read_error(SEXP sequenceSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< std::string >::type sequence(sequenceSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_read_error(sequence));
-    return rcpp_result_gen;
-END_RCPP
-}
-// IRF_PolishGenome
-int IRF_PolishGenome(std::string genome_file, std::string out_fa);
-RcppExport SEXP _rIRFinder_IRF_PolishGenome(SEXP genome_fileSEXP, SEXP out_faSEXP) {
+// IRF_SupplyMappaRegionReads
+int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file, std::string out_fa, int read_len, int read_stride, int error_pos);
+RcppExport SEXP _rIRFinder_IRF_SupplyMappaRegionReads(SEXP genome_fileSEXP, SEXP region_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type genome_file(genome_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type region_file(region_fileSEXP);
     Rcpp::traits::input_parameter< std::string >::type out_fa(out_faSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_PolishGenome(genome_file, out_fa));
+    Rcpp::traits::input_parameter< int >::type read_len(read_lenSEXP);
+    Rcpp::traits::input_parameter< int >::type read_stride(read_strideSEXP);
+    Rcpp::traits::input_parameter< int >::type error_pos(error_posSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_SupplyMappaRegionReads(genome_file, region_file, out_fa, read_len, read_stride, error_pos));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -114,9 +119,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rIRFinder_IRF_gunzip", (DL_FUNC) &_rIRFinder_IRF_gunzip, 2},
     {"_rIRFinder_IRF_main", (DL_FUNC) &_rIRFinder_IRF_main, 3},
-    {"_rIRFinder_test_read_error", (DL_FUNC) &_rIRFinder_test_read_error, 1},
-    {"_rIRFinder_IRF_PolishGenome", (DL_FUNC) &_rIRFinder_IRF_PolishGenome, 2},
+    {"_rIRFinder_IRF_SupplyMappaRegionReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaRegionReads, 6},
     {"_rIRFinder_IRF_SupplyMappaReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaReads, 5},
     {"_rIRFinder_IRF_genmap", (DL_FUNC) &_rIRFinder_IRF_genmap, 2},
     {"_rIRFinder_rcpparma_hello_world", (DL_FUNC) &_rIRFinder_rcpparma_hello_world, 0},

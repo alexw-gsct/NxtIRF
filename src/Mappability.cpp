@@ -107,16 +107,6 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
   return(string(new_read));
 }
 
-// [[Rcpp::export]]
-std::string test_read_error(std::string sequence) {
-  
-  char * buffer = new char[sequence.length() + 1];
-  std::strcpy (buffer, sequence.c_str());
-  std::string s_return = GenerateReadError(buffer, sequence.length(), 1, 1, 1);
-  delete buffer;
-  return(s_return);
-}
-
 bool checkDNA(const std::string& strand) {
   unsigned short size = strand.size();
   for(unsigned short i=0; i<size; ++i) {
@@ -128,52 +118,106 @@ bool checkDNA(const std::string& strand) {
 }
 
 // [[Rcpp::export]]
-int IRF_PolishGenome(std::string genome_file, std::string out_fa) {
-  // reads genome file and outputs 100 bases per line (for Rsubread compatibility) 
+int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file, std::string out_fa, 
+                               int read_len, int read_stride, int error_pos) {
+  
   std::ifstream inGenome;
   inGenome.open(genome_file, std::ifstream::in);
-
+  FastaReader inFA;
+  inFA.SetInputHandle(&inGenome);
+  
   std::ofstream outFA;
   outFA.open(out_fa, std::ofstream::binary);
+  GZWriter outGZ;
+  outGZ.SetOutputHandle(&outFA);
+  
+  std::ifstream inRegions;
+  inRegions.open(region_file, std::ifstream::in);
+  
+  string myLine;
+  string myField;
+  std::map< std::string, std::vector< std::pair<unsigned int,unsigned int> > > region_list;
+  while(!inRegions.eof() && !inRegions.fail()) {
+    int start;
+    int end;
+    string s_chr;
+    
+    std::getline(inRegions, myLine, '\n');
+    std::stringstream region_line(myLine);
+    
+    std::getline(region_line, s_chr, '\t');
+    std::getline(region_line, myField, '\t');
+    start = stol(myField);
+    std::getline(region_line, myField, '\t');
+    end = stol(myField);
+    if(start == end) break;
+    region_list[s_chr].push_back(std::make_pair(start, end));
+  }
+  inRegions.close();
+  
+  unsigned int direction = 0;
+  char * read = new char[read_len + 1];
+  unsigned int seed = 0;
   
   string chr;
   string sequence;
   
-  FastaReader inFA;
-  inFA.SetInputHandle(&inGenome);
-
-  char line_buffer[101];
-
+  
   while(!inGenome.eof() && !inGenome.fail()) {
-    // getline(inGenome, myLine, '>');
-    // getline(inGenome, chr, '\n');
-    // getline(inGenome, sequence, '\n');
+    
     inFA.ReadSeq();
     sequence = inFA.sequence;
     chr = inFA.seqname;
 
-    outFA << ">" << chr << '\n';
+    std::map< std::string, std::vector< std::pair<unsigned int,unsigned int> > >::iterator it_chr;
+    it_chr = region_list.find(chr);
+
     
-    char * buffer = new char[sequence.size() + 1];
-    strcpy(buffer, sequence.c_str());
-    
-    for(unsigned int i = 0; i < sequence.size(); i += 100) {
-//      memcpy(&line_buffer[0], buffer + i, 101);
-      if(i + 100 < sequence.size()) {
-        outFA.write(buffer + i, 100);
-        outFA << '\n';
-      } else {
-        outFA.write(buffer + i, sequence.size() - i);
-        outFA << '\n';
+    if(it_chr != region_list.end()) {
+
+      char * buffer = new char[sequence.length() + 1];
+      std::strcpy (buffer, sequence.c_str());
+      
+      // Iterate through each element in vector
+      for(auto it_region = it_chr->second.begin(); it_region!=it_chr->second.end(); it_region++) {
+
+        for(unsigned int bufferPos = it_region->first; (bufferPos < it_region->second - read_len - 1); bufferPos += read_stride) {
+          memcpy(read, &buffer[bufferPos - 1], read_len);
+          
+          if(checkDNA(string(read))) {
+            std::string write_name;
+            write_name = (direction == 0 ? ">RF!" : ">RR!");
+            write_name.append(chr);
+            write_name.append("!");
+            write_name.append(std::to_string(bufferPos));
+            outGZ.writeline(write_name);
+            //        read_names.push_back(write_name);
+            std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
+            outGZ.writeline(write_seq);
+            //        read_seqs.push_back(write_seq);
+            seed += 1;
+            direction = (direction == 0 ? 1 : 0);
+          }
+           
+          if((seed % 1000000 == 0) & (seed > 0)) {
+            Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
+          }
+        }
+       
       }
+      delete buffer;
     }
-    delete buffer;
   }
+  delete read;
+  
   inGenome.close();
+  outGZ.flush(1); 
   outFA.flush();
   outFA.close();
-}
   
+  return(0);
+}
+
 
 // [[Rcpp::export]]
 int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos) {
@@ -190,9 +234,6 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
   char * read = new char[read_len + 1];
   unsigned int seed = 0;
   
-//  Rcpp::StringVector read_names;
-//  Rcpp::StringVector read_seqs;
-  
   string myLine;
   string chr;
   string sequence;
@@ -201,9 +242,7 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
   inFA.SetInputHandle(&inGenome);
   
   while(!inGenome.eof() && !inGenome.fail()) {
-    // getline(inGenome, myLine, '>');
-    // getline(inGenome, chr, '\n');
-    // getline(inGenome, sequence, '\n');
+
     inFA.ReadSeq();
     sequence = inFA.sequence;
     chr = inFA.seqname;

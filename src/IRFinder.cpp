@@ -6,10 +6,33 @@
 #include "ReadBlockProcessor_OutputBAM.h"
 #include "BAM2blocks.h"
 #include "includedefine.h"
+#include "GZReader.h"
+
+#include <zlib.h>
+
 
 using namespace Rcpp;
 
 // [[Rcpp::depends(RcppArmadillo)]]
+
+// [[Rcpp::export]]
+int IRF_gunzip(std::string s_in, std::string s_out) {
+  
+  GZReader gz_in;
+  gz_in.LoadGZ(s_in);
+  
+  std::ofstream out;
+  out.open(s_out, std::ifstream::out);
+  std::string myLine;
+  
+  while(!gz_in.iss.eof()) {
+    getline(gz_in.iss, myLine, '\n');
+    out << myLine << "\n";
+  }
+  out.flush(); out.close();
+  
+  return(0);
+}
 
 // [[Rcpp::export]]
 int IRF_main(std::string bam_file, std::string reference_file, std::string output_file){
@@ -27,23 +50,27 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
 
     // Read single reference file:
   
-  std::ifstream inRef;
+/*
+   std::ifstream inRef;
   inRef.open(s_ref, std::ifstream::in);
+*/
+    GZReader gz_in;
+    gz_in.LoadGZ(reference_file);
 
     std::string myLine;
     std::string myBuffer;
     
-    getline(inRef, myLine, '>');    // discard first >
-    getline(inRef, myLine, '\n');   // ignore file names for now
-    getline(inRef, myBuffer, '>');  // this is the data block for ref-cover.bed
+    getline(gz_in.iss, myLine, '>');    // discard first >
+    getline(gz_in.iss, myLine, '\n');   // ignore file names for now
+    getline(gz_in.iss, myBuffer, '>');  // this is the data block for ref-cover.bed
 
   CoverageBlocksIRFinder oCoverageBlocks;
   std::istringstream inCoverageBlocks;
   inCoverageBlocks.str(myBuffer);
   oCoverageBlocks.loadRef(inCoverageBlocks);
 
-    getline(inRef, myLine, '\n');
-    getline(inRef, myBuffer, '>');
+    getline(gz_in.iss, myLine, '\n');
+    getline(gz_in.iss, myBuffer, '>');
 
   SpansPoint oSpansPoint;
   oSpansPoint.setSpanLength(5,4);
@@ -51,8 +78,8 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   inSpansPoint.str(myBuffer);
   oSpansPoint.loadRef(inSpansPoint);
 
-    getline(inRef, myLine, '\n');
-    getline(inRef, myBuffer, '>');
+    getline(gz_in.iss, myLine, '\n');
+    getline(gz_in.iss, myBuffer, '>');
   
   FragmentsInROI oFragmentsInROI;
   FragmentsInChr oFragmentsInChr;
@@ -61,16 +88,17 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
     inFragmentsInROI.str(myBuffer);
     oFragmentsInROI.loadRef(inFragmentsInROI);
 
-    getline(inRef, myLine, '\n');
-    getline(inRef, myBuffer, '>');
+    getline(gz_in.iss, myLine, '\n');
+    getline(gz_in.iss, myBuffer, '>');
 
   JunctionCount oJuncCount;
   std::istringstream inJuncCount;
   inJuncCount.str(myBuffer);
   oJuncCount.loadRef(inJuncCount);
   // inJuncCount.close();
+  /*
   inRef.close();  
-
+  */
   // FragmentsInROI oFragmentsInROI;
   // FragmentsInChr oFragmentsInChr;
   

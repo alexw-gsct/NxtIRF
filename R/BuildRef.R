@@ -23,19 +23,7 @@ FetchAnnotation <- function(ah_genome = "AH65745", ah_transcriptome = "AH64631",
         genome.seq = getSeq(genome, GenomicRanges::makeGRangesFromDataFrame(gr.df))
         names(genome.seq) = chrOrder
         rtracklayer::export(genome.seq, genome.fasta, "fasta")
-        # Rsamtools::indexFa(genome.fasta)
-        # for(chr_i in seq_len(length(chrOrder))) {
-            # chr = chrOrder[chr_i]
-            # maxlen = seqinfo(genome)[chrOrder[chr_i]]@seqlengths
-            # gr = GRanges(seqnames = chr, ranges = IRanges(1, maxlen))
-            # seq.df = data.frame(
-                # name = paste0(">",chr), seq = Biostrings::DNAStringSet(getSeq(genome, gr)))
-            # data.table::fwrite(seq.df, file = genome.fasta.tmp, append = file.exists(genome.fasta.tmp),
-                # sep= "\n", eol = "\n", col.names = FALSE)
-        # }
-        # message(paste("Cleaning and processing ",genome.fasta))
-        # run_IRFinder_CleanFasta(genome.fasta.tmp, genome.fasta)
-        # file.remove(genome.fasta.tmp)
+
         message(paste("Genome fasta file written to ",genome.fasta))
     }
     
@@ -54,6 +42,51 @@ FetchAnnotation <- function(ah_genome = "AH65745", ah_transcriptome = "AH64631",
     }
 }
 
+#' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
+#'
+#' @export
+GenerateMappability <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_transcriptome = "",
+    reference_path = "./Reference", read_len = 70, read_stride = 10, error_pos = 35,
+    verbose = FALSE) {
+
+    if(ah_transcriptome != "") {
+        assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
+            msg = "Given transcriptome AnnotationHub reference is incorrect")
+            if(!exists("ah")) {
+                message("Loading AnnotationHub")            
+                ah = AnnotationHub::AnnotationHub()
+            }
+            message("Reading AnnotationHub GTF file...", appendLF = F)
+            gtf.gr = ah[[ah_transcriptome]]
+            message("done\n")
+    } else {
+        assertthat::assert_that(file.exists(normalizePath(gtf)),
+            msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
+        message("Reading source GTF file...", appendLF = F)
+        gtf.gr = rtracklayer::import(gtf)
+        message("done\n")
+    }
+    
+# Build regions of overlapping genes
+    Genes = gtf.gr[gtf.gr$type == "gene"]
+    Genes <- GenomeInfoDb::sortSeqlevels(Genes)
+    Genes <- sort(Genes)
+ 
+    Genes.Regions = as.data.frame(GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 10000), 
+        GenomicRanges::flank(Genes, 10000, start = F)), ignore.strand=TRUE))
+    Regions.df = data.frame(seqnames = Genes.Regions$seqnames, start = Genes.Regions$start,
+        end = Genes.Regions$end)
+    Regions.df$start = ifelse(Regions.df$start < 1, 1, Regions.df)
+    Regions.df$start = Regions.df$start - 1
+    fwrite(Regions.df, sep = "\t", eol = "\n", col.names=F, 
+        file = paste0(normalizePath(reference_path), "/", "regions.to.map.txt"))
+        
+# Run map read generator:
+    run_IRFinder_GenerateMapRegionReads(fasta, paste0(normalizePath(reference_path), "/", "region.reads.fa.gz"), 
+        paste0(normalizePath(reference_path), "/", "regions.to.map.txt"), read_len, read_stride, error_pos)
+ 
+}
+
 #' Builds IRFinder Reference
 #'
 #' Builds reference files used by IRFinder / rIRFinder. Requires genome fasta and transcriptome gtf file
@@ -63,7 +96,7 @@ FetchAnnotation <- function(ah_genome = "AH65745", ah_transcriptome = "AH64631",
 #' @param reference_path: The directory to write the (r)/IRFinder reference files
 #' @return Nothing. The created reference will be written to the given directory
 #' @export
-BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", fasta_ah = "", gtf_ah = "",
+BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_genome = "", ah_transcriptome = "",
     reference_path = "./Reference",
     genome_type = "", nonPolyARef = "", MappabilityRef = "", BlacklistRef = "",
     FilterIRByProcessedTranscript = FALSE) {
@@ -109,13 +142,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", fasta_a
         BlacklistFile = BlacklistRef
     }
 
-    if(fasta_ah != "") {
-        assertthat::assert_that(substr(fasta_ah,1,2) == "AH",
+    if(ah_genome != "") {
+        assertthat::assert_that(substr(ah_genome,1,2) == "AH",
             msg = "Given genome AnnotationHub reference is incorrect")
         message("Loading AnnotationHub")            
         ah = AnnotationHub::AnnotationHub()
         message("Connecting to AnnotationHub genome...", appendLF = F)
-        genome = ah[[fasta_ah]]
+        genome = ah[[ah_genome]]
         genome_ah = TRUE
         message("done\n")
     } else {
@@ -126,15 +159,15 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", fasta_a
         genome_ah = FALSE
         message("done\n")
     }
-    if(gtf_ah != "") {
-        assertthat::assert_that(substr(gtf_ah,1,2) == "AH",
+    if(ah_transcriptome != "") {
+        assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
             if(!exists("ah")) {
                 message("Loading AnnotationHub")            
                 ah = AnnotationHub::AnnotationHub()
             }
             message("Reading AnnotationHub GTF file...", appendLF = F)
-            gtf.gr = ah[[gtf_ah]]
+            gtf.gr = ah[[ah_transcriptome]]
             message("done\n")
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
@@ -563,21 +596,21 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", fasta_a
     message("done\n")
     
 # Concatenate all 4 reference files into one file
-    data.table::fwrite(list(">ref-cover.bed"), paste(reference_path, "IRFinder.ref", sep="/"), 
+    data.table::fwrite(list(">ref-cover.bed"), paste(reference_path, "IRFinder.ref.gz", sep="/"), 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.cover, paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.cover, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-read-continues.ref"), paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-read-continues.ref"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(readcons, paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(readcons, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-ROI.bed"), paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-ROI.bed"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.ROI, paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.ROI, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-sj.ref"), paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-sj.ref"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.sj, paste(reference_path, "IRFinder.ref", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.sj, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
     
 # Annotating Alternative Splicing Events

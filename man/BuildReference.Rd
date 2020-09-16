@@ -7,8 +7,8 @@
 BuildReference(
   fasta = "genome.fa",
   gtf = "transcripts.gtf",
-  fasta_ah = "",
-  gtf_ah = "",
+  ah_genome = "",
+  ah_transcriptome = "",
   reference_path = "./Reference",
   genome_type = "",
   nonPolyARef = "",
