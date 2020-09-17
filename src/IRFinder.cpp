@@ -48,17 +48,15 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
     chr_names.push_back(chrName);
     f_in.read(i32.c ,4);
     chr_lens.push_back(i32.i);
-//    Rcout << chr_names[i] << " " << to_string(chr_lens[i]) << '\n';
   }
 
   List RLEList;
 
-   
   for(int j = 0; j < 3; j++) {
     for(int i = 0; i < n_chr; i++) {
       f_in.read(u32.c ,4);
       unsigned int block_size = u32.u;
-      Rcout << chr_names[i] << " block size " << block_size << '\n';
+//      Rcout << chr_names[i] << " block size " << block_size << '\n';
       if(j == strand) {
         
         std::vector<int> values;
