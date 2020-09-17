@@ -2,6 +2,10 @@
 #include "includedefine.h"
 // using namespace std;
 
+#include "RcppArmadillo.h"
+using namespace Rcpp;
+
+
 //chrName_junc_count holds the data structure -- ChrName(string) -> Junc Start/End -> count.
 //chrID_junc_count holds the ChrID -> ...
 //  where the ChrID is the ChrID relating to the appropriate ChrName, as understood by the currently processed BAM file.
@@ -458,10 +462,16 @@ int FragmentsInChr::WriteOutput(std::ostringstream *os) const {
 }
 
 void FragmentsMap::ChrMapUpdate(const std::vector<string> &chrmap) {
-  chrID_count.resize(0);
+  chrID_count[0].resize(0);
+  chrID_count[1].resize(0);
+  chrID_count[2].resize(0);
   for (unsigned int i = 0; i < chrmap.size(); i++) {
-    chrName_count[chrmap.at(i)].insert({0,0}); // Insert dummy pair
-    chrID_count.push_back( &chrName_count[chrmap.at(i)] );
+    chrName_count[0][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[0].push_back( &chrName_count[0][chrmap.at(i)] );
+    chrName_count[1][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[1].push_back( &chrName_count[1][chrmap.at(i)] );
+    chrName_count[2][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[2].push_back( &chrName_count[2][chrmap.at(i)] );
   }
 }
 
@@ -473,30 +483,139 @@ void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
   for (int index = 0; index < blocks.readCount; index ++) {
     //Walk each block within each read.
     for (unsigned int j = 0; j < blocks.rLens[index].size(); j++) {
-      it_position = (*chrID_count.at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j]);
-      if (it_position == (*chrID_count.at(blocks.chr_id)).end()) {
-        (*chrID_count.at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
+      // Stranded 
+      it_position = (*chrID_count[blocks.direction].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j]);
+      if (it_position == (*chrID_count[blocks.direction].at(blocks.chr_id)).end()) {
+        (*chrID_count[blocks.direction].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
       } else {
         it_position->second += 1;
         if(it_position->second == 0) {
-          (*chrID_count.at(blocks.chr_id)).erase(it_position);
+          (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
         }
       }
-      it_position = (*chrID_count.at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
-      if (it_position == (*chrID_count.at(blocks.chr_id)).end()) {
-        (*chrID_count.at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
+      it_position = (*chrID_count[blocks.direction].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
+      if (it_position == (*chrID_count[blocks.direction].at(blocks.chr_id)).end()) {
+        (*chrID_count[blocks.direction].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
       } else {
         it_position->second -= 1;
         if(it_position->second == 0) {
-          (*chrID_count.at(blocks.chr_id)).erase(it_position);
+          (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
+        }
+      }
+      // Unstranded 
+      it_position = (*chrID_count[2].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j]);
+      if (it_position == (*chrID_count[2].at(blocks.chr_id)).end()) {
+        (*chrID_count[2].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
+      } else {
+        it_position->second += 1;
+        if(it_position->second == 0) {
+          (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
+        }
+      }
+      it_position = (*chrID_count[2].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
+      if (it_position == (*chrID_count[2].at(blocks.chr_id)).end()) {
+        (*chrID_count[2].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
+      } else {
+        it_position->second -= 1;
+        if(it_position->second == 0) {
+          (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
         }
       }
     }
   }
 }
 
+int FragmentsMap::WriteBinary(std::ostream *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const {
+  // Write COV file as binary
+  char zero = '\0';
+  
+  // Issue is map constructs auto-sort
+  // Need to put chrs and lengths into a map structure
+  
+  std::map< std::string, int32_t > chrmap;
+  
+  for(unsigned int i = 0; i < chr_names.size(); i++) {
+      chrmap.insert({chr_names[i], chr_lens[i]});
+  }
+  
+  os->write("COV\x01",4);
+  
+  stream_uint32 u32;
+  stream_int32 i32;
+  i32.i = chrmap.size();
+  os->write(i32.c ,4);
+  for (auto chr = chrmap.begin(); chr != chrmap.end(); chr++) {
+    i32.i = chr->first.length() + 1;
+    os->write(i32.c ,4);
+    os->write(chr->first.c_str(), chr->first.length());
+
+    os->write(&zero, 1);
+    i32.i = chr->second;
+    os->write(i32.c ,4);
+  }
+
+  for(unsigned int j = 0; j < 3; j++) {
+    int refID = 0;
+    for (auto itChr=chrName_count[j].begin(); itChr!=chrName_count[j].end(); itChr++) {
+      char * buffer = new char[8 * itChr->second.size()];
+      unsigned int mempos = 0;
+      unsigned int coordpos = 0;
+      unsigned int coorddepth = 0;
+      bool writefirst = true;
+      // Write first entry
+      for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
+        if(writefirst) {
+          writefirst = false;
+          if(it_pos->first == 0) {
+            // Write coverage only
+            coorddepth += it_pos->second;
+            i32.i = coorddepth;
+            memcpy(&buffer[mempos], i32.c, 4);
+            mempos += 4;
+          } else {
+            coorddepth = 0;
+            // Write how long zero is for, then write coverage increment
+            i32.i = coorddepth;
+            memcpy(&buffer[mempos], i32.c, 4);
+            mempos += 4;
+            u32.u = it_pos->first;
+            memcpy(&buffer[mempos], u32.c, 4);
+            mempos += 4;
+            coorddepth += it_pos->second;
+            i32.i = coorddepth;
+            memcpy(&buffer[mempos], i32.c, 4);
+            mempos += 4;
+            coordpos = it_pos->first;
+          }
+        } else {
+          u32.u = it_pos->first - coordpos;
+          memcpy(&buffer[mempos], u32.c, 4);
+          mempos += 4;
+          coorddepth += it_pos->second;
+          i32.i = coorddepth;
+          memcpy(&buffer[mempos], i32.c, 4);
+          mempos += 4;
+          coordpos = it_pos->first;
+        }
+      }
+      // Write last entry for remainder of chromosome length
+      u32.u = chrmap[itChr->first] - coordpos;
+      memcpy(&buffer[mempos], u32.c, 4);
+      mempos += 4;
+      
+      // Finally write entire buffer to disk
+      u32.u = mempos;
+      os->write(u32.c,4);
+      os->write(buffer,mempos);
+      delete buffer;
+      refID += 1; 
+    }
+  }
+}
+
 int FragmentsMap::WriteOutput(std::ostream *os) const {
-  for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
+    // This is called on mappability
+  for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;
     bool covered = false;
     // std::sort( itChr->second.begin(), itChr->second.end() );
@@ -545,7 +664,9 @@ FragmentsInChr::~FragmentsInChr() {
 }
 
 FragmentsMap::~FragmentsMap() {
-  chrName_count.clear();
+  chrName_count[0].clear();
+  chrName_count[1].clear();
+  chrName_count[2].clear();
 }
 
 
