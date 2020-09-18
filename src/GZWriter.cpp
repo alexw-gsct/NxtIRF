@@ -83,11 +83,9 @@ int GZWriter::flush(bool final) {
     have = strm.total_out;
   
     OUT->write(compressed_buffer, have);
-    Rcout << "Write successful\n";
-    
+
     OUT->flush();
-    Rcout << "Flush successful\n";
-    
+
     deflateEnd(&strm);
     bufferPos=0;
   }
