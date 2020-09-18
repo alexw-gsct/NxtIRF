@@ -57,7 +57,7 @@ int GZWriter::flush(bool final) {
     ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
       std::ostringstream oss;
-      oss << "Exception during zlib initialization: (" << ret << ") ";
+      oss << "Exception during zlib initialization: (" << ret << ") "  << strm.msg;
       throw(std::runtime_error(oss.str()));
     }
     
@@ -72,9 +72,9 @@ int GZWriter::flush(bool final) {
 //    } else {
 //      ret = deflate(&strm, Z_FINISH);
 //    }
-  if (ret != Z_OK) {
+  if (ret != Z_OK && ret != Z_STREAM_END) {
     std::ostringstream oss;
-    oss << "Exception during zlib deflate: (" << ret << ") ";
+    oss << "Exception during zlib deflate: (" << ret << ") " << strm.msg;
     throw(std::runtime_error(oss.str()));
   }
 

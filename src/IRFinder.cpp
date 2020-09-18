@@ -248,8 +248,9 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   Rcout << "Writing output file\n";
 
   std::ofstream out;
-  out.open(s_output + ".txt.gz", std::ofstream::binary);
-
+  out.open(s_output + ".txt.gz", std::ios::binary);
+  Rcout << "Output file created\n";
+  
 // GZ compression:
   GZWriter outGZ;
   outGZ.SetOutputHandle(&out);
