@@ -279,7 +279,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   Rcout << "JuncCount written to ostringstream\n";
   outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
   Rcout << "JuncCount header written\n";
-  myLine = oJuncCount.str();
+  myLine = outJuncCount.str();
   outGZ.writebuffer(myLine.data(), myLine.size());
   outGZ.writeline("");
   Rcout << "JuncCount body written\n";
