@@ -253,7 +253,6 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   
 // GZ compression:
   GZWriter outGZ;
-  Rcout << "GZWriter Declared\n";
   outGZ.SetOutputHandle(&out);
 //  outGZ.Open(s_output + ".txt.gz");
 //  std::string myLine;   // already declared above
@@ -265,7 +264,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   outGZ.writeline("Directionality");
   outGZ.writeline(to_string(directionality));
   outGZ.writeline("");
-//  out << ">Directionality\n" << directionality << "\n\n";  
+  Rcout << ">Directionality\n" << directionality << "\n\n";  
     
   std::ostringstream outFragmentsInROI;
   oFragmentsInROI.WriteOutput(&outFragmentsInROI);
@@ -273,7 +272,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   myLine = outFragmentsInROI.str();
   outGZ.writebuffer(myLine.data(), myLine.size());
   outGZ.writeline("");
-//  out << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
+  Rcout << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
   
   std::ostringstream outJuncCount;
   oJuncCount.WriteOutput(&outJuncCount);
@@ -284,7 +283,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   myLine = outJuncCount.str();
   outGZ.writebuffer(myLine.data(), myLine.size());
   */
-// out << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
+  Rcout << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
   
   std::ostringstream outSpansPoint;
   oSpansPoint.WriteOutput(&outSpansPoint);
