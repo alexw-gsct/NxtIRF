@@ -56,17 +56,13 @@ int GZWriter::flush(bool final) {
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     
-    Rcout << "Preparing to initialize deflateInit2\n";
-    
     ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
       std::ostringstream oss;
       oss << "Exception during zlib initialization: (" << ret << ") "  << strm.msg;
       throw(std::runtime_error(oss.str()));
     }
-    Rcout << "DeflateInit2 successful\n";
-    
-  
+
     strm.avail_in = bufferPos;
     strm.next_in = (Bytef*)buffer;
     strm.avail_out = CHUNK_gz;
@@ -77,7 +73,6 @@ int GZWriter::flush(bool final) {
 //    } else {
 //      ret = deflate(&strm, Z_FINISH);
 //    }
-  Rcout << "Deflate successful\n";
 
   if (ret != Z_OK && ret != Z_STREAM_END) {
     std::ostringstream oss;
