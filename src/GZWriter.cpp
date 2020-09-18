@@ -3,7 +3,7 @@
 
 #include "RcppArmadillo.h"
 using namespace Rcpp;
-
+// [[Rcpp::depends(RcppArmadillo)]]
 
 GZWriter::GZWriter() {
   bufferPos = 0;
