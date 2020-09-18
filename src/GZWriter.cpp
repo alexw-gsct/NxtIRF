@@ -5,8 +5,14 @@
 using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
-GZWriter::GZWriter() {
+GZWriter::GZWriter(int level) {
   bufferPos = 0;
+  compression_level = level;
+  if(compression_level > 9) {
+    compression_level = 9;
+  } else if(compression_level < -1) {
+    compression_level = -1;
+  }
 }
 void GZWriter::SetOutputHandle(std::ostream *out_stream) {
   OUT = out_stream;
@@ -56,7 +62,7 @@ int GZWriter::flush(bool final) {
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
+    ret = deflateInit2(&strm, compression_level, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
       std::ostringstream oss;
       oss << "Exception during zlib initialization: (" << ret << ") "  << strm.msg;

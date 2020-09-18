@@ -18,9 +18,9 @@ private:
   
   char buffer[CHUNK_gz];
   unsigned int bufferPos;
-  
+  int compression_level;
 public:
-  GZWriter();
+  GZWriter(int level = 6);
   void SetOutputHandle(std::ostream *out_stream);
 //  int Open(const std::string s_file);
   int writebuffer(const char * src, unsigned int len);
