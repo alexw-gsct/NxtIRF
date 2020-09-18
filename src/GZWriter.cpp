@@ -2,6 +2,8 @@
 #include <stdexcept>
 
 #include "RcppArmadillo.h"
+using namespace Rcpp;
+
 
 GZWriter::GZWriter() {
   bufferPos = 0;
