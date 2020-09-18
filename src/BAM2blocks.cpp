@@ -244,28 +244,27 @@ unsigned int BAM2blocks::processSingle(bam_read_core * read1) {
 
 
 
-int BAM2blocks::processAll(std::ostringstream *os) {
+int BAM2blocks::processAll() {
 
 	unsigned long long totalNucleotides = 0;
 	unsigned long j = 0;
 	int idx = 0;
-	// int pair = 0;
+	int pair = 0;
 	//int bytesread = 0;
-	
+  
 	while(1) {
 		j++;
 		if (IN->eof() && !(IN->fail()) ) {
             cErrorReads = spare_reads.size();
-			*os << "Total reads processed\t" << j-1 << '\n';
-			*os << "Total nucleotides\t" << totalNucleotides << '\n';
-			*os << "Total singles processed\t" << cSingleReads << '\n';
-			*os << "Total pairs processed\t" << cShortPairs+cIntersectPairs+cLongPairs << '\n';
-			*os << "Short pairs\t" << cShortPairs << '\n';
-			*os << "Intersect pairs\t" << cIntersectPairs << '\n';
-			*os << "Long pairs\t" << cLongPairs << '\n';
-			*os << "Skipped reads\t" << cSkippedReads << '\n';
-			*os << "Error / Unpaired reads\t" << cErrorReads << '\n';
-			*os << "BAM error at line\t" << "NA" << '\n';
+			cout << "Total reads processed: " << j-1 << endl;
+			cout << "Total nucleotides: " << totalNucleotides << endl;
+			cout << "Total singles processed: " << cSingleReads << endl;
+			cout << "Total pairs processed: " << cShortPairs+cIntersectPairs+cLongPairs << endl;
+			cout << "Short pairs: " << cShortPairs << endl;
+			cout << "Intersect pairs: " << cIntersectPairs << endl;
+			cout << "Long pairs: " << cLongPairs << endl;
+			cout << "Skipped reads: " << cSkippedReads << endl;
+			cout << "Error / Unpaired reads: " << cErrorReads << endl;
 			return(0);   
 		}
 		IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
@@ -273,16 +272,15 @@ int BAM2blocks::processAll(std::ostringstream *os) {
             cErrorReads = spare_reads.size();
 			cerr << "Input error at line:" << j << endl;
 			// cerr << "Characters read on last read call:" << IN->gcount() << endl;
-			*os << "Total reads processed\t" << j-1 << '\n';
-			*os << "Total nucleotides\t" << totalNucleotides << '\n';
-			*os << "Total singles processed\t" << cSingleReads << '\n';
-			*os << "Total pairs processed\t" << cShortPairs+cIntersectPairs+cLongPairs << '\n';
-			*os << "Short pairs\t" << cShortPairs << '\n';
-			*os << "Intersect pairs\t" << cIntersectPairs << '\n';
-			*os << "Long pairs\t" << cLongPairs << '\n';
-			*os << "Skipped reads\t" << cSkippedReads << '\n';
-			*os << "Error / Unpaired reads\t" << cErrorReads << '\n';
-			*os << "BAM error at line\t" << to_string(j) << '\n';
+			cout << "ERR-Total reads processed: " << j-1 << endl;
+			cout << "ERR-Total nucleotides: " << totalNucleotides << endl;
+			cout << "ERR-Total singles processed: " << cSingleReads << endl;
+			cout << "ERR-Total pairs processed: " << cShortPairs+cIntersectPairs+cLongPairs << endl;
+			cout << "ERR-Short pairs: " << cShortPairs << endl;
+			cout << "ERR-Intersect pairs: " << cIntersectPairs << endl;
+			cout << "ERR-Long pairs: " << cLongPairs << endl;
+			cout << "ERR-Skipped reads: " << cSkippedReads << endl;
+			cout << "ERR-Error / Unpaired reads: " << cErrorReads << endl;
 			return(1);
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.
