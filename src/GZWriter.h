@@ -7,7 +7,7 @@
 #include <zlib.h>
 #include "includedefine.h"
 
-#define CHUNK_gz 262144
+#define CHUNK_gz 65536
 
 class GZWriter {
 private:

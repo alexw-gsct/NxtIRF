@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include "includedefine.h"
 
-#define CHUNK_gz 262144
+#define CHUNK_gz 65536
 
 class GZReader {
 private:
