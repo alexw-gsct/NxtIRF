@@ -1,5 +1,6 @@
 #include "GZWriter.h"
-  
+#include <stdexcept>
+
 #include "RcppArmadillo.h"
 
 GZWriter::GZWriter() {
@@ -53,18 +54,30 @@ int GZWriter::flush(bool final) {
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     
-    deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
+    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
+    if (ret != Z_OK) {
+      std::ostringstream oss;
+      oss << "Exception during zlib initialization: (" << ret << ") ";
+      throw(std::runtime_error(oss.str()));
+    }
+    
   
     strm.avail_in = bufferPos;
     strm.next_in = (Bytef*)buffer;
     strm.avail_out = CHUNK_gz;
     strm.next_out = (Bytef*)compressed_buffer;
     
-    if(final == 0) {
+//    if(final == 0) {
       ret = deflate(&strm, Z_FINISH);  
-    } else {
-      ret = deflate(&strm, Z_FINISH);
-    }
+//    } else {
+//      ret = deflate(&strm, Z_FINISH);
+//    }
+  if (ret != Z_OK) {
+    std::ostringstream oss;
+    oss << "Exception during zlib deflate: (" << ret << ") ";
+    throw(std::runtime_error(oss.str()));
+  }
+
     have = strm.total_out;
   
     OUT->write(compressed_buffer, have);
