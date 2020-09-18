@@ -12,7 +12,8 @@
 class GZWriter {
 private:
   ostream * OUT;
-
+//  gzFile gz_out;
+  
   char compressed_buffer[CHUNK_gz];
   
   char buffer[CHUNK_gz];
@@ -21,7 +22,8 @@ private:
 public:
   GZWriter();
   void SetOutputHandle(std::ostream *out_stream);
-  int writebuffer(char * src, unsigned int len);
-  int writeline(std::string s_src);
-  int flush(int final = 0);
+//  int Open(const std::string s_file);
+  int writebuffer(const char * src, unsigned int len);
+  int writeline(const std::string s_src);
+  int flush(bool final = false);
 };

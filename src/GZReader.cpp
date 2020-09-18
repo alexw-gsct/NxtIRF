@@ -6,9 +6,15 @@
   using namespace Rcpp;
   
 GZReader::GZReader() {
+  bufferLen = 0;
+  bufferPos = 0;
 }
 
-void GZReader::LoadGZ(std::string s_filename) {
+GZReader::~GZReader() {
+  delete buffer;
+}
+
+void GZReader::LoadGZ(std::string s_filename, bool asStream) {
   gzFile gz_in;
   gz_in = gzopen(s_filename.c_str(), "r");
   
@@ -19,7 +25,6 @@ void GZReader::LoadGZ(std::string s_filename) {
   while(true) {
     int err;
     int bytes_read;
-    unsigned char buffer[CHUNK_gz];
     unsigned char *data_tmp;
     
     data = (unsigned char *)realloc((data_tmp = data), data_alloc += CHUNK_gz - 1);
@@ -43,9 +48,20 @@ void GZReader::LoadGZ(std::string s_filename) {
       }
     }
   }
-  
-  iss.str((char*)data);
-  gzclose(gz_in);
+  if(asStream) {
+    iss.str((char*)data);
+    gzclose(gz_in);
+  } else {
+    buffer = new char[curpos];
+    memcpy(buffer, data, curpos);
+  }
   free(data);
 }
 
+void GZReader::read(char * dest, const size_t len) {
+  memcpy(dest, &buffer[bufferPos], len);
+  bufferPos += len;
+}
+void GZReader::ignore(const size_t len) {
+  bufferPos += len;
+}

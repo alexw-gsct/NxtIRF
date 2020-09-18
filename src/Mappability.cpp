@@ -1,10 +1,5 @@
 #include "RcppArmadillo.h"
-
-#include "ReadBlockProcessor.h"
-#include "BAM2blocks.h"
-#include "GZWriter.h"
-#include "FastaReader.h"
-#include "includedefine.h"
+#include "Mappability.h"
 
 using namespace Rcpp;
 
@@ -211,7 +206,7 @@ int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file,
   delete read;
   
   inGenome.close();
-  outGZ.flush(1); 
+  outGZ.flush(true);// outGZ.close();
   outFA.flush();
   outFA.close();
   
@@ -275,7 +270,7 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
   delete read;
   
   inGenome.close();
-  outGZ.flush(1); 
+  outGZ.flush(true); //outGZ.close();
   outFA.flush();
   outFA.close();
   return(0);

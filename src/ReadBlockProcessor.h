@@ -3,6 +3,8 @@
 
 #include "FragmentBlocks.h"
 
+#include "GZWriter.h"
+
 /*
 The code can be finished faster if we force a requirement that all input files are coordinate sorted by the start of each block.
 ie: sort -k2,2n (for BED files).
@@ -30,7 +32,7 @@ class JunctionCount : public ReadBlockProcessor {
 		std::vector<std::map<unsigned int,unsigned int[2]>*> chrID_juncRight_count;
 		  //chrID_... stores a fast access pointer to the appropriate structure in chrName_... 
 	public:
-        ~JunctionCount();   // destructor
+    ~JunctionCount();   // destructor
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
 		int WriteOutput(std::ostringstream *os) const;
@@ -129,7 +131,7 @@ public:
   void ProcessBlocks(const FragmentBlocks &blocks);
   void ChrMapUpdate(const std::vector<string> &chrmap);
   int WriteOutput(std::ostream *os) const;
-  int WriteBinary(std::ostream *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const;
+  int WriteBinary(GZWriter *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const;
 };
 
 

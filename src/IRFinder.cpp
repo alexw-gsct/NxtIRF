@@ -30,23 +30,26 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
   stream_int32 i32;
   char buffer[1000];
   std::string chrName;
-  
+/*  
   std::ifstream f_in;
   f_in.open(s_in, std::ifstream::binary);
-  f_in.ignore(4);
+*/
+  GZReader gz_in;
+  gz_in.LoadGZ(s_in);
+  gz_in.ignore(4);
   
   std::vector<std::string> chr_names;
   std::vector<int> chr_lens;
   
-  f_in.read(i32.c ,4);
+  gz_in.read(i32.c ,4);
   int n_chr = i32.i;
   
   for (unsigned int i = 0; i < n_chr; i++) {
-    f_in.read(i32.c ,4);
-    f_in.read(buffer , i32.i);
+    gz_in.read(i32.c ,4);
+    gz_in.read(buffer , i32.i);
     chrName = string(buffer, i32.i-1);
     chr_names.push_back(chrName);
-    f_in.read(i32.c ,4);
+    gz_in.read(i32.c ,4);
     chr_lens.push_back(i32.i);
   }
 
@@ -54,7 +57,7 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
 
   for(int j = 0; j < 3; j++) {
     for(int i = 0; i < n_chr; i++) {
-      f_in.read(u32.c ,4);
+      gz_in.read(u32.c ,4);
       unsigned int block_size = u32.u;
 //      Rcout << chr_names[i] << " block size " << block_size << '\n';
       if(j == strand) {
@@ -63,9 +66,9 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
         std::vector<unsigned int> lengths;
         unsigned int pos = 0;
         while( pos < block_size ) {
-          f_in.read(i32.c ,4);
+          gz_in.read(i32.c ,4);
           values.push_back(i32.i);
-          f_in.read(u32.c ,4);
+          gz_in.read(u32.c ,4);
           lengths.push_back(u32.u);
           pos += 8;
         }
@@ -76,12 +79,12 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
         RLEList.push_back(RLE, chr_names[i]);
         
       } else {
-          f_in.ignore(block_size);
+        gz_in.ignore(block_size);
       }
     }
   }
 
-  f_in.close();
+  //f_in.close();
   
   return(RLEList);
 }
@@ -92,7 +95,7 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
 int IRF_gunzip(std::string s_in, std::string s_out) {
   
   GZReader gz_in;
-  gz_in.LoadGZ(s_in);
+  gz_in.LoadGZ(s_in, true);
   
   std::ofstream out;
   out.open(s_out, std::ifstream::out);
@@ -133,7 +136,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
     Rcout << "Reading reference file\n";
     
     GZReader gz_in;
-    gz_in.LoadGZ(reference_file);
+    gz_in.LoadGZ(reference_file, true);
 
     std::string myLine;
     std::string myBuffer;
@@ -245,45 +248,85 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   Rcout << "Writing output file\n";
 
   std::ofstream out;
-  out.open(s_output, std::ifstream::out);
+  out.open(s_output + ".txt.gz", std::ofstream::binary);
 
+// GZ compression:
+  GZWriter outGZ;
+  outGZ.SetOutputHandle(&out);
+//  outGZ.Open(s_output + ".txt.gz");
+//  std::string myLine;   // already declared above
+
+// Write stats here:
+  int directionality = oJuncCount.Directional();
+  outGZ.writeline("Directionality");
+  outGZ.writeline(to_string(directionality));
+  outGZ.writeline("");
+//  out << ">Directionality\n" << directionality << "\n\n";  
+    
   std::ostringstream outFragmentsInROI;
   oFragmentsInROI.WriteOutput(&outFragmentsInROI);
-  out << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
+  outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
+  myLine = outFragmentsInROI.str();
+  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writeline("");
+//  out << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
   
   std::ostringstream outJuncCount;
   oJuncCount.WriteOutput(&outJuncCount);
-  out << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
-  
-  int directionality = oJuncCount.Directional();
-  out << ">Directionality\n" << directionality << "\n\n";  
+  outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
+  outGZ.writeline(outJuncCount.str());
+  outGZ.writeline("");
+  /*
+  myLine = outJuncCount.str();
+  outGZ.writebuffer(myLine.data(), myLine.size());
+  */
+// out << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
   
   std::ostringstream outSpansPoint;
   oSpansPoint.WriteOutput(&outSpansPoint);
-  out << "SP_seqname\tpos\ttotal\tpos\tneg\n" << outSpansPoint.str() << "\n";
+  outGZ.writeline("SP_seqname\tpos\ttotal\tpos\tneg");
+  myLine = outSpansPoint.str();
+  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writeline("");
+  
+//  out << "SP_seqname\tpos\ttotal\tpos\tneg\n" << outSpansPoint.str() << "\n";
   
   std::ostringstream outFragmentsInChr;
   oFragmentsInChr.WriteOutput(&outFragmentsInChr);
-  out << "ChrCoverage_seqname\ttotal\tpos\tneg\n" << outFragmentsInChr.str() << "\n";
+  outGZ.writeline("ChrCoverage_seqname\ttotal\tpos\tneg");
+  myLine = outFragmentsInChr.str();
+  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writeline("");
+//  out << "ChrCoverage_seqname\ttotal\tpos\tneg\n" << outFragmentsInChr.str() << "\n";
   
   std::ostringstream outCoverageBlocks_nondir;
   oCoverageBlocks.WriteOutput(&outCoverageBlocks_nondir, oJuncCount, oSpansPoint);
-  out << "NonDir_" << outCoverageBlocks_nondir.str() << "\n";
+  myLine = outCoverageBlocks_nondir.str();
+  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writeline("");
+  //  out << "NonDir_" << outCoverageBlocks_nondir.str() << "\n";
   
   if (directionality != 0) {
     std::ostringstream outCoverageBlocks_dir;
     oCoverageBlocks.WriteOutput(&outCoverageBlocks_dir, oJuncCount, oSpansPoint, directionality); // Directional.
-    out << "Directional_" << outCoverageBlocks_nondir.str() << "\n";
+    myLine = outCoverageBlocks_dir.str();
+    outGZ.writebuffer(myLine.data(), myLine.size());
+    outGZ.writeline("");
+//    out << "Directional_" << outCoverageBlocks_nondir.str() << "\n";
   }
-  
-  out.close();
+  outGZ.flush(true); // outGZ.close();
+  out.flush(); out.close();
   
   // Write Coverage Binary file:
-  std::ofstream COVout;
-  COVout.open(output_file + ".cov", ios::binary);
   
-  oFragMap.WriteBinary(&COVout, BB.chr_names, BB.chr_lens);
-  COVout.close();
+  std::ofstream COVout;
+  COVout.open(output_file + ".cov.gz", std::ofstream::binary);
+   
+  GZWriter outGZ2;
+  outGZ2.SetOutputHandle(&COVout);
+  
+  oFragMap.WriteBinary(&outGZ2, BB.chr_names, BB.chr_lens);
+  outGZ2.flush(true); COVout.flush(); COVout.close();
   
   // if (s_inROI != "NULL") {
   /*  Output computed statistics from data structures.

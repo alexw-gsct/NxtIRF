@@ -64,6 +64,9 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 		getline(lineStream, myField, '\t');
 		end = stol(myField);
 		getline(lineStream, direction, '\t');
+
+		std::map<string, std::map<std::pair<unsigned int,unsigned int>,unsigned int[2]>> chrName_junc_over;
+		std::vector<std::map<std::pair<unsigned int,unsigned int>,unsigned int[2]>*> chrID_junc_over;
 		
 		if (direction == "-")  {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] = 1;
@@ -525,7 +528,7 @@ void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
   }
 }
 
-int FragmentsMap::WriteBinary(std::ostream *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const {
+int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const {
   // Write COV file as binary
   char zero = '\0';
   
@@ -538,20 +541,21 @@ int FragmentsMap::WriteBinary(std::ostream *os, const std::vector<std::string> c
       chrmap.insert({chr_names[i], chr_lens[i]});
   }
   
-  os->write("COV\x01",4);
+  std::string header = "COV\x01";
+  os->writebuffer(header.c_str(),4);
   
   stream_uint32 u32;
   stream_int32 i32;
   i32.i = chrmap.size();
-  os->write(i32.c ,4);
+  os->writebuffer(i32.c ,4);
   for (auto chr = chrmap.begin(); chr != chrmap.end(); chr++) {
     i32.i = chr->first.length() + 1;
-    os->write(i32.c ,4);
-    os->write(chr->first.c_str(), chr->first.length());
+    os->writebuffer(i32.c ,4);
+    os->writebuffer(chr->first.c_str(), chr->first.length());
 
-    os->write(&zero, 1);
+    os->writebuffer(&zero, 1);
     i32.i = chr->second;
-    os->write(i32.c ,4);
+    os->writebuffer(i32.c ,4);
   }
 
   for(unsigned int j = 0; j < 3; j++) {
@@ -605,8 +609,8 @@ int FragmentsMap::WriteBinary(std::ostream *os, const std::vector<std::string> c
       
       // Finally write entire buffer to disk
       u32.u = mempos;
-      os->write(u32.c,4);
-      os->write(buffer,mempos);
+      os->writebuffer(u32.c,4);
+      os->writebuffer(buffer,mempos);
       delete buffer;
       refID += 1; 
     }
