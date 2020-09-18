@@ -253,9 +253,12 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   
 // GZ compression:
   GZWriter outGZ;
+  Rcout << "GZWriter Declared\n";
   outGZ.SetOutputHandle(&out);
 //  outGZ.Open(s_output + ".txt.gz");
 //  std::string myLine;   // already declared above
+  Rcout << "GZWriter Initialized\n";
+
 
 // Write stats here:
   int directionality = oJuncCount.Directional();
