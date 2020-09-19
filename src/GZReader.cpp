@@ -11,7 +11,7 @@ GZReader::GZReader() {
 }
 
 GZReader::~GZReader() {
-  delete buffer;
+  // delete buffer;
 }
 
 void GZReader::LoadGZ(std::string s_filename, bool asStream) {
