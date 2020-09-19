@@ -559,7 +559,7 @@ int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_n
   }
 
   for(unsigned int j = 0; j < 3; j++) {
-    int refID = 0;
+    //int refID = 0;
     for (auto itChr=chrName_count[j].begin(); itChr!=chrName_count[j].end(); itChr++) {
       char * buffer = new char[8 * itChr->second.size()];
       unsigned int mempos = 0;
@@ -612,9 +612,10 @@ int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_n
       os->writebuffer(u32.c,4);
       os->writebuffer(buffer,mempos);
       delete[] buffer;
-      refID += 1; 
+      //refID += 1; 
     }
   }
+  return(0);
 }
 
 int FragmentsMap::WriteOutput(std::ostream *os) const {
