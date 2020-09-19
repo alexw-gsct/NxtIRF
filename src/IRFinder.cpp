@@ -270,7 +270,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   oFragmentsInROI.WriteOutput(&outFragmentsInROI);
   outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
   myLine = outFragmentsInROI.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   outGZ.writeline("");
 //  Rcout << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
   
@@ -278,11 +278,11 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   oJuncCount.WriteOutput(&outJuncCount);
   outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
   myLine = outJuncCount.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   outGZ.writeline("");
   /*
   myLine = outJuncCount.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   */
 //  Rcout << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
   
@@ -290,7 +290,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   oSpansPoint.WriteOutput(&outSpansPoint);
   outGZ.writeline("SP_seqname\tpos\ttotal\tpos\tneg");
   myLine = outSpansPoint.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   outGZ.writeline("");
   
 //  out << "SP_seqname\tpos\ttotal\tpos\tneg\n" << outSpansPoint.str() << "\n";
@@ -299,14 +299,14 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   oFragmentsInChr.WriteOutput(&outFragmentsInChr);
   outGZ.writeline("ChrCoverage_seqname\ttotal\tpos\tneg");
   myLine = outFragmentsInChr.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   outGZ.writeline("");
 //  out << "ChrCoverage_seqname\ttotal\tpos\tneg\n" << outFragmentsInChr.str() << "\n";
   
   std::ostringstream outCoverageBlocks_nondir;
   oCoverageBlocks.WriteOutput(&outCoverageBlocks_nondir, oJuncCount, oSpansPoint);
   myLine = outCoverageBlocks_nondir.str();
-  outGZ.writebuffer(myLine.data(), myLine.size());
+  outGZ.writestring(myLine);
   outGZ.writeline("");
   //  out << "NonDir_" << outCoverageBlocks_nondir.str() << "\n";
   
@@ -314,7 +314,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
     std::ostringstream outCoverageBlocks_dir;
     oCoverageBlocks.WriteOutput(&outCoverageBlocks_dir, oJuncCount, oSpansPoint, directionality); // Directional.
     myLine = outCoverageBlocks_dir.str();
-    outGZ.writebuffer(myLine.data(), myLine.size());
+    outGZ.writestring(myLine);
     outGZ.writeline("");
 //    out << "Directional_" << outCoverageBlocks_nondir.str() << "\n";
   }
