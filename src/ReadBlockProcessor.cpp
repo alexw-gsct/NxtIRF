@@ -111,7 +111,7 @@ int JunctionCount::WriteOutput(std::ostringstream *os) const {
 	return 0;
 }
 
-int JunctionCount::Directional() const {
+int JunctionCount::Directional(std::ostringstream *os) const {
 	unsigned int dir_same = 0;
 	unsigned int dir_diff = 0;
 
@@ -147,22 +147,25 @@ int JunctionCount::Directional() const {
 		}
 	}
 	dir_evidence_known = dir_same + dir_diff;
-	cout << "Directionality: Dir evidence:\t" << dir_evidence << "\n";
-	cout << "Directionality: Nondir evidence:\t" << nondir_evidence << "\n";
-	cout << "Directionality: Dir evidence known junctions:\t" << dir_evidence_known << "\n";
-	cout << "Directionality: Nondir evidence known junctions:\t" << nondir_evidence_known << "\n";
-	cout << "Directionality: Dir matches ref:\t" << dir_same << "\n";
-	cout << "Directionality: Dir opposed to ref:\t" << dir_diff << "\n";
-	cout << "Directionality: Dir score all (0-10000):\t" << ((long long)dir_evidence * 10000 / (dir_evidence + nondir_evidence + 1)) << "\n"; //+1 to prevent divide by zero errors.
+	*os << "Dir evidence\t" << to_string(dir_evidence) << "\n";
+	*os << "Nondir evidence\t" << to_string(nondir_evidence) << "\n";
+	*os << "Dir evidence known junctions\t" << to_string(dir_evidence_known) << "\n";
+	*os << "Nondir evidence known junctions\t" << to_string(nondir_evidence_known) << "\n";
+	*os << "Dir matches ref\t" << to_string(dir_same) << "\n";
+	*os << "Dir opposed to ref\t" << to_string(dir_diff) << "\n";
+	*os << "Dir score all (0-10000)\t" << to_string(((long long)dir_evidence * 10000 / (dir_evidence + nondir_evidence + 1)))<< "\n"; //+1 to prevent divide by zero errors.
 	long dir_score_known = ((long long)dir_evidence_known * 10000 / (dir_evidence_known + nondir_evidence_known + 1));
-	cout << "Directionality: Dir score known junctions (0-10000):\t" << dir_score_known << "\n";
+	*os << "Dir score known junctions (0-10000)\t" << to_string(dir_score_known) << "\n";
 
 	if ((dir_same > dir_diff * 100) && (dir_score_known >= 9000)) {
-		return 1;
+	  *os << "Summary\t" << to_string(1) << '\n';
+    return 1;
 	}else if ((dir_diff > dir_same * 100) && (dir_score_known >= 9000)) {
-		return -1;
+	  *os << "Summary\t" << to_string(-1) << '\n';
+	  return -1;
 	}else{
-		return 0;
+	  *os << "Summary\t" << to_string(0) << '\n';
+	  return 0;
 	}
 }
 
