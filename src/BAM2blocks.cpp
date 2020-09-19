@@ -30,7 +30,7 @@ void BAM2blocks::readBamHeader() {
   char * headertext = new char[bamhead.l_text+1];
   IN->read(headertext, bamhead.l_text);
   samHeader = string(headertext, bamhead.l_text);
-  delete headertext;
+  delete[] headertext;
   
   stream_int32 i32;
   IN->read(i32.c ,4);

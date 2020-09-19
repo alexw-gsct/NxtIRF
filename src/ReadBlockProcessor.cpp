@@ -611,7 +611,7 @@ int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_n
       u32.u = mempos;
       os->writebuffer(u32.c,4);
       os->writebuffer(buffer,mempos);
-      delete buffer;
+      delete[] buffer;
       refID += 1; 
     }
   }

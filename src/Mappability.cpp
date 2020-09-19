@@ -39,7 +39,7 @@ std::string reverse_complement(std::string sequence) {
   strcpy(buffer, sequence.c_str());
   reverseit(buffer);
   string nucs = string(buffer);
-  delete buffer;
+  delete[] buffer;
   transform(
     begin(nucs),
     end(nucs),
@@ -98,7 +98,7 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
   memcpy(&new_read[error_pos - 1], &error_nuc, 1);
   
   string return_str = string(new_read);
-  delete new_read;
+  delete[] new_read;
   return(string(new_read));
 }
 
@@ -200,10 +200,10 @@ int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file,
         }
        
       }
-      delete buffer;
+      delete[] buffer;
     }
   }
-  delete read;
+  delete[] read;
   
   inGenome.close();
   outGZ.flush(true);// outGZ.close();
@@ -265,9 +265,9 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
         Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
       }
     }
-    delete buffer;
+    delete[] buffer;
   }
-  delete read;
+  delete[] read;
   
   inGenome.close();
   outGZ.flush(true); //outGZ.close();
