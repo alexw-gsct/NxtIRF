@@ -33,10 +33,24 @@ FetchAnnotation <- function(ah_genome = "AH65745", ah_transcriptome = "AH64631",
     } else {
 
         if (verbose) message("Fetching transcript gtf file from AnnotationHub")
-        gtf = ah[[ah_transcriptome]]
-        genome(gtf) = genome(gtf)[1]
+        # Best to fetch from URL
+        url = ah$sourceurl[[which(names(ah) == ah_transcriptome)]]
+        assertthat::assert_that(substr(url,1,3) == "ftp",
+          msg = paste("ftp site not found for", ah_transcriptome))
+        urlfile = basename(url)
+        if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
+          download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
+          R.utils::gunzip(paste(transcripts.gtf, "gz", sep="."))
+        } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
+          download.file(url, destfile = transcripts.gtf)
+        } else {
+          warning(paste(ah_transcriptome, "does not provide a valid gtf or gtf.gz file"))
+        }
+        
+        #        gtf = ah[[ah_transcriptome]]
+        #        genome(gtf) = genome(gtf)[1]
 
-        rtracklayer::export(gtf, transcripts.gtf, "gtf")
+        # rtracklayer::export(gtf, transcripts.gtf, "gtf")
 
         message(paste("Transcriptome gtf file written to ", transcripts.gtf))
     }
