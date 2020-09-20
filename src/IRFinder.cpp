@@ -241,7 +241,8 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   
   BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
   
-  BB.processAll();
+  std::ostringstream BBreport;
+  BB.processAll(&BBreport);
 
   
 // Write output to file:  
@@ -260,24 +261,32 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
 
 
 // Write stats here:
+
+  outGZ.writeline("BAM_report\tValue");
+//  myLine = BBreport.str();
+  myLine = BB.BBoutput;
+  outGZ.writestring(myLine);
+  outGZ.writeline("");
+
   int directionality = oJuncCount.Directional();
   outGZ.writeline("Directionality");
   outGZ.writeline(to_string(directionality));
   outGZ.writeline("");
 //  Rcout << ">Directionality\n" << directionality << "\n\n";  
     
-  std::ostringstream outFragmentsInROI;
-  oFragmentsInROI.WriteOutput(&outFragmentsInROI);
+//  std::ostringstream outFragmentsInROI;
+  oFragmentsInROI.WriteOutput(myLine);
   outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
-  myLine = outFragmentsInROI.str();
+//  myLine = outFragmentsInROI.str();
   outGZ.writestring(myLine);
   outGZ.writeline("");
 //  Rcout << "ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits\n" << outFragmentsInROI.str() << "\n";
   
-  std::ostringstream outJuncCount;
-  oJuncCount.WriteOutput(&outJuncCount);
+//  std::ostringstream outJuncCount;
+  oJuncCount.WriteOutput(myLine);
   outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
-  myLine = outJuncCount.str();
+//  myLine = outJuncCount.str();
+//  myLine = oJuncCount.output;
   outGZ.writestring(myLine);
   outGZ.writeline("");
   /*
@@ -286,19 +295,19 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   */
 //  Rcout << "JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg\n" << outJuncCount.str() << "\n";
   
-  std::ostringstream outSpansPoint;
-  oSpansPoint.WriteOutput(&outSpansPoint);
+//  std::ostringstream outSpansPoint;
+  oSpansPoint.WriteOutput(myLine);
   outGZ.writeline("SP_seqname\tpos\ttotal\tpos\tneg");
-  myLine = outSpansPoint.str();
+//  myLine = outSpansPoint.str();
   outGZ.writestring(myLine);
   outGZ.writeline("");
   
 //  out << "SP_seqname\tpos\ttotal\tpos\tneg\n" << outSpansPoint.str() << "\n";
   
-  std::ostringstream outFragmentsInChr;
-  oFragmentsInChr.WriteOutput(&outFragmentsInChr);
+//  std::ostringstream outFragmentsInChr;
+  oFragmentsInChr.WriteOutput(myLine);
   outGZ.writeline("ChrCoverage_seqname\ttotal\tpos\tneg");
-  myLine = outFragmentsInChr.str();
+//  myLine = outFragmentsInChr.str();
   outGZ.writestring(myLine);
   outGZ.writeline("");
 //  out << "ChrCoverage_seqname\ttotal\tpos\tneg\n" << outFragmentsInChr.str() << "\n";

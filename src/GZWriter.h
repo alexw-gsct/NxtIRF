@@ -24,7 +24,7 @@ public:
   void SetOutputHandle(std::ostream *out_stream);
 //  int Open(const std::string s_file);
   int writebuffer(const char * src, unsigned int len);
-  int writeline(const std::string s_src);
-  int writestring(const std::string s_src);
+  int writeline(const std::string& s_src);
+  int writestring(const std::string& s_src);
   int flush(bool final = false);
 };

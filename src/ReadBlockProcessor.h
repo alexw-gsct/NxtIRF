@@ -35,7 +35,7 @@ class JunctionCount : public ReadBlockProcessor {
     ~JunctionCount();   // destructor
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
-		int WriteOutput(std::ostringstream *os) const;
+		int WriteOutput(std::string& output) const;
 		void loadRef(std::istringstream &IN); //loadRef is optional, it allows directional detection to determine not just non-dir vs dir, but also which direction.
 
 		int Directional() const;
@@ -70,7 +70,7 @@ class SpansPoint : public ReadBlockProcessor {
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<std::string> &chrmap);
 		//void SetOutputStream(std::ostream *os);
-		int WriteOutput(std::ostringstream *os) const;
+		int WriteOutput(std::string& output) const;
 		unsigned int lookup(std::string ChrName, unsigned int pos, bool direction) const;
 		unsigned int lookup(std::string ChrName, unsigned int pos) const;
 };
@@ -84,7 +84,7 @@ class FragmentsInChr : public ReadBlockProcessor {
         ~FragmentsInChr();
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
-		int WriteOutput(std::ostringstream *os) const;		
+		int WriteOutput(std::string& output) const;		
 };
 
 
@@ -108,7 +108,7 @@ class FragmentsInROI : public ReadBlockProcessor {
 		void ProcessBlocks(const FragmentBlocks &blocks);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
 		void loadRef(std::istringstream &IN);
-		int WriteOutput(std::ostringstream *os) const;		
+		int WriteOutput(std::string& output) const;		
 };
 
 class FragmentsMap : public ReadBlockProcessor {

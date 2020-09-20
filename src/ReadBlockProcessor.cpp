@@ -97,17 +97,19 @@ void JunctionCount::ProcessBlocks(const FragmentBlocks &blocks) {
 	}
 }
 
-int JunctionCount::WriteOutput(std::ostringstream *os) const {
+int JunctionCount::WriteOutput(std::string& output) const {
+    std::ostringstream oss;
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		string chr = itChr->first;
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
-			*os << chr << "\t" << itJuncs->first.first << "\t" << itJuncs->first.second
+			oss << chr << "\t" << itJuncs->first.first << "\t" << itJuncs->first.second
 				<< "\t" << ( (itJuncs->second)[2] == 1 ? "-" : (itJuncs->second)[2] == 2 ? "+" : "." )
 				<< "\t" << ((itJuncs->second)[1] + (itJuncs->second)[0])
 				<< "\t" << (itJuncs->second)[1]
 				<< "\t" << (itJuncs->second)[0] << "\n";
 		}
 	}
+    output = oss.str();
 	return 0;
 }
 
@@ -213,7 +215,8 @@ unsigned int JunctionCount::lookupRight(std::string ChrName, unsigned int right)
 
 
 
-int SpansPoint::WriteOutput(std::ostringstream *os) const {
+int SpansPoint::WriteOutput(std::string& output) const {
+    std::ostringstream oss;
 	for (auto itChrPos=chrName_pos.begin(); itChrPos!=chrName_pos.end(); itChrPos++) {
 		string chr = itChrPos->first;
 
@@ -222,11 +225,12 @@ int SpansPoint::WriteOutput(std::ostringstream *os) const {
 
 		
 		for (auto itPosition=itChrPos->second.begin(); itPosition!=itChrPos->second.end(); ++itPosition) {
-			*os << chr << "\t" << *itPosition << "\t" << (*itCountPos + *itCountNeg) << "\t" << *itCountPos << "\t" << *itCountNeg << "\n";
+			oss << chr << "\t" << *itPosition << "\t" << (*itCountPos + *itCountNeg) << "\t" << *itCountPos << "\t" << *itCountNeg << "\n";
 			++itCountPos;
 			++itCountNeg;
 		}
 	}
+    output = oss.str();
 	return 0;
 }
 
@@ -361,11 +365,13 @@ void FragmentsInROI::ChrMapUpdate(const std::vector<std::string> &chrmap) {
 	}
 }
 
-int FragmentsInROI::WriteOutput(std::ostringstream *os) const {
-	for (std::map<string, unsigned long>::const_iterator itID=RegionID_counter[1].begin(); itID!=RegionID_counter[1].end(); ++itID) {
-		*os << itID->first << "\t" << (itID->second + RegionID_counter[0].at(itID->first)) << "\t" << itID->second << "\t" << RegionID_counter[0].at(itID->first) << "\n";
+int FragmentsInROI::WriteOutput(std::string& output) const {
+	std::ostringstream oss;
+    for (std::map<string, unsigned long>::const_iterator itID=RegionID_counter[1].begin(); itID!=RegionID_counter[1].end(); ++itID) {
+		oss << itID->first << "\t" << (itID->second + RegionID_counter[0].at(itID->first)) << "\t" << itID->second << "\t" << RegionID_counter[0].at(itID->first) << "\n";
 		//Outputs tab separated: ROIname, total hits, positive-strand hits, negative-strand hits.
 	}
+    output = oss.str();
 	return 0;
 }
 
@@ -454,13 +460,15 @@ void FragmentsInChr::ChrMapUpdate(const std::vector<string> &chrmap) {
 	}
 }
 
-int FragmentsInChr::WriteOutput(std::ostringstream *os) const {
-	for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
-		*os << itChr->first << "\t"
+int FragmentsInChr::WriteOutput(std::string& output) const {
+	std::ostringstream oss;
+    for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
+		oss << itChr->first << "\t"
 			<< ((itChr->second)[1] + (itChr->second)[0]) << "\t"
 			<< (itChr->second)[1] << "\t"
 			<< (itChr->second)[0] << "\n";
 	}
+    output = oss.str();
 	return 0;
 }
 

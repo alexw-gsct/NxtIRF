@@ -16,7 +16,7 @@ int GZWriter::Open(const std::string s_file) {
   gz_out = gzopen(s_file.c_str(), "w");
 }
 */
-int GZWriter::writeline(const std::string s_src) {
+int GZWriter::writeline(const std::string& s_src) {
   unsigned int s_size = s_src.size() + 1;
   char * line = new char[s_size];
   memcpy(line, s_src.data(), s_size - 1);
@@ -26,7 +26,7 @@ int GZWriter::writeline(const std::string s_src) {
   return(0);
 }
 
-int GZWriter::writestring(const std::string s_src) {
+int GZWriter::writestring(const std::string& s_src) {
   unsigned int s_size = s_src.size();
   char * line = new char[s_size];
   memcpy(line, s_src.data(), s_size);
