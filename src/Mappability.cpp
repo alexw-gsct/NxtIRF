@@ -295,8 +295,8 @@ int IRF_genmap(std::string bam_file, std::string output_path){
   
   BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
   
-  std::ostringstream BBreport;
-  BB.processAll(&BBreport);
+  std::string BBreport;
+  BB.processAll(BBreport);
   
   std::ofstream outFragsMap;
   outFragsMap.open(outputDir + "/Mappability.txt", std::ifstream::out);

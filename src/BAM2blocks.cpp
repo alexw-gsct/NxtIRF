@@ -16,8 +16,6 @@ BAM2blocks::BAM2blocks() {
 	cPairedReads = 0;
 	cErrorReads = 0;
 	cSkippedReads = 0;
-	
-	BBoutput = "";
 }
 
 // OK.
@@ -246,7 +244,7 @@ unsigned int BAM2blocks::processSingle(bam_read_core * read1) {
 
 
 
-int BAM2blocks::processAll(std::ostringstream *os) {
+int BAM2blocks::processAll(std::string& output) {
 
 	unsigned long long totalNucleotides = 0;
 	unsigned long j = 0;
@@ -269,7 +267,7 @@ int BAM2blocks::processAll(std::ostringstream *os) {
 			oss << "Skipped reads\t" << cSkippedReads << '\n';
 			oss << "Error / Unpaired reads\t" << cErrorReads << '\n';
 			oss << "Error detected on line\t" << "NA" << '\n';
-            BBoutput = oss.str();
+            output = oss.str();
 			return(0);   
 		}
 		IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
@@ -287,7 +285,7 @@ int BAM2blocks::processAll(std::ostringstream *os) {
 			oss << "Skipped reads\t" << cSkippedReads << '\n';
 			oss << "Error / Unpaired reads\t" << cErrorReads << '\n';
 			oss << "Error detected on line\t" << j << '\n';
-            BBoutput = oss.str();
+            output = oss.str();
 			return(1);
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.

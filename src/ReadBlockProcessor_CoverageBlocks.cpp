@@ -270,11 +270,12 @@ double CoverageBlocks::trimmedMeanFromHist(const std::map<unsigned int,unsigned 
 
 
 
-int CoverageBlocks::WriteOutput(std::ostringstream *os) const {
+int CoverageBlocks::WriteOutput(std::string& output) const {
 
 // This output function will be generic -- outputting Chr/Start/Stop/Name/Dir/ Score - Mean50 (that bit probably cmd line customisable).
 // The output we need will be in the extended class.
-
+    std::ostringstream oss;
+    
 	for (std::vector<BEDrecord>::const_iterator it_BED=BEDrecords.begin(); it_BED!=BEDrecords.end(); it_BED++) {
 		unsigned int len=0;
 		for (std::vector<std::pair<unsigned int,unsigned int>>::const_iterator it_blocks=it_BED->blocks.begin(); it_blocks!= it_BED->blocks.end(); it_blocks++) {
@@ -287,24 +288,25 @@ int CoverageBlocks::WriteOutput(std::ostringstream *os) const {
 		for (auto h : hist) {
 			histPositions += h.second;
 			//DEBUGGING
-			*os << h.first << "\t" << h.second << "\n";
+			oss << h.first << "\t" << h.second << "\n";
 		}
 
-		//*os << "\n";
-		*os << it_BED->chrName << "\t" << it_BED->start << "\t" << it_BED->end << "\t" << (it_BED->end - it_BED->start) << "\t" << histPositions << "\t" << hist.size() << "\t" << trimmedMeanFromHist(hist, 50)  << "\t" << trimmedMeanFromHist(hist, 20) << "\t" << coverageFromHist(hist) << "\t" << meanFromHist(hist) << "\t" << it_BED->direction << "\t" << it_BED->name << "\n";
-		*os << percentileFromHist(hist, 25) << "\t" << percentileFromHist(hist, 50) << "\t" << percentileFromHist(hist, 75) << "\t" << "\n";
+		//oss << "\n";
+		oss << it_BED->chrName << "\t" << it_BED->start << "\t" << it_BED->end << "\t" << (it_BED->end - it_BED->start) << "\t" << histPositions << "\t" << hist.size() << "\t" << trimmedMeanFromHist(hist, 50)  << "\t" << trimmedMeanFromHist(hist, 20) << "\t" << coverageFromHist(hist) << "\t" << meanFromHist(hist) << "\t" << it_BED->direction << "\t" << it_BED->name << "\n";
+		oss << percentileFromHist(hist, 25) << "\t" << percentileFromHist(hist, 50) << "\t" << percentileFromHist(hist, 75) << "\t" << "\n";
 	}
-	
+	output = oss.str();
 	return 0;
 }
 
 
-int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &JC, const SpansPoint &SP, int directionality) const {
+int CoverageBlocksIRFinder::WriteOutput(std::string& output, const JunctionCount &JC, const SpansPoint &SP, int directionality) const {
+    std::ostringstream oss;
 	// Custom output function - related to the IRFinder needs
   if(directionality == 0) {
-    *os << "Nondir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
+    oss << "Nondir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
   } else {
-    *os << "Dir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
+    oss << "Dir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
   }      
 	unsigned int recordNumber = 0;	
 	for (auto BEDrec : BEDrecords) {
@@ -352,7 +354,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 
 
 				//eg: PHF13/ENSG00000116273/+/3/6676918/6679862/2944/10/clean
-				*os << BEDrec.chrName << "\t" << intronStart << "\t" << intronEnd << "\t" << s_name << "/" << s_ID << "/" << s_clean << "\t0\t" << ((BEDrec.direction) ?  "+" : "-" ) << "\t";
+				oss << BEDrec.chrName << "\t" << intronStart << "\t" << intronEnd << "\t" << s_name << "/" << s_ID << "/" << s_clean << "\t0\t" << ((BEDrec.direction) ?  "+" : "-" ) << "\t";
 
 				measureDir = BEDrec.direction;
 				if (directionality == -1) {
@@ -367,7 +369,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 				}
 				intronTrimmedMean = trimmedMeanFromHist(hist, 40);
 				coverage = coverageFromHist(hist);
-				*os << exclBases << "\t"
+				oss << exclBases << "\t"
 					<< coverage << "\t"
 					<< intronTrimmedMean << "\t"
 					<< percentileFromHist(hist, 25) << "\t"
@@ -377,46 +379,46 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 				if (directionality != 0) {
 					SPleft = SP.lookup(BEDrec.chrName, intronStart, measureDir);
 					SPright = SP.lookup(BEDrec.chrName, intronEnd, measureDir);
-					*os << SPleft << "\t"
+					oss << SPleft << "\t"
 						<< SPright << "\t";
 
 					hist.clear();
 					fillHist(hist, BEDrec.chrName, {{intronStart + 5, intronStart + 55}}, measureDir);
-					*os << trimmedMeanFromHist(hist, 40) << "\t";
+					oss << trimmedMeanFromHist(hist, 40) << "\t";
 					hist.clear();
 					fillHist(hist, BEDrec.chrName, {{intronEnd - 55, intronEnd - 5}}, measureDir);
-					*os << trimmedMeanFromHist(hist, 40) << "\t";
+					oss << trimmedMeanFromHist(hist, 40) << "\t";
 					JCleft = JC.lookupLeft(BEDrec.chrName, intronStart, measureDir);
 					JCright = JC.lookupRight(BEDrec.chrName, intronEnd, measureDir);
 					JCexact = JC.lookup(BEDrec.chrName, intronStart, intronEnd, measureDir);
-					*os << JCleft << "\t"
+					oss << JCleft << "\t"
 						<< JCright << "\t"
 						<< JCexact << "\t";
 				}else{
 					SPleft = SP.lookup(BEDrec.chrName, intronStart);
 					SPright = SP.lookup(BEDrec.chrName, intronEnd);
-					*os << SPleft << "\t"
+					oss << SPleft << "\t"
 						<< SPright << "\t";			
 
 					hist.clear();
 					fillHist(hist, BEDrec.chrName, {{intronStart + 5, intronStart + 55}});
-					*os << trimmedMeanFromHist(hist, 40) << "\t";
+					oss << trimmedMeanFromHist(hist, 40) << "\t";
 					hist.clear();
 					fillHist(hist, BEDrec.chrName, {{intronEnd - 55, intronEnd - 5}});
-					*os << trimmedMeanFromHist(hist, 40) << "\t";
+					oss << trimmedMeanFromHist(hist, 40) << "\t";
 					JCleft = JC.lookupLeft(BEDrec.chrName, intronStart);
 					JCright = JC.lookupRight(BEDrec.chrName, intronEnd);
 					JCexact = JC.lookup(BEDrec.chrName, intronStart, intronEnd);
-					*os << JCleft << "\t"
+					oss << JCleft << "\t"
 						<< JCright << "\t"
 						<< JCexact << "\t";
 				}
 				if (intronTrimmedMean == 0 && JCleft == 0 && JCright == 0) {
-					*os << "0" << "\t";
+					oss << "0" << "\t";
 				}else if (intronTrimmedMean < 1) {
-					*os << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
+					oss << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
 				}else{
-					*os << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
+					oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
 				}
 				
 				
@@ -428,23 +430,23 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 				
 				// Can only make a strong exclude call on spliced depth. Describe on the tool website ways to make a call for IR def true / IR def false.
 //				if (JCexact < 10 || JCexact*1.33333333 < max(JCleft, JCright) ) {
-//					*os << "-" << "\n";
+//					oss << "-" << "\n";
 //				}else{
-//					*os << "ok" << "\n";
+//					oss << "ok" << "\n";
 //				}
 
 				if (JCexact + intronTrimmedMean < 10) {
-					*os << "LowCover" << "\n";
+					oss << "LowCover" << "\n";
 				}else if (JCexact < 4) {
-					*os << "LowSplicing" << "\n";
+					oss << "LowSplicing" << "\n";
 				}else if (JCexact*1.33333333 < max(JCleft, JCright) ) {
-					*os << "MinorIsoform" << "\n";
+					oss << "MinorIsoform" << "\n";
 				// TODO: check, logic below. Crossing should differ by more than 2 & more than 50% before a fault is called.
 				}else if (  (max(SPleft, SPright) > intronTrimmedMean+2 && max(SPleft, SPright) > intronTrimmedMean*1.5 )
 						|| (min(SPleft, SPright)+2 < intronTrimmedMean && min(SPleft, SPright)*1.5 < intronTrimmedMean ) ){
-					*os << "NonUniformIntronCover" << "\n";
+					oss << "NonUniformIntronCover" << "\n";
 				}else{
-					*os << "-" << "\n";
+					oss << "-" << "\n";
 				}
 				
 			}catch (const std::out_of_range& e) {
@@ -454,6 +456,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::ostream *os, const JunctionCount &J
 			}
 		}
 	}
+    output = oss.str();
 	return 0;
 }
 

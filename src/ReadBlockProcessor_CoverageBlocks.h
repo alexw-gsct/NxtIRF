@@ -47,7 +47,7 @@ class CoverageBlocks : public ReadBlockProcessor {
 		void ProcessBlocks(const FragmentBlocks &fragblock);
 		void ChrMapUpdate(const std::vector<string> &chrmap);
 		void loadRef(std::istringstream &IN);
-		int WriteOutput(std::ostringstream *os) const;
+		int WriteOutput(std::string& output) const;
 		
 		void fillHist(std::map<unsigned int,unsigned int> &hist, const std::string &chrName, const std::vector<std::pair<unsigned int,unsigned int>> &blocks) const;
 		void fillHist(std::map<unsigned int,unsigned int> &hist, const std::string &chrName, const std::vector<std::pair<unsigned int,unsigned int>> &blocks, bool direction) const;
@@ -60,7 +60,7 @@ class CoverageBlocks : public ReadBlockProcessor {
 
 class CoverageBlocksIRFinder : public CoverageBlocks {
 	public:
-		int WriteOutput(std::ostream *os, const JunctionCount &JC, const SpansPoint &SP, int directionality = 0) const;
+		int WriteOutput(std::string& output, const JunctionCount &JC, const SpansPoint &SP, int directionality = 0) const;
 };
 
 

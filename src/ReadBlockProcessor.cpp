@@ -113,7 +113,7 @@ int JunctionCount::WriteOutput(std::string& output) const {
 	return 0;
 }
 
-int JunctionCount::Directional() const {
+int JunctionCount::Directional(std::string& output) const {
 	unsigned int dir_same = 0;
 	unsigned int dir_diff = 0;
 
@@ -121,6 +121,8 @@ int JunctionCount::Directional() const {
 	unsigned int nondir_evidence = 0;
 	unsigned int dir_evidence_known = 0;
 	unsigned int nondir_evidence_known = 0;
+
+    std::ostringstream oss;    
 
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
@@ -149,21 +151,27 @@ int JunctionCount::Directional() const {
 		}
 	}
 	dir_evidence_known = dir_same + dir_diff;
-	cout << "Directionality: Dir evidence:\t" << dir_evidence << "\n";
-	cout << "Directionality: Nondir evidence:\t" << nondir_evidence << "\n";
-	cout << "Directionality: Dir evidence known junctions:\t" << dir_evidence_known << "\n";
-	cout << "Directionality: Nondir evidence known junctions:\t" << nondir_evidence_known << "\n";
-	cout << "Directionality: Dir matches ref:\t" << dir_same << "\n";
-	cout << "Directionality: Dir opposed to ref:\t" << dir_diff << "\n";
-	cout << "Directionality: Dir score all (0-10000):\t" << ((long long)dir_evidence * 10000 / (dir_evidence + nondir_evidence + 1)) << "\n"; //+1 to prevent divide by zero errors.
+	oss << "Dir evidence\t" << dir_evidence << "\n";
+	oss << "Nondir evidence\t" << nondir_evidence << "\n";
+	oss << "Dir evidence known junctions\t" << dir_evidence_known << "\n";
+	oss << "Nondir evidence known junctions\t" << nondir_evidence_known << "\n";
+	oss << "Dir matches ref\t" << dir_same << "\n";
+	oss << "Dir opposed to ref\t" << dir_diff << "\n";
+	oss << "Dir score all (0-10000)\t" << ((long long)dir_evidence * 10000 / (dir_evidence + nondir_evidence + 1)) << "\n"; //+1 to prevent divide by zero errors.
 	long dir_score_known = ((long long)dir_evidence_known * 10000 / (dir_evidence_known + nondir_evidence_known + 1));
-	cout << "Directionality: Dir score known junctions (0-10000):\t" << dir_score_known << "\n";
+	oss << "Dir score known junctions (0-10000)\t" << dir_score_known << "\n";
 
 	if ((dir_same > dir_diff * 100) && (dir_score_known >= 9000)) {
+        oss << "Overall Directionality\t" << 1 << '\n';
+        output = oss.str();
 		return 1;
 	}else if ((dir_diff > dir_same * 100) && (dir_score_known >= 9000)) {
+        oss << "Overall Directionality\t" << -1 << '\n';
+        output = oss.str();
 		return -1;
 	}else{
+        oss << "Overall Directionality\t" << 0 << '\n';
+        output = oss.str();
 		return 0;
 	}
 }

@@ -38,7 +38,7 @@ class JunctionCount : public ReadBlockProcessor {
 		int WriteOutput(std::string& output) const;
 		void loadRef(std::istringstream &IN); //loadRef is optional, it allows directional detection to determine not just non-dir vs dir, but also which direction.
 
-		int Directional() const;
+		int Directional(std::string& output) const;
 		
 		unsigned int lookup(std::string ChrName, unsigned int left, unsigned int right, bool direction) const;
 		unsigned int lookup(std::string ChrName, unsigned int left, unsigned int right) const;
