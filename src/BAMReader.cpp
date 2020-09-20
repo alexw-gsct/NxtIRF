@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "BAMReader.h"
+#include <stdexcept>
 
 #include "RcppArmadillo.h"
 using namespace Rcpp;
@@ -44,7 +45,7 @@ void BAMReader::SetInputHandle(std::istream *in_stream) {
 int BAMReader::LoadBuffer() {
     
     // read compressed buffer
-    if(IN->tellg() >= EOF_POS) {
+    if((size_t)IN->tellg() >= EOF_POS) {
         IS_EOF = 1;
         return(0);
     } else if(IN->fail()) {
@@ -53,11 +54,18 @@ int BAMReader::LoadBuffer() {
     }
 
     stream_int16 myInt16;
-    // discard bam gzip head. TODO: check bamGzipHead and return error if wrong
-    IN->ignore(bamGzipHeadLength);
-    IN->read(myInt16.c, 2);
 
-    
+    char GzipCheck[bamGzipHeadLength];
+    IN->read(GzipCheck, bamGzipHeadLength);
+/*
+// Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
+     if(strncmp(bamGzipHead, GzipCheck, bamGzipHeadLength) != 0) {
+        std::ostringstream oss;
+        oss << "Exception during BAM decompression - BGZF header corrupt: (at " << IN->tellg() << " bytes) ";
+        throw(std::runtime_error(oss.str()));
+    }
+ */
+    IN->read(myInt16.c, 2);
     IN->read(compressed_buffer, myInt16.i + 1 - 2  - bamGzipHeadLength);
 
     bufferMax = 65536;
@@ -71,24 +79,32 @@ int BAMReader::LoadBuffer() {
     zs.avail_out = bufferMax;
 
     stream_int32 myInt32;
-    memcpy(myInt32.c, &compressed_buffer[myInt16.i + 1 - 8],4);
+    memcpy(myInt32.c, &compressed_buffer[myInt16.i + 1 - 2 - bamGzipHeadLength - 8],4);
 
-    // cout << "Expected CRC = " << myInt32.i << '\t';
-        
-    // decompress buffer
-    // ret = uncompress((Bytef *)buffer, &bufferMax, (Bytef *)compressed_buffer, myInt16.i - 2 - 8 - bamGzipHeadLength + 1);
     int ret = inflateInit2(&zs, -15);
+    if(ret != Z_OK) {
+        std::ostringstream oss;
+        oss << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
+        throw(std::runtime_error(oss.str()));
+    }
     ret = inflate(&zs, Z_FINISH);
+    if(ret != Z_OK && ret != Z_STREAM_END) {
+        std::ostringstream oss;
+        oss << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
+        throw(std::runtime_error(oss.str()));
+    }
     ret = inflateEnd(&zs);
     
     bufferMax -= zs.avail_out;
-
-    // cout << "Error code: " << ret << '\t' << "avail_out: " << zs.avail_out << '\t';
-   
+    
     // check CRC
     uint32_t crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferMax);
-    // cout << "CRC = " << crc << '\t';
-
+    // CRC check:
+    if((uint32_t)myInt32.i != crc) {
+        std::ostringstream oss;
+        oss << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
+        throw(std::runtime_error(oss.str()));
+    }
     bufferPos = 0;
     
     return(ret);
