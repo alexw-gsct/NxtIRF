@@ -34,7 +34,7 @@ void BAMReader::SetInputHandle(std::istream *in_stream) {
          
     if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
         EOF_POS = IS_LENGTH - bamEOFlength;
-        Rcout << "EOF detected at position: " << EOF_POS << "\n";
+        // Rcout << "EOF detected at position: " << EOF_POS << "\n";
     } else {
         Rcout << "EOF bit not detected\n";
         EOF_POS = 0;

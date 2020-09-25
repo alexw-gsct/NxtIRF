@@ -165,7 +165,7 @@ void covFile::SetInputHandle(std::istream *in_stream) {
          
     if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
         EOF_POS = IS_LENGTH - bamEOFlength;
-        Rcout << "EOF detected at position: " << EOF_POS << "\n";
+        // Rcout << "EOF detected at position: " << EOF_POS << "\n";
           mode = "read";
 
     } else {
@@ -430,7 +430,7 @@ int covFile::ReadHeader() {
     index_begin = IN->tellg();      // should be the start point of bgzf block containing index
     bufferPos = 0;
     bufferMax = 0;    
-    Rcout << "index_begin: " << index_begin << '\n';
+    // Rcout << "index_begin: " << index_begin << '\n';
     
     // keep profiling to identify where body_begin is
     stream_uint32 u32;
@@ -442,7 +442,7 @@ int covFile::ReadHeader() {
         }
     }
     body_begin = IN->tellg();
-    Rcout << "body_begin: " << body_begin << '\n';
+    // Rcout << "body_begin: " << body_begin << '\n';
     
     return(n_ref.u);
 }
