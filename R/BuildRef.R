@@ -1,61 +1,71 @@
 #' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
 #'
+#' E.g. hg38 release-94: genome = "AH65745", transcriptome = "AH64631"
+#'
 #' @export
-FetchAnnotation <- function(ah_genome = "AH65745", ah_transcriptome = "AH64631", reference_path = "./Reference", 
+FetchAnnotation <- function(ah_genome = "", ah_transcriptome = "", reference_path = "./Reference", 
     verbose = FALSE) {
     NxtIRF.CheckPackageInstalled("AnnotationHub", "2.20.0")
+    NxtIRF.CheckPackageInstalled("GEOquery", "2.56.0")
+    returnval = c()
+    
     if (verbose) message("Initializing AnnotationHub")
     
     ah = AnnotationHub::AnnotationHub()
+    if(ah_genome != "" && substr(ah_genome,1,2) == "AH") {
+        genome.fasta.tmp = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa.tmp")
+        genome.fasta = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa")
 
-    genome.fasta.tmp = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa.tmp")
-    genome.fasta = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa")
-
-    if (file.exists(genome.fasta)) {
-        message("Genome file already exists, skipping...")
-    } else {
-        if (verbose) message("Fetching genome from AnnotationHub")
-        
-        genome = ah[[ah_genome]]
-        chrOrder = names(seqinfo(genome))
-        gr.df = data.frame(seqnames = chrOrder,
-            start = 1, end = seqinfo(genome)[chrOrder]@seqlengths)
-        genome.seq = getSeq(genome, GenomicRanges::makeGRangesFromDataFrame(gr.df))
-        names(genome.seq) = chrOrder
-        rtracklayer::export(genome.seq, genome.fasta, "fasta")
-
-        message(paste("Genome fasta file written to ",genome.fasta))
-    }
-    
-    transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_transcriptome, ".transcripts.gtf")
-    if(file.exists(transcripts.gtf)) {
-        message("Transcriptome file already exists, skipping...")    
-    } else {
-
-        if (verbose) message("Fetching transcript gtf file from AnnotationHub")
-        # Best to fetch from URL
-        url = ah$sourceurl[[which(names(ah) == ah_transcriptome)]]
-        assertthat::assert_that(substr(url,1,3) == "ftp",
-          msg = paste("ftp site not found for", ah_transcriptome))
-        urlfile = basename(url)
-        if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
-          download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
-          R.utils::gunzip(paste(transcripts.gtf, "gz", sep="."))
-        } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
-          download.file(url, destfile = transcripts.gtf)
+        if (file.exists(genome.fasta)) {
+            message("Genome file already exists, skipping...")
+            returnval = append(returnval, genome.fasta)
         } else {
-          warning(paste(ah_transcriptome, "does not provide a valid gtf or gtf.gz file"))
+            if (verbose) message("Fetching genome from AnnotationHub")
+            
+            genome = ah[[ah_genome]]
+            chrOrder = names(seqinfo(genome))
+            gr.df = data.frame(seqnames = chrOrder,
+                start = 1, end = seqinfo(genome)[chrOrder]@seqlengths)
+            genome.seq = getSeq(genome, GenomicRanges::makeGRangesFromDataFrame(gr.df))
+            names(genome.seq) = chrOrder
+            rtracklayer::export(genome.seq, genome.fasta, "fasta")
+
+            message(paste("Genome fasta file written to ",genome.fasta))
+            returnval = append(returnval, genome.fasta)
         }
-        
-        #        gtf = ah[[ah_transcriptome]]
-        #        genome(gtf) = genome(gtf)[1]
-
-        # rtracklayer::export(gtf, transcripts.gtf, "gtf")
-
-        message(paste("Transcriptome gtf file written to ", transcripts.gtf))
+    } else {
+        message("Genome AnnotationHub code not provided, skipping")
     }
-}
 
+    if(ah_transcriptome != "" && substr(ah_transcriptome,1,2) == "AH") {
+        transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_transcriptome, ".transcripts.gtf")
+        if(file.exists(transcripts.gtf)) {
+            message("Transcriptome file already exists, skipping...")    
+            returnval = append(returnval, transcripts.gtf)
+        } else {
+            if (verbose) message("Fetching transcript gtf file from AnnotationHub")
+            # Best to fetch from URL
+            url = ah$sourceurl[[which(names(ah) == ah_transcriptome)]]
+            assertthat::assert_that(substr(url,1,3) == "ftp",
+              msg = paste("ftp site not found for", ah_transcriptome))
+            urlfile = basename(url)
+            if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
+              download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
+              GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
+            } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
+              download.file(url, destfile = transcripts.gtf)
+            } else {
+              warning(paste(ah_transcriptome, "does not provide a valid gtf or gtf.gz file"))
+            }
+            
+            message(paste("Transcriptome gtf file written to ", transcripts.gtf))
+            returnval = append(returnval, transcripts.gtf)
+        }
+    } else {
+        message("Transcriptome AnnotationHub code not provided, skipping")
+    }
+    return(returnval)
+}
 #' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
 #'
 #' @export
@@ -156,6 +166,18 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         BlacklistFile = BlacklistRef
     }
 
+    assertthat::assert_that(
+        tryCatch(ifelse(normalizePath(dirname(reference_path)) != "",TRUE, TRUE),
+				 error = function(e) FALSE),
+                 msg = paste("Base path of ", reference_path, " does not exist"))
+    base_output_path = normalizePath(dirname(reference_path))
+    if(!dir.exists(paste(base_output_path, basename(reference_path), sep="/"))) {
+        dir.create(paste(base_output_path, basename(reference_path), sep="/"))
+    }
+    if(!dir.exists(paste(base_output_path, basename(reference_path), "fst", sep="/"))) {
+        dir.create(paste(base_output_path, basename(reference_path), "fst", sep="/"))
+    }
+
     if(ah_genome != "") {
         assertthat::assert_that(substr(ah_genome,1,2) == "AH",
             msg = "Given genome AnnotationHub reference is incorrect")
@@ -176,12 +198,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(ah_transcriptome != "") {
         assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-            if(!exists("ah")) {
-                message("Loading AnnotationHub")            
-                ah = AnnotationHub::AnnotationHub()
-            }
-            message("Reading AnnotationHub GTF file...", appendLF = F)
-            gtf.gr = ah[[ah_transcriptome]]
+            gtf_file = FetchAnnotation(ah_transcriptome = ah_transcriptome, reference_path = reference_path)
+            assertthat::assert_that(length(gtf_file) > 0 && nchar(gtf_file) > 4 && substr(gtf_file, nchar(gtf_file) - 3, nchar(gtf_file)) == ".gtf",
+                msg = "Failed to source transcriptome resource from AnnotationHub")
+            gtf.gr = rtracklayer::import(gtf_file)
             message("done\n")
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
@@ -190,7 +210,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         gtf.gr = rtracklayer::import(gtf)
         message("done\n")
     }
- 
+    gc()
+    
     if(genome_ah == TRUE) {
         chrOrder = names(rtracklayer::seqinfo(genome))    
     } else {
@@ -207,27 +228,31 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Genes = gtf.gr[gtf.gr$type == "gene"]
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
-        fst::write.fst(as.data.frame(Genes), paste(reference_path,"Genes.fst", sep="/"))
+        fst::write.fst(as.data.frame(Genes), paste(reference_path,"fst","Genes.fst", sep="/"))
 
     Transcripts = gtf.gr[gtf.gr$type == "transcript"]
     Transcripts <- GenomeInfoDb::sortSeqlevels(Transcripts)
     Transcripts <- sort(Transcripts)
-        fst::write.fst(as.data.frame(Transcripts), paste(reference_path,"Transcripts.fst", sep="/"))
+        fst::write.fst(as.data.frame(Transcripts), paste(reference_path,"fst","Transcripts.fst", sep="/"))
 
     Exons = gtf.gr[gtf.gr$type == "exon"]
     Exons <- GenomeInfoDb::sortSeqlevels(Exons)
     Exons <- sort(Exons)
-        fst::write.fst(as.data.frame(Exons), paste(reference_path,"Exons.fst", sep="/"))
+        fst::write.fst(as.data.frame(Exons), paste(reference_path,"fst","Exons.fst", sep="/"))
 
     Proteins = gtf.gr[gtf.gr$type == "CDS"]
     Proteins <- GenomeInfoDb::sortSeqlevels(Proteins)
     Proteins <- sort(Proteins)
-        fst::write.fst(as.data.frame(Proteins), paste(reference_path,"Proteins.fst", sep="/"))
+        fst::write.fst(as.data.frame(Proteins), paste(reference_path,"fst","Proteins.fst", sep="/"))
     
     gtf.misc = gtf.gr[!gtf.gr$type %in% c("gene", "transcript", "exon", "CDS")]
     gtf.misc <- GenomeInfoDb::sortSeqlevels(gtf.misc)
     gtf.misc <- sort(gtf.misc)
-        fst::write.fst(as.data.frame(gtf.misc), paste(reference_path,"Misc.fst", sep="/"))
+        fst::write.fst(as.data.frame(gtf.misc), paste(reference_path,"fst","Misc.fst", sep="/"))
+    
+    # To save memory, remove original gtf
+    rm(gtf.gr)
+    gc()
     
     # Generating IRFinder-base references
     Genes.rev = Genes
@@ -256,6 +281,39 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     } else {
         tmp.exons.exclude =  Exons
     }
+    
+#   Use non-IR exons to map out a list of obligate introns
+    #   First group all genes
+    #   Then assign all tmp.exons to gene group
+    Genes.Group = GenomicRanges::reduce(Genes)
+    Genes.Group$gene_group = 1:length(Genes.Group)
+    tmp.Exons.Group = GenomicRanges::reduce(tmp.exons.exclude)
+    tmp.Exons.Group.GG.ol = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(tmp.Exons.Group), Genes.Group)
+    tmp.Exons.Group$gene_group[tmp.Exons.Group.GG.ol@from] = Genes.Group$gene_group[tmp.Exons.Group.GG.ol@to]
+    # Now setdiff using gene and exon grouped elements
+    obligate.introns.stranded = grlGaps(
+        GenomicRanges::split(tmp.Exons.Group, tmp.Exons.Group$gene_group)
+    )
+    obligate.introns.stranded = as.data.frame(obligate.introns.stranded) %>% 
+        dplyr::select("seqnames", "start", "end", "strand", "width")
+        fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
+
+    # Repeat for unstranded
+    Genes.Group = GenomicRanges::reduce(Genes, ignore.strand = TRUE)
+    Genes.Group$gene_group = 1:length(Genes.Group)
+    tmp.Exons.Group = GenomicRanges::reduce(tmp.exons.exclude, ignore.strand = TRUE)
+    tmp.Exons.Group.GG.ol = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(tmp.Exons.Group), Genes.Group)
+    tmp.Exons.Group$gene_group[tmp.Exons.Group.GG.ol@from] = Genes.Group$gene_group[tmp.Exons.Group.GG.ol@to]
+    # Now setdiff using gene and exon grouped elements
+    obligate.introns.unstranded = grlGaps(
+        GenomicRanges::split(tmp.Exons.Group, tmp.Exons.Group$gene_group)
+    )
+    obligate.introns.unstranded = as.data.frame(obligate.introns.unstranded) %>% 
+        dplyr::select("seqnames", "start", "end", "strand", "width")
+        fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
+
     message("done\n")
 
     message("Processing introns...", appendLF = F)    
@@ -310,7 +368,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         candidate.introns[data.table::as.data.table(Exons), on = "transcript_id", 
         c("ccds_id") := list(i.ccds_id)]
     }
-        fst::write.fst(candidate.introns, paste(reference_path,"candidate.introns.fst", sep="/"))
+        fst::write.fst(candidate.introns, paste(reference_path,"fst","candidate.introns.fst", sep="/"))
 
     message("done\n")
 
@@ -1092,7 +1150,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
             as.character(as.numeric(intron_number_b + 1)))]
     }
 	
-        fst::write.fst(as.data.frame(AS_Table), paste(reference_path,"Splice.fst", sep="/"))
+        fst::write.fst(as.data.frame(AS_Table), paste(reference_path,"fst","Splice.fst", sep="/"))
 
 	message("done\n")
 
@@ -1268,7 +1326,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     AS_Table.Extended[!is.na(AA_casette.B), AA_full.B := paste0(AA_full.B, AA_casette.B)]
     AS_Table.Extended[!is.na(AA_downstr.B), AA_full.B := paste0(AA_full.B, AA_downstr.B)]
     
-    fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"Splice.Extended.fst", sep="/"))
+    fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"fst","Splice.Extended.fst", sep="/"))
 
 	message("Splice Annotations finished\n")
     

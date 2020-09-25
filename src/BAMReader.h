@@ -3,8 +3,6 @@
 #include <zlib.h>
 #include "includedefine.h"
 
-#define CHUNK 16384
-
 class BAMReader {
 	private:
 

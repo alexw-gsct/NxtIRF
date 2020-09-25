@@ -24,6 +24,36 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
+List IRF_RLE_From_Cov(std::string s_in, int strand,
+    std::string seqname, int start, int end) {
+// Returns an RLE covering the region described above
+// s_in: The coverage file
+// strand: 0 = +, 1 = -, 2 = *
+
+  std::ifstream inCov_stream;
+  inCov_stream.open(s_in, std::ifstream::binary);
+  
+  covFile inCov;
+  inCov.SetInputHandle(&inCov_stream);
+  
+  inCov.ReadHeader();
+  
+  std::vector<int> values;
+  std::vector<unsigned int> lengths;
+  
+  inCov.FetchRLE(seqname, (uint32_t)start, (uint32_t)end, strand, &values, &lengths);
+
+  inCov_stream.close();
+  
+  List RLE = List::create(
+    _["values"] = values,
+    _["lengths"] = lengths 
+  );
+  return(RLE);
+}
+
+/*
+
 List IRF_RLE_From_Cov(std::string s_in, int strand) {
   stream_uint32 u32;
   stream_int32 i32;
@@ -55,7 +85,10 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
     for(int i = 0; i < n_chr; i++) {
       gz_in.read(u32.c ,4);
       unsigned int block_size = u32.u;
-
+      
+      Rcout << "Reading strand " << j << ", seqnames " << chr_names[i] << ", block_size " << block_size << "\n";
+      
+    //  if(seqnames.size() == 0 || std::find(seqnames.begin(), seqnames.end(), chr_names[i]) != seqnames.end()) {
       if(j == strand) {
         
         std::vector<int> values;
@@ -77,11 +110,13 @@ List IRF_RLE_From_Cov(std::string s_in, int strand) {
       } else {
         gz_in.ignore(block_size);
       }
+   //   }
     }
   }
 
   return(RLEList);
 }
+*/
 
 // [[Rcpp::export]]
 int IRF_gunzip(std::string s_in, std::string s_out) {
@@ -246,14 +281,14 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   
   // Write Coverage Binary file:
   
-  std::ofstream COVout;
-  COVout.open(output_file + ".cov.gz", std::ofstream::binary);
+  std::ofstream ofCOV;
+  ofCOV.open(output_file + ".cov", std::ofstream::binary);
    
-  GZWriter outGZ2;
-  outGZ2.SetOutputHandle(&COVout);
+  covFile outCOV;
+  outCOV.SetOutputHandle(&ofCOV);
   
-  oFragMap.WriteBinary(&outGZ2, BB.chr_names, BB.chr_lens);
-  outGZ2.flush(true); COVout.flush(); COVout.close();
+  oFragMap.WriteBinary(&outCOV, BB.chr_names, BB.chr_lens);
+  ofCOV.close();
   
   return(0);
 }

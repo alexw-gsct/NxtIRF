@@ -37,8 +37,7 @@ run_IRFinder_gunzip = function(infile, outfile) {
   IRF_gunzip(normalizePath(infile), outfile)
 }
 
-#' @export
-get_Coverage = function(file, strand) {
+get_Coverage = function(file, strand, seqnames = c()) {
   raw_list = IRF_RLE_From_Cov(normalizePath(file),as.numeric(strand))
   final_list = list()
   if(length(raw_list) > 0) {
@@ -50,4 +49,11 @@ get_Coverage = function(file, strand) {
   names(final_RLE) = names(raw_list)
   return(final_RLE)
   
+}
+
+#' @export
+GetCoverage = function(file, strand, seqname, start, end) {
+  raw_RLE = IRF_RLE_From_Cov(normalizePath(file), as.numeric(strand),
+      as.character(seqname), as.numeric(start), as.numeric(end))
+  final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
 }

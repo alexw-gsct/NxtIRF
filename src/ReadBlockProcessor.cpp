@@ -544,19 +544,24 @@ void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
   }
 }
 
-int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const {
+int FragmentsMap::WriteBinary(covFile *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const {
+
+/*
   // Write COV file as binary
   char zero = '\0';
   
   // Issue is map constructs auto-sort
   // Need to put chrs and lengths into a map structure
-  
+
+ */  
   std::map< std::string, int32_t > chrmap;
   
+  // Arrange chromosomes in same order as arranged by mapping chrs
   for(unsigned int i = 0; i < chr_names.size(); i++) {
       chrmap.insert({chr_names[i], chr_lens[i]});
   }
   
+/*
   std::string header = "COV\x01";
   os->writebuffer(header.c_str(),4);
   
@@ -573,15 +578,19 @@ int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_n
     i32.i = chr->second;
     os->writebuffer(i32.c ,4);
   }
+*/
+  os->WriteHeader(chr_names, chr_lens);
 
+  unsigned int refID = 0;
+    
   for(unsigned int j = 0; j < 3; j++) {
-    //int refID = 0;
     for (auto itChr=chrName_count[j].begin(); itChr!=chrName_count[j].end(); itChr++) {
-      char * buffer = new char[8 * itChr->second.size()];
-      unsigned int mempos = 0;
+//      char * buffer = new char[8 * itChr->second.size()];
+//      unsigned int mempos = 0;
       unsigned int coordpos = 0;
       unsigned int coorddepth = 0;
       bool writefirst = true;
+            
       // Write first entry
       for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
         if(writefirst) {
@@ -589,48 +598,68 @@ int FragmentsMap::WriteBinary(GZWriter *os, const std::vector<std::string> chr_n
           if(it_pos->first == 0) {
             // Write coverage only
             coorddepth += it_pos->second;
-            i32.i = coorddepth;
-            memcpy(&buffer[mempos], i32.c, 4);
-            mempos += 4;
+
+//            memcpy(&buffer[mempos], i32.c, 4);
+//            mempos += 4;
           } else {
             coorddepth = 0;
             // Write how long zero is for, then write coverage increment
+/*            
             i32.i = coorddepth;
             memcpy(&buffer[mempos], i32.c, 4);
             mempos += 4;
             u32.u = it_pos->first;
             memcpy(&buffer[mempos], u32.c, 4);
             mempos += 4;
+*/            
+            os->WriteEntry(refID, coorddepth, it_pos->first);
+            
             coorddepth += it_pos->second;
+/*
             i32.i = coorddepth;
             memcpy(&buffer[mempos], i32.c, 4);
-            mempos += 4;
+            mempos += 4
+*/
             coordpos = it_pos->first;
           }
         } else {
+/*
           u32.u = it_pos->first - coordpos;
           memcpy(&buffer[mempos], u32.c, 4);
           mempos += 4;
+*/
+          // coorddepth should already be recorded previously
+          os->WriteEntry(refID, coorddepth, it_pos->first - coordpos);
+          
           coorddepth += it_pos->second;
+          
+/*          
           i32.i = coorddepth;
           memcpy(&buffer[mempos], i32.c, 4);
           mempos += 4;
+*/          
           coordpos = it_pos->first;
         }
       }
       // Write last entry for remainder of chromosome length
+/*      
       u32.u = chrmap[itChr->first] - coordpos;
       memcpy(&buffer[mempos], u32.c, 4);
       mempos += 4;
+*/      
+      os->WriteEntry(refID, coorddepth, chrmap[itChr->first] - coordpos);
       
       // Finally write entire buffer to disk
+/*      
       u32.u = mempos;
       os->writebuffer(u32.c,4);
       os->writebuffer(buffer,mempos);
       delete[] buffer;
-      //refID += 1; 
+*/      
+      refID += 1; 
     }
   }
+  os->FlushBody();
   return(0);
 }
 

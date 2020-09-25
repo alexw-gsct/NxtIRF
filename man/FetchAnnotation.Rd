@@ -5,12 +5,12 @@
 \title{Fetch genome / transcriptome reference from AnnotationHub and writes to reference}
 \usage{
 FetchAnnotation(
-  ah_genome = "AH65745",
-  ah_transcriptome = "AH64631",
+  ah_genome = "",
+  ah_transcriptome = "",
   reference_path = "./Reference",
   verbose = FALSE
 )
 }
 \description{
-Fetch genome / transcriptome reference from AnnotationHub and writes to reference
+E.g. hg38 release-94: genome = "AH65745", transcriptome = "AH64631"
 }
