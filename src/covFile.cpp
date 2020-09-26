@@ -151,7 +151,11 @@ void covFile::SetOutputHandle(std::ostream *out_stream) {
 }
 
 void covFile::SetInputHandle(std::istream *in_stream) {
-  IN = in_stream;
+    IS_EOF = 0;
+    IS_FAIL = 0;
+    IS_LENGTH = 0;
+
+    IN = in_stream;
   
   // Identify EOF
     IN->seekg (0, std::ios_base::end);

@@ -79,7 +79,7 @@ int BAMReader::LoadBuffer() {
     zs.next_out = (Bytef*)buffer;
     zs.avail_out = bufferMax;
 
-    memcpy(u32.c, &compressed_buffer[myInt16.i + 1 - 2 - bamGzipHeadLength - 8],4);
+    memcpy(u32.c, &compressed_buffer[u16.u + 1 - 2 - bamGzipHeadLength - 8],4);
 
     int ret = inflateInit2(&zs, -15);
     if(ret != Z_OK) {
@@ -100,7 +100,7 @@ int BAMReader::LoadBuffer() {
     // check CRC
     uint32_t crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferMax);
     // CRC check:
-    if(u32.u32 != crc) {
+    if(u32.u != crc) {
         std::ostringstream oss;
         oss << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
         throw(std::runtime_error(oss.str()));
@@ -170,7 +170,7 @@ int BAMReader::ignore(unsigned int len) {
             remaining_bytes -= bufferMax;
             bufferMax = 0;
             bufferPos = 0;
-            ReadBuffer();
+            LoadBuffer();
         }
         
         // memcpy(dest + bufferMax - bufferPos, &buffer[bufferPos], remaining_bytes);

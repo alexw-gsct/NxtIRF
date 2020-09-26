@@ -31,7 +31,7 @@ class BAMReader {
 		};
 		union stream_uint16 {
 			char c[2];
-			uint16_t i;
+			uint16_t u;
 		};
         
         // bool eof_check();
