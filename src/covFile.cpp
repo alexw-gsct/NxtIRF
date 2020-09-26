@@ -140,7 +140,7 @@ void covFile::SetOutputHandle(std::ostream *out_stream) {
   OUT = out_stream;
 
   mode = "write";
-  bufferMax = 65536 - 18;
+  bufferMax = 65536 - 18 - 8;
   bufferPos = 0;
   out_cur_seqID = 0;
   
@@ -353,7 +353,7 @@ int covFile::WriteBuffer() {
     OUT->write(u32.c, 4);
     
     bufferPos = 0;
-    bufferMax = 65536 - 18;
+    bufferMax = 65536 - 18 - 8;
     return(ret);
 }
 
