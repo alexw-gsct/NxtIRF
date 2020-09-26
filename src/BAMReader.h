@@ -25,13 +25,13 @@ class BAMReader {
 		static const int bamGzipHeadLength = 16;  // +2 a uint16 with the full block length.
 		static const char bamGzipHead[bamGzipHeadLength+1];
 
-		union stream_int32 {
+		union stream_uint32 {
 			char c[4];
-			int32_t i;
+			uint32_t u;
 		};
-		union stream_int16 {
+		union stream_uint16 {
 			char c[2];
-			int16_t i;
+			uint16_t i;
 		};
         
         // bool eof_check();
