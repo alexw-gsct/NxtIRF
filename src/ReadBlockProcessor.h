@@ -5,6 +5,8 @@
 
 #include "GZWriter.h"
 
+#include "covFile.h"
+
 /*
 The code can be finished faster if we force a requirement that all input files are coordinate sorted by the start of each block.
 ie: sort -k2,2n (for BED files).
@@ -131,7 +133,7 @@ public:
   void ProcessBlocks(const FragmentBlocks &blocks);
   void ChrMapUpdate(const std::vector<string> &chrmap);
   int WriteOutput(std::ostream *os) const;
-  int WriteBinary(GZWriter *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const;
+  int WriteBinary(covFile *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const;
 };
 
 

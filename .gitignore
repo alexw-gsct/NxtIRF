@@ -4,6 +4,7 @@
 
 # Session Data files
 .RData
+rIRFinder.Rproj
 
 # User-specific files
 .Ruserdata

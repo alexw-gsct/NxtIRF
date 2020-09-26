@@ -3,8 +3,6 @@
 #include <zlib.h>
 #include "includedefine.h"
 
-#define CHUNK 16384
-
 class BAMReader {
 	private:
 
@@ -18,7 +16,6 @@ class BAMReader {
         int IS_EOF;
         int IS_FAIL;
         
-        size_t IS_LENGTH;
         size_t EOF_POS;
         
  		static const int bamEOFlength = 28;
@@ -27,13 +24,13 @@ class BAMReader {
 		static const int bamGzipHeadLength = 16;  // +2 a uint16 with the full block length.
 		static const char bamGzipHead[bamGzipHeadLength+1];
 
-		union stream_int32 {
+		union stream_uint32 {
 			char c[4];
-			int32_t i;
+			uint32_t u;
 		};
-		union stream_int16 {
+		union stream_uint16 {
 			char c[2];
-			int16_t i;
+			uint16_t u;
 		};
         
         // bool eof_check();
@@ -42,7 +39,10 @@ class BAMReader {
         BAMReader();
         bool eof();
         bool fail();
+        uint64_t tellg();
         streamsize gcount();
+
+        size_t IS_LENGTH;
         
         int read(char * dest, unsigned int len);
         int ignore(unsigned int len);

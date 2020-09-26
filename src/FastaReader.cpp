@@ -32,4 +32,5 @@ bool FastaReader::ReadSeq() {
       }
     }
   }
+  return(true);
 }

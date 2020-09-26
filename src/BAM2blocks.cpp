@@ -4,6 +4,10 @@
 #include "includedefine.h"
 // using namespace std;
 
+// Try RcppProgress
+// [[Rcpp::depends(RcppProgress)]]
+#include <progress.hpp>
+
 //const char cigarChar[] = {'M','I','D','N','S','H','P','=','X'};
 
 BAM2blocks::BAM2blocks() {
@@ -252,7 +256,9 @@ int BAM2blocks::processAll(std::string& output) {
 	int pair = 0;
 	//int bytesread = 0;
     std::ostringstream oss;
+  uint64_t prev_bam_pos = IN->tellg();
   
+  Progress p(IN->IS_LENGTH, true);
 	while(1) {
 		j++;
 		if (IN->eof() && !(IN->fail()) ) {
@@ -324,6 +330,8 @@ int BAM2blocks::processAll(std::string& output) {
                 spare_reads[read_name] = reads[0];
             }
 		}
+		p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
+        prev_bam_pos = IN->tellg();
 	}
 	return(0);
 }

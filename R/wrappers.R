@@ -37,8 +37,7 @@ run_IRFinder_gunzip = function(infile, outfile) {
   IRF_gunzip(normalizePath(infile), outfile)
 }
 
-#' @export
-get_Coverage = function(file, strand) {
+get_Coverage = function(file, strand, seqnames = c()) {
   raw_list = IRF_RLE_From_Cov(normalizePath(file),as.numeric(strand))
   final_list = list()
   if(length(raw_list) > 0) {
@@ -50,4 +49,19 @@ get_Coverage = function(file, strand) {
   names(final_RLE) = names(raw_list)
   return(final_RLE)
   
+}
+
+#' @export
+GetCoverage = function(file, seqname, start = 0, end = 0, strand = 2) {
+  assertthat::assert_that(as.numeric(strand) %in% c(0,1,2),
+                          msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
+  assertthat::assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
+                          msg = "Null or negative regions not allowed")
+  if(end == 0) {
+    raw_RLE = IRF_RLE_From_Cov(normalizePath(file), as.character(seqname), 0,0, as.numeric(strand))
+  } else {
+    raw_RLE = IRF_RLE_From_Cov(normalizePath(file), as.character(seqname), 
+                               round(as.numeric(start)), round(as.numeric(end)), as.numeric(strand))
+  }
+  final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
 }
