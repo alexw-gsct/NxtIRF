@@ -29,6 +29,15 @@ List IRF_RLE_From_Cov(std::string s_in, int strand,
 // Returns an RLE covering the region described above
 // s_in: The coverage file
 // strand: 0 = +, 1 = -, 2 = *
+  
+  List NULL_RLE = List::create(
+    _["values"] = 0,
+    _["lengths"] = 0 
+  );
+  
+  if(start > end){
+    return(NULL_RLE);
+  }
 
   std::ifstream inCov_stream;
   inCov_stream.open(s_in, std::ifstream::binary);
@@ -38,85 +47,43 @@ List IRF_RLE_From_Cov(std::string s_in, int strand,
   
   inCov.ReadHeader();
   
+  // Find corresponding seqname
+  int ref_index;
+  auto it_chr = std::find(inCov.chr_names.begin(), inCov.chr_names.end(), seqname);
+  if(it_chr == inCov.chr_names.end()) {
+    return(NULL_RLE);
+  } else {
+    ref_index = distance(inCov.chr_names.begin(), it_chr);
+  }
+  // end = 0 implies fetch whole chromosome
+  int eff_end = 0;
+  if(end == 0) {
+    eff_end = inCov.chr_lens.at(ref_index);
+  } else {
+    eff_end = end;
+  }
+  
   std::vector<int> values;
   std::vector<unsigned int> lengths;
+  // Push first value
+  values.push_back(0);
+  lengths.push_back((unsigned int)start);
   
-  inCov.FetchRLE(seqname, (uint32_t)start, (uint32_t)end, strand, &values, &lengths);
+  inCov.FetchRLE(seqname, (uint32_t)start, (uint32_t)eff_end, strand, &values, &lengths);
 
   inCov_stream.close();
-  
+  // Push last value
+  if((uint32_t)eff_end < inCov.chr_lens.at(ref_index)) {
+    values.push_back(0);
+    lengths.push_back(inCov.chr_lens.at(ref_index) - eff_end);
+  }
+    
   List RLE = List::create(
     _["values"] = values,
     _["lengths"] = lengths 
   );
   return(RLE);
 }
-
-/*
-
-List IRF_RLE_From_Cov(std::string s_in, int strand) {
-  stream_uint32 u32;
-  stream_int32 i32;
-  char buffer[1000];
-  std::string chrName;
-
-  GZReader gz_in;
-  gz_in.LoadGZ(s_in);
-  gz_in.ignore(4);
-  
-  std::vector<std::string> chr_names;
-  std::vector<int> chr_lens;
-  
-  gz_in.read(i32.c ,4);
-  int n_chr = i32.i;
-  
-  for (int i = 0; i < n_chr; i++) {
-    gz_in.read(i32.c ,4);
-    gz_in.read(buffer , i32.i);
-    chrName = string(buffer, i32.i-1);
-    chr_names.push_back(chrName);
-    gz_in.read(i32.c ,4);
-    chr_lens.push_back(i32.i);
-  }
-
-  List RLEList;
-
-  for(int j = 0; j < 3; j++) {
-    for(int i = 0; i < n_chr; i++) {
-      gz_in.read(u32.c ,4);
-      unsigned int block_size = u32.u;
-      
-      Rcout << "Reading strand " << j << ", seqnames " << chr_names[i] << ", block_size " << block_size << "\n";
-      
-    //  if(seqnames.size() == 0 || std::find(seqnames.begin(), seqnames.end(), chr_names[i]) != seqnames.end()) {
-      if(j == strand) {
-        
-        std::vector<int> values;
-        std::vector<unsigned int> lengths;
-        unsigned int pos = 0;
-        while( pos < block_size ) {
-          gz_in.read(i32.c ,4);
-          values.push_back(i32.i);
-          gz_in.read(u32.c ,4);
-          lengths.push_back(u32.u);
-          pos += 8;
-        }
-        List RLE = List::create(
-          _["values"] = values,
-          _["lengths"] = lengths 
-        );
-        RLEList.push_back(RLE, chr_names[i]);
-        
-      } else {
-        gz_in.ignore(block_size);
-      }
-   //   }
-    }
-  }
-
-  return(RLEList);
-}
-*/
 
 // [[Rcpp::export]]
 int IRF_gunzip(std::string s_in, std::string s_out) {

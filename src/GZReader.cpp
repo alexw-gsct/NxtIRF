@@ -8,10 +8,13 @@
 GZReader::GZReader() {
   bufferLen = 0;
   bufferPos = 0;
+  buffer = NULL;
 }
 
 GZReader::~GZReader() {
-  delete[] buffer;
+  if(buffer != NULL) {
+    delete[] buffer;
+  }
 }
 
 void GZReader::LoadGZ(std::string s_filename, bool asStream) {

@@ -32,7 +32,7 @@ covBuffer::covBuffer() {
 
 // Destructor
 covFile::~covFile() {
-  if(mode == "write") {
+  if(chr_index != NULL) {
     free(chr_index);
   }
 }
@@ -43,9 +43,7 @@ covBuffer::~covBuffer() {
   }
 }
 
-
 // covBuffer functions
-
 
 bool covBuffer::BufferIsFull(unsigned int threshold) {
   // Returns true if writing another threshold bits will lead to overflow (default threshold = 8)
@@ -138,16 +136,17 @@ int covBuffer::WriteBuffer() {
 }
 
 void covFile::SetOutputHandle(std::ostream *out_stream) {
-	OUT = out_stream;
-    mode = "write";
-    bufferMax = 65536 - 18;
-    bufferPos = 0;
-    out_cur_seqID = 0;
-    
-    chr_index = (char*)malloc(1200);
-    chr_index_alloc = 1200;
-    chr_index_pos = 0;
-    chr_coord = 0;
+  OUT = out_stream;
+
+  mode = "write";
+  bufferMax = 65536 - 18;
+  bufferPos = 0;
+  out_cur_seqID = 0;
+  
+  chr_index = (char*)malloc(1200);
+  chr_index_alloc = 1200;
+  chr_index_pos = 0;
+  chr_coord = 0;
 }
 
 void covFile::SetInputHandle(std::istream *in_stream) {
@@ -585,25 +584,25 @@ int covFile::FetchRLE(const std::string seqname, const uint32_t start, const uin
 // Write operations
 
 int covFile::FlushBody() {
-    // Final operation after everything has been written
-    
-    stream_uint32 u32;
-    // Flush final chromosome
-    u32.u = chr_index_pos;
-    write(u32.c, 4);
-    // Now write the rest of the index buffer
-    if(chr_index_pos > 0) {
-        write(chr_index, chr_index_pos);
-    }
-    WriteBuffer();
-    
-    body.WriteBuffer();
+  // Final operation after everything has been written
+  
+  stream_uint32 u32;
+  // Flush final chromosome
+  u32.u = chr_index_pos;
+  write(u32.c, 4);
+  // Now write the rest of the index buffer
+  if(chr_index_pos > 0) {
+    write(chr_index, chr_index_pos);
+  }
+  WriteBuffer();
+  
+  body.WriteBuffer();
 
-    OUT->write(body.file_buffer, body.file_bufferPos);
-    OUT->write(covFile::bamEOF, covFile::bamEOFlength);
-    
-    OUT->flush();
-    return 0;
+  OUT->write(body.file_buffer, body.file_bufferPos);
+  OUT->write(covFile::bamEOF, covFile::bamEOFlength);
+  
+  OUT->flush();
+  return 0;
 }
 
 int covFile::WriteHeader(std::vector<std::string> s_chr, std::vector<int32_t> u_lens) {
@@ -644,91 +643,90 @@ int covFile::WriteHeader(std::vector<std::string> s_chr, std::vector<int32_t> u_
   WriteBuffer();       // flush output
   
   // Initialize first chromosome entry here
-    u32.u = chr_coord;                              // should equal zero
-    memcpy(&chr_index[chr_index_pos], u32.c, 4);
-    chr_index_pos += 4;
-    u64.u = body.file_bufferPos;                    // should equal zero
-    memcpy(&chr_index[chr_index_pos], u64.c, 8);
-    chr_index_pos += 8;
-  
+  u32.u = chr_coord;                              // should equal zero
+  memcpy(&chr_index[chr_index_pos], u32.c, 4);
+  chr_index_pos += 4;
+  u64.u = body.file_bufferPos;                    // should equal zero
+  memcpy(&chr_index[chr_index_pos], u64.c, 8);
+  chr_index_pos += 8;
   
   return 0;
 }
 
 int covFile::WriteEntry(unsigned int seqID, int value, unsigned int length) {
 //  Assume sorted output. seqID is only there to signify if chromosome has changed
-    stream_int32 i32;
-    stream_uint32 u32;
-    stream_uint64 u64;
+  stream_int32 i32;
+  stream_uint32 u32;
+  stream_uint64 u64;
+  
+  if(seqID >= chr_names.size() * 3) {
+    return -1;
+  } else if(seqID < out_cur_seqID) {
+    return -1;      // Does not support non-sorted writing
+  }
+  
+  // Assume non contiguous seq_ID... have to write empty entries for all seq_ID in between
+  while(out_cur_seqID < seqID) {
+    // Finalise current chromosome if exists
     
-    if(seqID >= chr_names.size() * 3) {
-        return -1;
-    } else if(seqID < out_cur_seqID) {
-        return -1;      // Does not support non-sorted writing
+    // Write size of chr_index
+    u32.u = chr_index_pos;
+    write(u32.c, 4);
+    // Now write the rest of the index buffer
+    if(chr_index_pos > 0) {
+      write(chr_index, chr_index_pos);
+    }
+    body.WriteBuffer();
+    
+    out_cur_seqID += 1;
+    
+    // Initialize current chromosome here
+    
+    free(chr_index);
+    chr_index = (char*)malloc(1200);
+    chr_index_alloc = 1200;
+    chr_index_pos = 0;
+    chr_coord = 0;
+// Write first chr index entry:
+    u32.u = chr_coord;
+    memcpy(&chr_index[chr_index_pos], u32.c, 4);
+    chr_index_pos += 4;
+    u64.u = body.file_bufferPos;
+    memcpy(&chr_index[chr_index_pos], u64.c, 8);
+    chr_index_pos += 8;    
+  }
+  
+  // Now seqID == out_cur_seqID
+  // body should not be full if new chromosome entry. This ensures
+  if(body.BufferIsFull(8)) {
+    // i.e. if writing an extra 8 bytes will overflow buffer
+    body.WriteBuffer();     // write bgzf block
+    
+    // If chr index buffer too full then reallocate more memory
+    // Checking equality suffices as each memory allocation is in a block divisible by 12
+    if(chr_index_pos == chr_index_alloc) {
+      char * data_tmp;
+      chr_index = (char*)realloc((data_tmp = chr_index), chr_index_alloc += 1200);
     }
     
-    // Assume non contiguous seq_ID... have to write empty entries for all seq_ID in between
-    while(out_cur_seqID < seqID) {
-        // Finalise current chromosome if exists
-        
-        // Write size of chr_index
-        u32.u = chr_index_pos;
-        write(u32.c, 4);
-        // Now write the rest of the index buffer
-        if(chr_index_pos > 0) {
-            write(chr_index, chr_index_pos);
-        }
-        body.WriteBuffer();
-        
-        out_cur_seqID += 1;
-        
-        // Initialize current chromosome here
-        
-        free(chr_index);
-        chr_index = (char*)malloc(1200);
-        chr_index_alloc = 1200;
-        chr_index_pos = 0;
-        chr_coord = 0;
-    // Write first chr index entry:
-        u32.u = chr_coord;
-        memcpy(&chr_index[chr_index_pos], u32.c, 4);
-        chr_index_pos += 4;
-        u64.u = body.file_bufferPos;
-        memcpy(&chr_index[chr_index_pos], u64.c, 8);
-        chr_index_pos += 8;    
-    }
-    
-    // Now seqID == out_cur_seqID
-    // body should not be full if new chromosome entry. This ensures
-    if(body.BufferIsFull(8)) {
-        // i.e. if writing an extra 8 bytes will overflow buffer
-        body.WriteBuffer();     // write bgzf block
-        
-        // If chr index buffer too full then reallocate more memory
-        // Checking equality suffices as each memory allocation is in a block divisible by 12
-        if(chr_index_pos == chr_index_alloc) {
-            char * data_tmp;
-            chr_index = (char*)realloc((data_tmp = chr_index), chr_index_alloc += 1200);
-        }
-        
-        // Write file offset of new block into the index - 12 bytes per record
-        u32.u = chr_coord;      // The begin coordinate of the next bgzf block
-        memcpy(&chr_index[chr_index_pos], u32.c, 4);
-        chr_index_pos += 4;
-        u64.u = body.file_bufferPos;        // the file offset of the next bgzf block
-        memcpy(&chr_index[chr_index_pos], u64.c, 8);
-        chr_index_pos += 8;
-    }
+    // Write file offset of new block into the index - 12 bytes per record
+    u32.u = chr_coord;      // The begin coordinate of the next bgzf block
+    memcpy(&chr_index[chr_index_pos], u32.c, 4);
+    chr_index_pos += 4;
+    u64.u = body.file_bufferPos;        // the file offset of the next bgzf block
+    memcpy(&chr_index[chr_index_pos], u64.c, 8);
+    chr_index_pos += 8;
+  }
 
-    i32.i = value;
-    body.write(i32.c, 4);
-    
-    u32.u = length;
-    body.write(u32.c, 4);
-    
-    chr_coord += length;
+  i32.i = value;
+  body.write(i32.c, 4);
+  
+  u32.u = length;
+  body.write(u32.c, 4);
+  
+  chr_coord += length;
 
-    return(0);
+  return(0);
 }
 
 
