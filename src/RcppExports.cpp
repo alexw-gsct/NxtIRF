@@ -7,17 +7,17 @@
 using namespace Rcpp;
 
 // IRF_RLE_From_Cov
-List IRF_RLE_From_Cov(std::string s_in, int strand, std::string seqname, int start, int end);
-RcppExport SEXP _rIRFinder_IRF_RLE_From_Cov(SEXP s_inSEXP, SEXP strandSEXP, SEXP seqnameSEXP, SEXP startSEXP, SEXP endSEXP) {
+List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand);
+RcppExport SEXP _rIRFinder_IRF_RLE_From_Cov(SEXP s_inSEXP, SEXP seqnameSEXP, SEXP startSEXP, SEXP endSEXP, SEXP strandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type s_in(s_inSEXP);
-    Rcpp::traits::input_parameter< int >::type strand(strandSEXP);
     Rcpp::traits::input_parameter< std::string >::type seqname(seqnameSEXP);
     Rcpp::traits::input_parameter< int >::type start(startSEXP);
     Rcpp::traits::input_parameter< int >::type end(endSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_RLE_From_Cov(s_in, strand, seqname, start, end));
+    Rcpp::traits::input_parameter< int >::type strand(strandSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_RLE_From_Cov(s_in, seqname, start, end, strand));
     return rcpp_result_gen;
 END_RCPP
 }

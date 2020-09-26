@@ -24,8 +24,7 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-List IRF_RLE_From_Cov(std::string s_in, int strand,
-    std::string seqname, int start, int end) {
+List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand) {
 // Returns an RLE covering the region described above
 // s_in: The coverage file
 // strand: 0 = +, 1 = -, 2 = *

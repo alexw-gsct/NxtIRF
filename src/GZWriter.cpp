@@ -78,24 +78,21 @@ int GZWriter::flush(bool final) {
     strm.avail_out = CHUNK_gz;
     strm.next_out = (Bytef*)compressed_buffer;
     
-//    if(final == 0) {
-      ret = deflate(&strm, Z_FINISH);  
-//    } else {
-//      ret = deflate(&strm, Z_FINISH);
-//    }
+    ret = deflate(&strm, Z_FINISH);  
 
-  if (ret != Z_OK && ret != Z_STREAM_END) {
-    std::ostringstream oss;
-    oss << "Exception during zlib deflate: (" << ret << ") " << strm.msg;
-    throw(std::runtime_error(oss.str()));
-  }
+    if (ret != Z_OK && ret != Z_STREAM_END) {
+        std::ostringstream oss;
+        oss << "Exception during zlib deflate: (" << ret << ") " << strm.msg;
+        throw(std::runtime_error(oss.str()));
+    }
 
     have = strm.total_out;
   
     OUT->write(compressed_buffer, have);
-
-    OUT->flush();
-
+    if(final) {   
+        OUT->flush();
+    }
+    
     deflateEnd(&strm);
     bufferPos=0;
   }
