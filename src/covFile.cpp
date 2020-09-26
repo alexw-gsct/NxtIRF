@@ -454,7 +454,7 @@ int covFile::ReadHeader() {
         for(unsigned int i = 0; i < chr_names.size(); i++) {
             read(u32.c, 4);
             ignore(u32.u);            
-             Rcout << "refID: " << i << ", strand: " << j << ", index bytes: " << u32.u << '\n';
+             // Rcout << "refID: " << i << ", strand: " << j << ", index bytes: " << u32.u << '\n';
         }
     }
     body_begin = IN->tellg();
@@ -528,7 +528,7 @@ int covFile::FetchPos(const std::string seqname, const uint32_t start, const int
         }
     }
 
-    Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
+    // Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
     *file_offset = prev_offset + body_begin;
     *block_start = prev_block_start;
     return 0;
