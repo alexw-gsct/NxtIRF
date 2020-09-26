@@ -1,9 +1,11 @@
-FindSamples <- function(sample_path) {
+#' @export
+FindSamples <- function(sample_path, suffix = ".txt.gz") {
     assertthat::assert_that(dir.exists(sample_path),
         msg = "Given path does not exist")
     
-    df = data.frame(sample = "", path = list.files(pattern = "\\.txt.gz$", path = sample_path, full.names = TRUE))
-    df$sample = sub(".txt.gz","",basename(df$path))
+    df = data.frame(sample = "", path = list.files(pattern = paste0("\\", suffix, "$"),
+        path = normalizePath(sample_path), full.names = TRUE, recursive = TRUE))
+    df$sample = sub(suffix,"",basename(df$path))
     
     return(df)
 }
