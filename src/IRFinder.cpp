@@ -81,6 +81,7 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
     _["values"] = values,
     _["lengths"] = lengths 
   );
+
   return(RLE);
 }
 

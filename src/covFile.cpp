@@ -19,6 +19,7 @@ covFile::covFile() {
     body_begin = 0;
     
     mode = "";
+    chr_index = NULL;
 }
 
 covBuffer::covBuffer() {
@@ -429,7 +430,7 @@ int covFile::ReadHeader() {
     index_begin = IN->tellg();      // should be the start point of bgzf block containing index
     bufferPos = 0;
     bufferMax = 0;    
-    // Rcout << "index_begin: " << index_begin << '\n';
+//    Rcout << "index_begin: " << index_begin << '\n';
     
     // keep profiling to identify where body_begin is
     stream_uint32 u32;
@@ -441,7 +442,7 @@ int covFile::ReadHeader() {
         }
     }
     body_begin = IN->tellg();
-    // Rcout << "body_begin: " << body_begin << '\n';
+//    Rcout << "body_begin: " << body_begin << '\n';
     
     return(n_ref.u);
 }
@@ -511,7 +512,7 @@ int covFile::FetchPos(const std::string seqname, const uint32_t start, const int
         }
     }
 
-    // Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
+//    Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
     *file_offset = prev_offset + body_begin;
     *block_start = prev_block_start;
     return 0;
