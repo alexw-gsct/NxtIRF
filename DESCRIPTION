@@ -17,6 +17,6 @@ Description: rIRFinder is the next evolution for Intron Retention detection for 
     - (TODO) Downstream analysis (currently uses DESeq2 or DSS)
     - (TODO) Visualisation of splice events, differential RNA-seq coverage across conditions, etc
 License: MIT
-Imports: Rcpp (>= 1.0.5), zlibbioc (>= 1.32.0)
-LinkingTo: Rcpp, RcppArmadillo, zlibbioc
+Imports: Rcpp (>= 1.0.5), zlibbioc (>= 1.32.0), RcppProgress (>= 0.4.2)
+LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
 RoxygenNote: 7.1.1

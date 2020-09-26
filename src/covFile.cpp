@@ -301,16 +301,19 @@ int covFile::write(char * src, unsigned int len) {
         bufferPos += len;
         return(Z_OK);
     } else {
-        memcpy(&buffer[bufferPos], &src[src_pos], bufferMax - bufferPos);
         remaining_bytes = len - (bufferMax - bufferPos);
+        memcpy(&buffer[bufferPos], &src[src_pos], bufferMax - bufferPos);
         src_pos += bufferMax - bufferPos;
+        bufferPos = bufferMax;
+        WriteBuffer();
 
-        while(remaining_bytes > bufferMax) {            
-            WriteBuffer();
-            memcpy(&buffer[bufferPos], &src[src_pos], bufferMax - bufferPos);
-            remaining_bytes -= bufferMax;
-            src_pos += bufferMax;
-        }
+      while(remaining_bytes > bufferMax) {                 
+          remaining_bytes -= bufferMax;
+          memcpy(&buffer[0], &src[src_pos], bufferMax);
+          src_pos += bufferMax;
+          bufferPos = bufferMax;
+          WriteBuffer();
+      }
         
         memcpy(&buffer[bufferPos], &src[src_pos], remaining_bytes);
         bufferPos += remaining_bytes;

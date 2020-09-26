@@ -192,9 +192,14 @@ bool BAMReader::eof() {
     }
 }
 
+uint64_t BAMReader::tellg() {
+    return((uint64_t)IN->tellg());
+}
+
 bool BAMReader::fail() {
     return(IN->fail());
 }
+
 
 streamsize BAMReader::gcount() {
     return(IN->gcount());

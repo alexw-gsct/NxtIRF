@@ -16,7 +16,6 @@ class BAMReader {
         int IS_EOF;
         int IS_FAIL;
         
-        size_t IS_LENGTH;
         size_t EOF_POS;
         
  		static const int bamEOFlength = 28;
@@ -40,7 +39,10 @@ class BAMReader {
         BAMReader();
         bool eof();
         bool fail();
+        uint64_t tellg();
         streamsize gcount();
+
+        size_t IS_LENGTH;
         
         int read(char * dest, unsigned int len);
         int ignore(unsigned int len);
