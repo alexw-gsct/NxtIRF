@@ -10,10 +10,10 @@ Description: rIRFinder is the next evolution for Intron Retention detection for 
     to analysis of bam files aligned to the genome using a splice-aware aligner (e.g. STAR),
     rIRFinder provides convenient pipelines for downstream analysis and publication-ready
     visualisation. Specifically, rIRFinder:
-    - (TODO) Allows reference generation using Bioconductor/AnnotationHub
-    - (WOrking draft) Directly analyses BAM files (with compatibility for sorted or unsorted BAMs - TODO)
+    - Allows reference generation using Bioconductor/AnnotationHub
+    - Directly analyses BAM files (with compatibility for coordinate-sorted BAMs)
     - (TODO) IRFinder output collation across multiple samples
-    - (TODO) Additionally analysis other forms of alternative splicing (using differential junction usage)
+    - (TODO) Additionally analyse other forms of alternative splicing (using differential junction usage)
     - (TODO) Downstream analysis (currently uses DESeq2 or DSS)
     - (TODO) Visualisation of splice events, differential RNA-seq coverage across conditions, etc
 License: MIT

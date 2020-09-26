@@ -25,6 +25,14 @@ class covBuffer{
 			char c[2];
 			int16_t i;
 		};
+		union stream_uint32 {
+			char c[4];
+			uint32_t u;
+		};
+		union stream_uint16 {
+			char c[2];
+			uint16_t u;
+		};
 
   public:
     covBuffer();

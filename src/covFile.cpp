@@ -89,8 +89,8 @@ int covBuffer::write(char * src, unsigned int len) {
 
 int covBuffer::WriteBuffer() {
   
-  stream_int16 myInt16;
-  stream_int32 myInt32;
+  stream_uint16 u16;
+  stream_uint32 u32;
   uint32_t crc;
   z_stream zs;
   
@@ -114,21 +114,21 @@ int covBuffer::WriteBuffer() {
   memcpy(&file_buffer[file_bufferPos], bamGzipHead, bamGzipHeadLength);
   file_bufferPos += bamGzipHeadLength;
   
-  myInt16.i = block_len - 1;
-  memcpy(&file_buffer[file_bufferPos], myInt16.c, 2);
+  u16.u = block_len - 1;
+  memcpy(&file_buffer[file_bufferPos], u16.c, 2);
   file_bufferPos += 2;
   
   memcpy(&file_buffer[file_bufferPos], compressed_buffer, zs.total_out);
   file_bufferPos += zs.total_out;
   
   crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferPos);
-  myInt32.i = crc;
+  u32.u = crc;
   
-  memcpy(&file_buffer[file_bufferPos], myInt32.c, 4);
+  memcpy(&file_buffer[file_bufferPos], u32.c, 4);
   file_bufferPos += 4;
   
-  myInt32.i = bufferPos;
-  memcpy(&file_buffer[file_bufferPos], myInt32.c, 4);
+  u32.u = bufferPos;
+  memcpy(&file_buffer[file_bufferPos], u32.c, 4);
   file_bufferPos += 4;
   
   bufferPos = 0;
@@ -187,7 +187,7 @@ int covFile::ReadBuffer() {
         return(0);
     }
 
-    stream_int16 myInt16;
+    stream_uint16 u16;
 
     char GzipCheck[bamGzipHeadLength];
     IN->read(GzipCheck, bamGzipHeadLength);
@@ -199,8 +199,8 @@ int covFile::ReadBuffer() {
         throw(std::runtime_error(oss.str()));
     }
 
-    IN->read(myInt16.c, 2);
-    IN->read(compressed_buffer, myInt16.i + 1 - 2  - bamGzipHeadLength);
+    IN->read(u16.c, 2);
+    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
 
     bufferMax = 65536;
     z_stream zs;
@@ -208,12 +208,12 @@ int covFile::ReadBuffer() {
     zs.zfree = NULL;
     zs.msg = NULL;
     zs.next_in = (Bytef*)compressed_buffer;
-    zs.avail_in = myInt16.i + 1 - 2  - bamGzipHeadLength;
+    zs.avail_in = u16.u + 1 - 2  - bamGzipHeadLength;
     zs.next_out = (Bytef*)buffer;
     zs.avail_out = bufferMax;
 
-    stream_int32 myInt32;
-    memcpy(myInt32.c, &compressed_buffer[myInt16.i + 1 - 2 - bamGzipHeadLength - 8],4);
+    stream_uint32 u32;
+    memcpy(u32.c, &compressed_buffer[u16.u + 1 - 2 - bamGzipHeadLength - 8],4);
 
     int ret = inflateInit2(&zs, -15);
     if(ret != Z_OK) {
@@ -234,7 +234,7 @@ int covFile::ReadBuffer() {
     // check CRC
     uint32_t crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferMax);
     // CRC check:
-    if((uint32_t)myInt32.i != crc) {
+    if(u32.u != crc) {
         std::ostringstream oss;
         oss << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
         throw(std::runtime_error(oss.str()));
@@ -318,8 +318,8 @@ int covFile::write(char * src, unsigned int len) {
 
 int covFile::WriteBuffer() {
     
-    stream_int16 myInt16;
-    stream_int32 myInt32;
+    stream_uint16 u16;
+    stream_uint32 u32;
     uint32_t crc;
     z_stream zs;
 
@@ -337,16 +337,16 @@ int covFile::WriteBuffer() {
     int block_len = zs.total_out + 18 + 8;
     
     OUT->write(bamGzipHead, bamGzipHeadLength);
-    myInt16.i = block_len - 1;
-    OUT->write(myInt16.c, 2);
+    u16.u = block_len - 1;
+    OUT->write(u16.c, 2);
     
     OUT->write(compressed_buffer, zs.total_out);
     
     crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferPos);
-    myInt32.i = crc;
-    OUT->write(myInt32.c, 4);
-    myInt32.i = bufferPos;
-    OUT->write(myInt32.c, 4);
+    u32.u = crc;
+    OUT->write(u32.c, 4);
+    u32.u = bufferPos;
+    OUT->write(u32.c, 4);
     
     bufferPos = 0;
     bufferMax = 65536 - 18;
@@ -354,22 +354,31 @@ int covFile::WriteBuffer() {
 }
 
 int covFile::ignore(unsigned int len) {
-    
+    // Essentially copy read() but without memcpy etc.
     unsigned int remaining_bytes = len;
+
+    if(bufferMax == 0 || bufferPos == bufferMax) {
+        ReadBuffer();        
+    }
     
-    if (len < bufferMax - bufferPos) {
+    if (len <= bufferMax - bufferPos) {
         // memcpy(dest, &buffer[bufferPos], len);
         bufferPos += len;
         return(Z_OK);
     } else {
         remaining_bytes = len - (bufferMax - bufferPos);
 
+        bufferMax = 0;
+        bufferPos = 0;
+        ReadBuffer();
+
         while(remaining_bytes > bufferMax) {
-            bufferMax = 0;
-            bufferPos = 0;        
-            ReadBuffer();
             remaining_bytes -= bufferMax;
+            bufferMax = 0;
+            bufferPos = 0;
+            ReadBuffer();
         }
+        
         bufferPos += remaining_bytes;
         // Note bufferPos can equal bufferMax. IN->tellg() will return the position of the next bgzf block
     }
@@ -430,7 +439,7 @@ int covFile::ReadHeader() {
     index_begin = IN->tellg();      // should be the start point of bgzf block containing index
     bufferPos = 0;
     bufferMax = 0;    
-//    Rcout << "index_begin: " << index_begin << '\n';
+    Rcout << "index_begin: " << index_begin << '\n';
     
     // keep profiling to identify where body_begin is
     stream_uint32 u32;
@@ -438,11 +447,11 @@ int covFile::ReadHeader() {
         for(unsigned int i = 0; i < chr_names.size(); i++) {
             read(u32.c, 4);
             ignore(u32.u);            
-            // Rcout << "refID: " << i << ", strand: " << j << ", index bytes: " << u32.u << '\n';
+             Rcout << "refID: " << i << ", strand: " << j << ", index bytes: " << u32.u << '\n';
         }
     }
     body_begin = IN->tellg();
-//    Rcout << "body_begin: " << body_begin << '\n';
+    Rcout << "body_begin: " << body_begin << '\n';
     
     return(n_ref.u);
 }
@@ -512,7 +521,7 @@ int covFile::FetchPos(const std::string seqname, const uint32_t start, const int
         }
     }
 
-//    Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
+    Rcout << "file offset: " << prev_offset + body_begin << ", block_start: " << prev_block_start << "\n";
     *file_offset = prev_offset + body_begin;
     *block_start = prev_block_start;
     return 0;
