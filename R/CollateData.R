@@ -62,7 +62,8 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         direct$Value = as.numeric(direct$Value)
         df.internal$strand[i] = direct$Value[9]
     }
-
+    gc()
+    
     # Compile junctions first
     for(i in 1:nrow(df.internal)) {
         message(paste("Compiling junction list from sample: ", i))
@@ -101,33 +102,92 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     junc.common$strand = NULL
     setnames(junc.common, "motif_infer_strand", "strand")
 
+    # Should splicing across gene groups be allowed? Exclude
+    Genes = GenomicRanges::makeGRangesFromDataFrame(
+        fst::read.fst(paste(reference_path, "fst", "Genes.fst", sep="/"))
+    )
+    Genes.Group.stranded = as.data.table(
+        GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 5000),
+        GenomicRanges::flank(Genes, 5000, start = FALSE))
+    ))
+    setorder(Genes.Group.stranded, seqnames, start, strand)
+    Genes.Group.stranded[, gene_group_stranded := .I]
+    
+    junc.common.left = copy(junc.common)
+    junc.common.left[, start := start - 1]
+    junc.common.left[, end := start + 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        )
+    )
+    junc.common$gene_group_left[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+
+    junc.common.right = copy(junc.common)
+    junc.common.right[, end := end + 1]
+    junc.common.right[, start := end - 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        )
+    )
+    junc.common$gene_group_right[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+        
+    # Quick and dirty annotation of exon group information
+    # Exons = GenomicRanges::makeGRangesFromDataFrame(
+        # fst::read.fst(paste(reference_path, "fst", "Exons.fst", sep="/")), keep.extra.columns = TRUE
+    # )
+    # OL = suppressWarnings(
+        # GenomicRanges::findOverlaps(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons))
+        # )
+    # )
+    # junc.common$exon_group_left = NA
+    # junc.common$exon_group_left[OL@from] = Exons$exon_group_stranded[OL@to]
+    # OL = suppressWarnings(
+        # GenomicRanges::findOverlaps(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons))
+        # )
+    # )
+    # junc.common$exon_group_right = NA
+    # junc.common$exon_group_right[OL@from] = Exons$exon_group_stranded[OL@to]
+
+    # Exclude distant splice events:
+    junc.common = junc.common[gene_group_left == gene_group_right & !is.na(gene_group_left)]
+    junc.common$gene_group_left = NULL
+    junc.common$gene_group_right = NULL
+    
     # Assign region names to junctions:
     junc.common[, name := paste0(seqnames, ":", start, "-", end, "/", strand)]
     
-    obligate.introns.stranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.stranded.fst", sep="/"))        
-    obligate.introns.unstranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.unstranded.fst", sep="/"))        
+    # obligate.introns.stranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.stranded.fst", sep="/"))        
+    # obligate.introns.unstranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.unstranded.fst", sep="/"))        
 
-    OL.stranded = suppressWarnings(GenomicRanges::findOverlaps(
-        makeGRangesFromDataFrame(as.data.frame(obligate.introns.stranded)),
-        makeGRangesFromDataFrame(as.data.frame(junc.common))
-        ))
-    OL.unstranded = suppressWarnings(GenomicRanges::findOverlaps(
-        makeGRangesFromDataFrame(as.data.frame(obligate.introns.unstranded)),
-        makeGRangesFromDataFrame(as.data.frame(junc.common)), 
-        ignore.strand=TRUE))
+    # OL.stranded = suppressWarnings(GenomicRanges::findOverlaps(
+        # makeGRangesFromDataFrame(as.data.frame(obligate.introns.stranded)),
+        # makeGRangesFromDataFrame(as.data.frame(junc.common))
+        # ))
+    # OL.unstranded = suppressWarnings(GenomicRanges::findOverlaps(
+        # makeGRangesFromDataFrame(as.data.frame(obligate.introns.unstranded)),
+        # makeGRangesFromDataFrame(as.data.frame(junc.common)), 
+        # ignore.strand=TRUE))
     
     # remove obligate introns for which there is no overlap with current dataset
-    obligate.introns.stranded = obligate.introns.stranded[unique(OL.stranded@from),]
-    obligate.introns.unstranded = obligate.introns.unstranded[unique(OL.unstranded@from),]
+    # obligate.introns.stranded = obligate.introns.stranded[unique(OL.stranded@from),]
+    # obligate.introns.unstranded = obligate.introns.unstranded[unique(OL.unstranded@from),]
 
-    OL.stranded = suppressWarnings(GenomicRanges::findOverlaps(
-        makeGRangesFromDataFrame(as.data.frame(obligate.introns.stranded)),
-        makeGRangesFromDataFrame(as.data.frame(junc.common))
-        ))
-    OL.unstranded = suppressWarnings(GenomicRanges::findOverlaps(
-        makeGRangesFromDataFrame(as.data.frame(obligate.introns.unstranded)),
-        makeGRangesFromDataFrame(as.data.frame(junc.common)), 
-        ignore.strand=TRUE))
+    # OL.stranded = suppressWarnings(GenomicRanges::findOverlaps(
+        # makeGRangesFromDataFrame(as.data.frame(obligate.introns.stranded)),
+        # makeGRangesFromDataFrame(as.data.frame(junc.common))
+        # ))
+    # OL.unstranded = suppressWarnings(GenomicRanges::findOverlaps(
+        # makeGRangesFromDataFrame(as.data.frame(obligate.introns.unstranded)),
+        # makeGRangesFromDataFrame(as.data.frame(junc.common)), 
+        # ignore.strand=TRUE))
 
 
     for(i in 1:nrow(df.internal)) {
@@ -156,31 +216,29 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         junc = junc[,c("seqnames", "start", "end", "strand", "name", "count")]
         
         # Calculate SpliceOver here
-        if(df.internal$strand[i] == 0) {
-            junc.OL = data.table(from = OL.unstranded@from, to = OL.unstranded@to)
-            OL = as.data.table(obligate.introns.unstranded)
-        } else {
-            junc.OL = data.table(from = OL.stranded@from, to = OL.stranded@to)
-            OL = as.data.table(obligate.introns.stranded)
-        }
+        # if(df.internal$strand[i] == 0) {
+            # junc.OL = data.table(from = OL.unstranded@from, to = OL.unstranded@to)
+            # OL = as.data.table(obligate.introns.unstranded)
+        # } else {
+            # junc.OL = data.table(from = OL.stranded@from, to = OL.stranded@to)
+            # OL = as.data.table(obligate.introns.stranded)
+        # }
 
-        OL.expanded = OL[junc.OL$from]
-        OL.expanded[, count := junc$count[junc.OL$to]]
-        OL = OL.expanded[, lapply(.SD, sum, na.rm = TRUE), by = c("seqnames","start","end", "strand")]
+        # OL.expanded = OL[junc.OL$from]
+        # OL.expanded[, count := junc$count[junc.OL$to]]
+        # OL = OL.expanded[, lapply(.SD, sum, na.rm = TRUE), by = c("seqnames","start","end", "strand")]
         
-        junc.expanded = junc[junc.OL$to]
-        junc.expanded[, SpliceOver := OL$count[junc.OL$from]]
-        junc.SO = junc.expanded[, lapply(.SD, mean, na.rm = TRUE), by = c("seqnames","start","end", "strand", "name")]
-        junc[junc.SO, SpliceOver := i.SpliceOver, on = c("seqnames","start","end", "strand", "name")]
-        junc[is.na(SpliceOver), SpliceOver := 0]
+        # junc.expanded = junc[junc.OL$to]
+        # junc.expanded[, SpliceOver := OL$count[junc.OL$from]]
+        # junc.SO = junc.expanded[, lapply(.SD, mean, na.rm = TRUE), by = c("seqnames","start","end", "strand", "name")]
+        # junc[junc.SO, SpliceOver := i.SpliceOver, on = c("seqnames","start","end", "strand", "name")]
+        # junc[is.na(SpliceOver), SpliceOver := 0]
 
         fst::write.fst(as.data.frame(junc), 
             paste(norm_output_path, Experiment$sample[i], "junc.fst", sep="/"))
     }
 
     # Semi-join IRFinder annotation
-    
-    
     
     # Target files to generate
     
@@ -232,9 +290,9 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
             irf[SpliceLeft >= SpliceRight, SpliceMax := SpliceLeft]
             irf[SpliceLeft < SpliceRight, SpliceMax := SpliceRight]
 
-            junc = fst::read.fst(paste(norm_output_path, Experiment$sample[i], "junc.fst", sep="/"))
+            # junc = fst::read.fst(paste(norm_output_path, Experiment$sample[i], "junc.fst", sep="/"))
             # Determine SpliceOver using overlaps with obligate intronic regions
-            irf[junc, SpliceOver := i.SpliceOver, on = c("seqnames","start","end", "strand")]
+            # irf[junc, SpliceOver := i.SpliceOver, on = c("seqnames","start","end", "strand")]
 
             fst::write.fst(as.data.frame(irf), 
                 paste(norm_output_path, Experiment$sample[i], "IR.fst", sep="/")

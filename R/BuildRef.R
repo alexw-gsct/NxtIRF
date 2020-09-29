@@ -241,7 +241,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         assertthat::assert_that(file.exists(normalizePath(gtf)),
             msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
         message("Reading source GTF file...", appendLF = F)
-        gtf.gr = rtracklayer::import(gtf)
+        gtf.gr = rtracklayer::import(gtf, "gtf")
         message("done\n")
     }
     gc()
@@ -264,6 +264,25 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Genes = gtf.gr[gtf.gr$type == "gene"]
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
+    
+    # Annotate gene_groups_stranded / unstranded
+    Genes.Group.stranded = as.data.table(GenomicRanges::reduce(Genes))
+    # Order by seqnames then by start coordinate then by strand
+    setorder(Genes.Group.stranded, seqnames, start, strand)
+    Genes.Group.stranded[, gene_group_stranded := .I]
+    OL = GenomicRanges::findOverlaps(
+        Genes, GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded)))
+    Genes$gene_group_stranded[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+
+    Genes.Group.unstranded = as.data.table(GenomicRanges::reduce(Genes, ignore.strand = TRUE))
+    # Order by seqnames then by start coordinate then by strand
+    setorder(Genes.Group.unstranded, seqnames, start)
+    Genes.Group.unstranded[, gene_group_unstranded := .I]
+    OL = GenomicRanges::findOverlaps(
+        Genes, GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.unstranded),
+        ignore.strand = TRUE))
+    Genes$gene_group_unstranded[OL@from] = Genes.Group.unstranded$gene_group_unstranded[OL@to]
+    
         fst::write.fst(as.data.frame(Genes), paste(reference_path,"fst","Genes.fst", sep="/"))
 
     Transcripts = gtf.gr[gtf.gr$type == "transcript"]
@@ -274,8 +293,106 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Exons = gtf.gr[gtf.gr$type == "exon"]
     Exons <- GenomeInfoDb::sortSeqlevels(Exons)
     Exons <- sort(Exons)
+
+    if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
+        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
+    } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
+        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_type)]
+    } else {
+        tmp.exons.exclude =  copy(Exons)
+    }
+
+    # Assign gene groups then bake exon-groups into Exons
+    tmp.Exons.Group.stranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude))
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded)))
+    tmp.Exons.Group.stranded$gene_group_stranded[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+    setorder(tmp.Exons.Group.stranded, seqnames, start, strand)
+    tmp.Exons.Group.stranded[, exon_group_stranded := data.table::rowid(gene_group_stranded)]
+    tmp.Exons.Group.stranded[strand == "-", 
+        exon_group_stranded := max(exon_group_stranded) + 1 - exon_group_stranded, by = "gene_group_stranded"]
+
+    tmp.Exons.Group.unstranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude, ignore.strand = TRUE))
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.unstranded)),
+        , ignore.strand = TRUE)
+    tmp.Exons.Group.unstranded$gene_group_unstranded[OL@from] = Genes.Group.unstranded$gene_group_unstranded[OL@to]
+    setorder(tmp.Exons.Group.unstranded, seqnames, start, strand)
+    tmp.Exons.Group.unstranded[, exon_group_unstranded := data.table::rowid(gene_group_unstranded)]
+    tmp.Exons.Group.unstranded[strand == "-", 
+        exon_group_unstranded := max(exon_group_unstranded) + 1 - exon_group_unstranded, by = "gene_group_unstranded"]
+
+    # Now annotate all exons in tmp.exons.exclude with the gene and exon groups
+    OL = GenomicRanges::findOverlaps(
+        tmp.exons.exclude, 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))
+    tmp.exons.exclude$gene_group_stranded[OL@from] = tmp.Exons.Group.stranded$gene_group_stranded[OL@to]
+    tmp.exons.exclude$exon_group_stranded[OL@from] = tmp.Exons.Group.stranded$exon_group_stranded[OL@to]
+        # any(is.na(tmp.exons.exclude$gene_group_stranded))
+        # [1] FALSE    
+        # any(is.na(tmp.exons.exclude$exon_group_stranded))
+        # [1] FALSE    
+    OL = GenomicRanges::findOverlaps(
+        tmp.exons.exclude, 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)),
+        ignore.strand = TRUE)
+    tmp.exons.exclude$gene_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$gene_group_unstranded[OL@to]
+    tmp.exons.exclude$exon_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$exon_group_unstranded[OL@to]
+        # any(is.na(tmp.exons.exclude$gene_group_unstranded))
+        # [1] FALSE    
+        # any(is.na(tmp.exons.exclude$exon_group_unstranded))
+        # [1] FALSE      
+    
+    # Map this back to Exons:
+    Exons = as.data.table(Exons)
+    Exons[as.data.table(tmp.exons.exclude), on = c("transcript_id", "exon_id"),
+        c("gene_group_stranded", "gene_group_unstranded", 
+            "exon_group_stranded", "exon_group_unstranded") := 
+        list(i.gene_group_stranded, i.gene_group_unstranded, i.exon_group_stranded, i.exon_group_unstranded)]
+    Exons = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons), keep.extra.columns = TRUE)
+
+#   Why filter by protein_coding or processed_transcript? Make this an option
+    if(FilterIRByProcessedTranscript == TRUE) {
+        if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
+            candidate.transcripts = Exons[Exons$transcript_biotype %in% c("processed_transcript", "protein_coding")]
+        } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
+            candidate.transcripts = Exons[Exons$transcript_type %in% c("processed_transcript", "protein_coding")]    
+        } else {
+            candidate.transcripts = Exons
+        }
+    } else {
+        candidate.transcripts = copy(Exons)    
+    }
+    
+    # Finally write to disk
         fst::write.fst(as.data.frame(Exons), paste(reference_path,"fst","Exons.fst", sep="/"))
 
+    # Now setdiff using gene and exon grouped elements
+    obligate.introns.stranded = grlGaps(
+        GenomicRanges::split(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
+            tmp.Exons.Group.stranded$gene_group_stranded)
+    )
+    obligate.introns.stranded = as.data.table(obligate.introns.stranded)
+    obligate.introns.stranded = obligate.introns.stranded[, c("seqnames", "start", "end", "strand", "width")]
+        fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
+
+    obligate.introns.unstranded = grlGaps(
+        GenomicRanges::split(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
+            tmp.Exons.Group.unstranded$gene_group_unstranded)
+    )
+    obligate.introns.unstranded = as.data.table(obligate.introns.unstranded)
+    obligate.introns.unstranded = obligate.introns.unstranded[, c("seqnames", "start", "end", "strand", "width")]
+        fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
+
+    # Cleanup
+    rm(OL, Genes.Group.stranded, Genes.Group.unstranded,
+        tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded)
+    gc()
+    
     Proteins = gtf.gr[gtf.gr$type == "CDS"]
     Proteins <- GenomeInfoDb::sortSeqlevels(Proteins)
     Proteins <- sort(Proteins)
@@ -297,59 +414,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Genes.Extended = GenomicRanges::reduce(c(GenomicRanges::flank(Genes.rev, 5000), 
         GenomicRanges::flank(Genes.rev, 1000, start = F)))
 
-#   Why filter by protein_coding or processed_transcript? Make this an option
-    if(FilterIRByProcessedTranscript == TRUE) {
-        if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
-            candidate.transcripts = Exons[Exons$transcript_biotype %in% c("processed_transcript", "protein_coding")]
-        } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
-            candidate.transcripts = Exons[Exons$transcript_type %in% c("processed_transcript", "protein_coding")]    
-        } else {
-            candidate.transcripts = Exons
-        }
-    } else {
-        candidate.transcripts = Exons    
-    }
-
-    if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
-        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
-    } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
-        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_type)]
-    } else {
-        tmp.exons.exclude =  Exons
-    }
     
-#   Use non-IR exons to map out a list of obligate introns
-    #   First group all genes
-    #   Then assign all tmp.exons to gene group
-    Genes.Group = GenomicRanges::reduce(Genes)
-    Genes.Group$gene_group = 1:length(Genes.Group)
-    tmp.Exons.Group = GenomicRanges::reduce(tmp.exons.exclude)
-    tmp.Exons.Group.GG.ol = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(tmp.Exons.Group), Genes.Group)
-    tmp.Exons.Group$gene_group[tmp.Exons.Group.GG.ol@from] = Genes.Group$gene_group[tmp.Exons.Group.GG.ol@to]
-    # Now setdiff using gene and exon grouped elements
-    obligate.introns.stranded = grlGaps(
-        GenomicRanges::split(tmp.Exons.Group, tmp.Exons.Group$gene_group)
-    )
-    obligate.introns.stranded = as.data.frame(obligate.introns.stranded) %>% 
-        dplyr::select("seqnames", "start", "end", "strand", "width")
-        fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
-
-    # Repeat for unstranded
-    Genes.Group = GenomicRanges::reduce(Genes, ignore.strand = TRUE)
-    Genes.Group$gene_group = 1:length(Genes.Group)
-    tmp.Exons.Group = GenomicRanges::reduce(tmp.exons.exclude, ignore.strand = TRUE)
-    tmp.Exons.Group.GG.ol = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(tmp.Exons.Group), Genes.Group)
-    tmp.Exons.Group$gene_group[tmp.Exons.Group.GG.ol@from] = Genes.Group$gene_group[tmp.Exons.Group.GG.ol@to]
-    # Now setdiff using gene and exon grouped elements
-    obligate.introns.unstranded = grlGaps(
-        GenomicRanges::split(tmp.Exons.Group, tmp.Exons.Group$gene_group)
-    )
-    obligate.introns.unstranded = as.data.frame(obligate.introns.unstranded) %>% 
-        dplyr::select("seqnames", "start", "end", "strand", "width")
-        fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
-
     message("done\n")
 
     message("Processing introns...", appendLF = F)    
@@ -361,6 +426,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     candidate.introns$group = NULL
     colnames(candidate.introns)[1] = "transcript_id"
     data.table::setorder(candidate.introns, seqnames, start, end, strand)
+
+# Annotating Introns:
+    candidate.introns[,intron_number := data.table::rowid(transcript_id)]
+    candidate.introns[strand == "-", intron_number := max(intron_number) + 1 - intron_number, by = "transcript_id"]
+    candidate.introns[,intron_id := paste0(transcript_id, "_Intron", intron_number)]
+    candidate.introns[data.table::as.data.table(Transcripts), on = "transcript_id", 
+        c("gene_name", "gene_id", "transcript_name") := list(i.gene_name, i.gene_id, i.transcript_name)]
     
     # Grab splice motifs at this point; filter by valid splice motifs
     donor.introns = data.frame(seqnames = candidate.introns$seqnames,
@@ -379,12 +451,6 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     # novel.introns = candidate.introns[!(splice_motif %in% c("GTAG", "GCAG", "ATAC", "ATAG", "GTAC"))]
     candidate.introns = candidate.introns[splice_motif %in% c("GTAG", "GCAG", "ATAC", "ATAG", "GTAC")]
 
-# Annotating Introns:
-    candidate.introns[,intron_number := data.table::rowid(transcript_id)]
-    candidate.introns[strand == "-", intron_number := max(intron_number) + 1 - intron_number, by = "transcript_id"]
-    candidate.introns[,intron_id := paste0(transcript_id, "_Intron", intron_number)]
-    candidate.introns[data.table::as.data.table(Transcripts), on = "transcript_id", 
-        c("gene_name", "gene_id", "transcript_name") := list(i.gene_name, i.gene_id, i.transcript_name)]
     
 # Do other annotations here:
     candidate.introns[data.table::as.data.table(Transcripts), on = "transcript_id", 
@@ -404,7 +470,30 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         candidate.introns[data.table::as.data.table(Exons), on = "transcript_id", 
         c("ccds_id") := list(i.ccds_id)]
     }
-        fst::write.fst(candidate.introns, paste(reference_path,"fst","candidate.introns.fst", sep="/"))
+    
+    # Annotate candidate introns by min and max exon_groups by reference to upstream / downstream exon
+    
+    # TODO: check why ENST00000425657 yields NA
+    Exons.Hash = as.data.table(Exons)
+    Exons.Hash = Exons.Hash[, c("transcript_id", "exon_number", "gene_group_stranded", "gene_group_unstranded",
+        "exon_group_stranded", "exon_group_unstranded")]
+    setnames(Exons.Hash, "exon_number", "intron_number")
+    Exons.Hash[, intron_number := as.numeric(intron_number)]
+    candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
+        c("gene_group_stranded", "gene_group_unstranded",
+            "exon_group_stranded_upstream", "exon_group_unstranded_upstream") :=
+        list(i.gene_group_stranded, i.gene_group_unstranded,
+            i.exon_group_stranded, i.exon_group_unstranded)]
+    Exons.Hash[, intron_number := intron_number - 1]
+    candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
+        c("exon_group_stranded_downstream", "exon_group_unstranded_downstream") :=
+        list(i.exon_group_stranded, i.exon_group_unstranded)]
+
+    candidate.introns[,intron_start := start]
+    candidate.introns[,intron_end := end]
+    candidate.introns[,Event :=  paste0(seqnames, ":", intron_start, "-", intron_end, "/", strand)]
+    
+    fst::write.fst(candidate.introns, paste(reference_path,"fst","candidate.introns.fst", sep="/"))
 
     message("done\n")
 
@@ -424,7 +513,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     exclude.directional[, start := start - 5]
     exclude.directional[, end := end + 5]
     
-    exclude.directional.reverse = exclude.directional[strand == "-", strand:= "P"]
+    exclude.directional.reverse = copy(exclude.directional)
+    exclude.directional.reverse[strand == "-", strand:= "P"]
     exclude.directional.reverse[strand == "+", strand:= "-"]
     exclude.directional.reverse[strand == "P", strand:= "+"]
 
@@ -489,10 +579,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     introns.unique.nd = introns.unique
 
 # Dir
-    introns.intersect.dir = GenomicRanges::intersect(introns.unique.dir, c(exclude.omnidirectional, 
-        GenomicRanges::makeGRangesFromDataFrame(exclude.directional)))
+    introns.intersect.dir = GenomicRanges::intersect(introns.unique.dir, 
+    c(exclude.omnidirectional, GenomicRanges::makeGRangesFromDataFrame(exclude.directional)))
 
-    introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique, introns.intersect.dir)
+    introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique.dir, introns.intersect.dir)
     # make a GRanges same size as the number of intersections
     introns.intersect.dir.final = introns.intersect.dir[introns.intersect.ol@to]
     introns.intersect.dir.final$intron_id = introns.unique$intron_id[introns.intersect.ol@from]
@@ -506,7 +596,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         GenomicRanges::makeGRangesFromDataFrame(exclude.directional), 
         GenomicRanges::makeGRangesFromDataFrame(exclude.directional.reverse)))
 
-    introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique, introns.intersect.nd)
+    introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique.nd, introns.intersect.nd)
     # make a GRanges same size as the number of intersections
     introns.intersect.nd.final = introns.intersect.nd[introns.intersect.ol@to]
     introns.intersect.nd.final$intron_id = introns.unique$intron_id[introns.intersect.ol@from]
@@ -530,9 +620,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     tmpdir.IntronCover.summa = unique(tmpdir.IntronCover.summa[,c("intron_id", "num_blocks", "inclbases")]
         , by = "intron_id")
     tmpdir.IntronCover.summa[data.table::as.data.table(introns.unique), 
-        on = "intron_id", c("seqnames", "intron_start", "intron_end", "intron_width", "width", "strand", "gene_name", "transcript_id", "known_exon_dir")
-          := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, i.gene_name, i.transcript_id, i.known_exon_dir)]
-    tmpdir.IntronCover.summa[, exclbases := width - inclbases]
+        on = "intron_id", c("seqnames", "intron_start", "intron_end", "intron_width", "width", "strand", 
+            "gene_name", "transcript_id", "known_exon_dir", "EG_up", "EG_down")
+          := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, 
+            i.gene_name, i.transcript_id, i.known_exon_dir, i.exon_group_stranded_upstream, i.exon_group_stranded_downstream)]
+    tmpdir.IntronCover.summa[, exclbases := intron_width - inclbases]
         # Exclude exclbases / width > 0.3
     tmpdir.IntronCover.summa = tmpdir.IntronCover.summa[exclbases / intron_width < 0.3]
 
@@ -567,7 +659,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         "known_exon_nd", "antiover", "antinear")
           := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, i.gene_name, i.transcript_id, 
           i.known_exon_nd, i.antiover, i.antinear)]
-    tmpnd.IntronCover.summa[, exclbases := width - inclbases]
+    tmpnd.IntronCover.summa[, exclbases := intron_width - inclbases]
         # Exclude exclbases / width > 0.3
     tmpnd.IntronCover.summa = tmpnd.IntronCover.summa[exclbases / intron_width < 0.3]
 
@@ -725,9 +817,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     message("Annotating Splice Events\n")
 
-    candidate.introns[,intron_start := start]
-    candidate.introns[,intron_end := end]
-    candidate.introns[,Event :=  paste0(seqnames, ":", intron_start, "-", intron_end, "/", strand)]
+    # candidate.introns[,intron_start := start]
+    # candidate.introns[,intron_end := end]
+    # candidate.introns[,Event :=  paste0(seqnames, ":", intron_start, "-", intron_end, "/", strand)]
     
     GeneOrder = data.table::as.data.table(Genes)
     setorder(GeneOrder, seqnames, start, end, strand)
@@ -966,31 +1058,33 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     #   All exons are labelled by exon groups
     #   A5SS and A3SS require both splice alternatives occur in exons belonging to same exon group
     
-    Genes.Group = GenomicRanges::reduce(Genes)
-    Genes.Group$gene_group = 1:length(Genes.Group)
-    Exons.Group = GenomicRanges::reduce(candidate.transcripts)
-    Exons.Group.GG.ol = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(Exons.Group), Genes.Group)
-    Exons.Group$gene_group[Exons.Group.GG.ol@from] = Genes.Group$gene_group[Exons.Group.GG.ol@to]
-    Exons.Group = data.table::as.data.table(Exons.Group)
-    setorder(Exons.Group, seqnames, start, end)
-    Exons.Group[, exon_group := data.table::rowid(gene_group)]
-    Exons.Group[strand == "-", exon_group := max(exon_group) + 1 - exon_group, by = "gene_group"]
+    # Genes.Group = GenomicRanges::reduce(Genes)
+    # Genes.Group$gene_group = 1:length(Genes.Group)
+    # Exons.Group = GenomicRanges::reduce(candidate.transcripts)
+    # Exons.Group.GG.ol = GenomicRanges::findOverlaps(
+        # GenomicRanges::makeGRangesFromDataFrame(Exons.Group), Genes.Group)
+    # Exons.Group$gene_group[Exons.Group.GG.ol@from] = Genes.Group$gene_group[Exons.Group.GG.ol@to]
+    # Exons.Group = data.table::as.data.table(Exons.Group)
+    # setorder(Exons.Group, seqnames, start, end)
+    # Exons.Group[, exon_group := data.table::rowid(gene_group)]
+    # Exons.Group[strand == "-", exon_group := max(exon_group) + 1 - exon_group, by = "gene_group"]
 
     candidate.introns.ASS = copy(candidate.introns)
-    candidate.introns.ASS[, c("start", "end") := list(start - 1, end + 1)]
-    candidate.introns.ASS.ol = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(candidate.introns.ASS),
-        GenomicRanges::makeGRangesFromDataFrame(Exons.Group))
-    candidate.introns.ASS.summa = data.table::data.table(
-        intron_id = candidate.introns.ASS$intron_id[candidate.introns.ASS.ol@from],
-        exon_group = Exons.Group$exon_group[candidate.introns.ASS.ol@to])
-    candidate.introns.ASS.summa[, c("exon_groups_start", "exon_groups_end") := 
-        list(min(exon_group), max(exon_group)), by = "intron_id"]
-    candidate.introns.ASS.summa = unique(candidate.introns.ASS.summa, by = "intron_id")
-    candidate.introns.ASS[candidate.introns.ASS.summa, on = "intron_id",
-        c("exon_groups_start", "exon_groups_end") := list(i.exon_groups_start, i.exon_groups_end)]
+    # candidate.introns.ASS[, c("start", "end") := list(start - 1, end + 1)]
+    # candidate.introns.ASS.ol = GenomicRanges::findOverlaps(
+        # GenomicRanges::makeGRangesFromDataFrame(candidate.introns.ASS),
+        # GenomicRanges::makeGRangesFromDataFrame(Exons.Group))
+    # candidate.introns.ASS.summa = data.table::data.table(
+        # intron_id = candidate.introns.ASS$intron_id[candidate.introns.ASS.ol@from],
+        # exon_group = Exons.Group$exon_group[candidate.introns.ASS.ol@to])
+    # candidate.introns.ASS.summa[, c("exon_groups_start", "exon_groups_end") := 
+        # list(min(exon_group), max(exon_group)), by = "intron_id"]
+    # candidate.introns.ASS.summa = unique(candidate.introns.ASS.summa, by = "intron_id")
+    # candidate.introns.ASS[candidate.introns.ASS.summa, on = "intron_id",
+        # c("exon_groups_start", "exon_groups_end") := list(i.exon_groups_start, i.exon_groups_end)]
     
+    setnames(candidate.introns.ASS, c("exon_group_stranded_upstream", "exon_group_stranded_downstream"),
+        c("exon_groups_start","exon_groups_end"))
     
 	introns.search.A5SS = copy(candidate.introns.ASS)
 	introns.search.A5SS[, seqnames := factor(seqnames, chrOrder, ordered = TRUE)]
