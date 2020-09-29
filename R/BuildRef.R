@@ -1,3 +1,37 @@
+FetchAHCache <- function(ah_record, filetype, reference_path) {
+    ah = AnnotationHub::AnnotationHub()
+    ah.record = ah[names(ah) == ah_record]
+    
+    # If 2bitfile, download cache and open 2bit file from cache
+    if(filetype == "2bit") {
+        # if(is.na(fileName(ah.sample))) {
+            # file = AnnotationHub::cache(ah.sample)
+        # } else {
+            # file = AnnotationHub::fileName(ah.sample)    
+        # }
+        # rtracklayer::TwoBitFile(file)
+        ah[[ah_record]]
+    } else if(filetype == "gtf") {
+        # Best to fetch from URL
+        transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_record, ".transcripts.gtf")        
+        if(!file.exists(transcripts.gtf)) {
+            url = ah.record$sourceurl
+            assertthat::assert_that(substr(url,1,3) == "ftp",
+              msg = paste("ftp site not found for", ah_record))
+            urlfile = basename(url)
+            if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
+              download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
+              GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
+            } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
+              download.file(url, destfile = transcripts.gtf)
+            } else {
+              warning("sourceurl entry for AnnotationHub resource is not a valid gtf.gz or gtf file")
+            }
+        }
+        rtracklayer::import(transcripts.gtf, "gtf")
+    }
+}
+
 #' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
 #'
 #' E.g. hg38 release-94: genome = "AH65745", transcriptome = "AH64631"
@@ -17,7 +51,7 @@ FetchAnnotation <- function(ah_genome = "", ah_transcriptome = "", reference_pat
         genome.fasta = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa")
 
         if (file.exists(genome.fasta)) {
-            message("Genome file already exists, skipping...")
+            if (verbose) message("Genome file already exists, skipping...")
             returnval = append(returnval, genome.fasta)
         } else {
             if (verbose) message("Fetching genome from AnnotationHub")
@@ -34,13 +68,13 @@ FetchAnnotation <- function(ah_genome = "", ah_transcriptome = "", reference_pat
             returnval = append(returnval, genome.fasta)
         }
     } else {
-        message("Genome AnnotationHub code not provided, skipping")
+        if (verbose) message("Genome AnnotationHub code not provided, skipping")
     }
 
     if(ah_transcriptome != "" && substr(ah_transcriptome,1,2) == "AH") {
         transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_transcriptome, ".transcripts.gtf")
         if(file.exists(transcripts.gtf)) {
-            message("Transcriptome file already exists, skipping...")    
+            if (verbose) message("Transcriptome file already exists, skipping...")    
             returnval = append(returnval, transcripts.gtf)
         } else {
             if (verbose) message("Fetching transcript gtf file from AnnotationHub")
@@ -62,7 +96,7 @@ FetchAnnotation <- function(ah_genome = "", ah_transcriptome = "", reference_pat
             returnval = append(returnval, transcripts.gtf)
         }
     } else {
-        message("Transcriptome AnnotationHub code not provided, skipping")
+        if (verbose) message("Transcriptome AnnotationHub code not provided, skipping")
     }
     return(returnval)
 }
@@ -181,10 +215,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(ah_genome != "") {
         assertthat::assert_that(substr(ah_genome,1,2) == "AH",
             msg = "Given genome AnnotationHub reference is incorrect")
-        message("Loading AnnotationHub")            
-        ah = AnnotationHub::AnnotationHub()
-        message("Connecting to AnnotationHub genome...", appendLF = F)
-        genome = ah[[ah_genome]]
+        # fasta_file = FetchAnnotation(ah_genome = ah_genome, reference_path = reference_path)
+        # genome = Biostrings::readDNAStringSet(fasta_file)
+        genome = FetchAHCache(ah_genome, "2bit", reference_path)
         genome_ah = TRUE
         message("done\n")
     } else {
@@ -198,10 +231,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(ah_transcriptome != "") {
         assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-            gtf_file = FetchAnnotation(ah_transcriptome = ah_transcriptome, reference_path = reference_path)
-            assertthat::assert_that(length(gtf_file) > 0 && nchar(gtf_file) > 4 && substr(gtf_file, nchar(gtf_file) - 3, nchar(gtf_file)) == ".gtf",
-                msg = "Failed to source transcriptome resource from AnnotationHub")
-            gtf.gr = rtracklayer::import(gtf_file)
+            # gtf_file = FetchAnnotation(ah_transcriptome = ah_transcriptome, reference_path = reference_path)
+            # assertthat::assert_that(length(gtf_file) > 0 && nchar(gtf_file) > 4 && substr(gtf_file, nchar(gtf_file) - 3, nchar(gtf_file)) == ".gtf",
+                # msg = "Failed to source transcriptome resource from AnnotationHub")
+            # gtf.gr = rtracklayer::import(gtf_file)
+            gtf.gr = FetchAHCache(ah_transcriptome, "gtf", reference_path)
             message("done\n")
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
@@ -218,6 +252,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         chrOrder = names(BSgenome::seqinfo(genome))
     }
 
+
     message("Processing gtf file...", appendLF = F)
    
     # fix gene / transcript names with '/' (which breaks IRFinder code)
@@ -225,6 +260,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     gtf.gr$transcript_name = gsub("/","_",gtf.gr$transcript_name)
 
     # Extracting and saving Genes, Transcripts, Exons, Proteins and saving as .fst files for faster random access
+    
     Genes = gtf.gr[gtf.gr$type == "gene"]
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
@@ -346,7 +382,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 # Annotating Introns:
     candidate.introns[,intron_number := data.table::rowid(transcript_id)]
     candidate.introns[strand == "-", intron_number := max(intron_number) + 1 - intron_number, by = "transcript_id"]
-    candidate.introns[,intron_id := paste0(transcript_id, "/Intron", intron_number)]
+    candidate.introns[,intron_id := paste0(transcript_id, "_Intron", intron_number)]
     candidate.introns[data.table::as.data.table(Transcripts), on = "transcript_id", 
         c("gene_name", "gene_id", "transcript_name") := list(i.gene_name, i.gene_id, i.transcript_name)]
     
@@ -502,7 +538,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     tmpdir.IntronCover = semi_join.DT(tmpdir.IntronCover, tmpdir.IntronCover.summa, by = "intron_id")
  
-    tmpdir.IntronCover.summa[, IRFname := paste("dir", gene_name, transcript_id, strand, num_blocks, 
+    tmpdir.IntronCover.summa[, IRFname := paste("dir", gene_name, intron_id, strand, num_blocks, 
         intron_start, intron_end, inclbases, exclbases,
         ifelse(known_exon_dir, "known-exon","clean"), sep="/")]
 
@@ -537,7 +573,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     tmpnd.IntronCover = semi_join.DT(tmpnd.IntronCover, tmpnd.IntronCover.summa, by = "intron_id")
  
-    tmpnd.IntronCover.summa[, IRFname := paste("nd", gene_name, transcript_id, strand, num_blocks, 
+    tmpnd.IntronCover.summa[, IRFname := paste("nd", gene_name, intron_id, strand, num_blocks, 
         intron_start, intron_end, inclbases, exclbases, sep="/")]
     # casewise naming of last condition
     tmpnd.IntronCover.summa[known_exon_nd & antiover & antinear, IRFname := 
