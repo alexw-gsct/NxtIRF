@@ -86,6 +86,48 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
 }
 
 // [[Rcpp::export]]
+List IRF_RLEList_From_Cov(std::string s_in, int strand) {
+  // Returns an RLEList
+  // s_in: The coverage file
+  // strand: 0 = +, 1 = -, 2 = *
+  
+  List NULL_RLE = List::create(
+    _["values"] = 0,
+    _["lengths"] = 0 
+  );
+  
+  List RLEList;
+  
+  std::ifstream inCov_stream;
+  inCov_stream.open(s_in, std::ifstream::binary);
+  
+  covFile inCov;
+  inCov.SetInputHandle(&inCov_stream);
+  
+  inCov.ReadHeader();
+  
+  for (unsigned int i = 0; i < inCov.chr_names.size(); i++) {
+    uint32_t eff_end = inCov.chr_lens.at(i);
+    uint32_t start = 0;
+    
+    std::vector<int> values;
+    std::vector<unsigned int> lengths;
+
+    inCov.FetchRLE(inCov.chr_names.at(i), (uint32_t)start, (uint32_t)eff_end, strand, &values, &lengths);
+    
+    List RLE = List::create(
+      _["values"] = values,
+      _["lengths"] = lengths 
+    );
+    RLEList.push_back(RLE, inCov.chr_names.at(i));
+  }
+
+  inCov_stream.close();
+  
+  return(RLEList);
+}
+
+// [[Rcpp::export]]
 int IRF_gunzip(std::string s_in, std::string s_out) {
   
   GZReader gz_in;

@@ -5,6 +5,10 @@ IRF_RLE_From_Cov <- function(s_in, seqname, start, end, strand) {
     .Call(`_rIRFinder_IRF_RLE_From_Cov`, s_in, seqname, start, end, strand)
 }
 
+IRF_RLEList_From_Cov <- function(s_in, strand) {
+    .Call(`_rIRFinder_IRF_RLEList_From_Cov`, s_in, strand)
+}
+
 IRF_gunzip <- function(s_in, s_out) {
     .Call(`_rIRFinder_IRF_gunzip`, s_in, s_out)
 }

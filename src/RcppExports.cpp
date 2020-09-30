@@ -21,6 +21,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// IRF_RLEList_From_Cov
+List IRF_RLEList_From_Cov(std::string s_in, int strand);
+RcppExport SEXP _rIRFinder_IRF_RLEList_From_Cov(SEXP s_inSEXP, SEXP strandSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type s_in(s_inSEXP);
+    Rcpp::traits::input_parameter< int >::type strand(strandSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_RLEList_From_Cov(s_in, strand));
+    return rcpp_result_gen;
+END_RCPP
+}
 // IRF_gunzip
 int IRF_gunzip(std::string s_in, std::string s_out);
 RcppExport SEXP _rIRFinder_IRF_gunzip(SEXP s_inSEXP, SEXP s_outSEXP) {
@@ -92,6 +104,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rIRFinder_IRF_RLE_From_Cov", (DL_FUNC) &_rIRFinder_IRF_RLE_From_Cov, 5},
+    {"_rIRFinder_IRF_RLEList_From_Cov", (DL_FUNC) &_rIRFinder_IRF_RLEList_From_Cov, 2},
     {"_rIRFinder_IRF_gunzip", (DL_FUNC) &_rIRFinder_IRF_gunzip, 2},
     {"_rIRFinder_IRF_main", (DL_FUNC) &_rIRFinder_IRF_main, 3},
     {"_rIRFinder_IRF_SupplyMappaRegionReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaRegionReads, 6},
