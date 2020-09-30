@@ -288,17 +288,31 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Transcripts = gtf.gr[gtf.gr$type == "transcript"]
     Transcripts <- GenomeInfoDb::sortSeqlevels(Transcripts)
     Transcripts <- sort(Transcripts)
+    
+    if("transcript_biotype" %in% names(GenomicRanges::mcols(Transcripts))) {
+        # do nothing
+    } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
+        colnames(mcols(Transcripts))[which(colnames(mcols(Transcripts)) == "transcript_type")] = "transcript_biotype"
+    } else {
+        mcols(Transcripts)$transcript_biotype = "protein_coding"
+    }
+   
         fst::write.fst(as.data.frame(Transcripts), paste(reference_path,"fst","Transcripts.fst", sep="/"))
 
     Exons = gtf.gr[gtf.gr$type == "exon"]
     Exons <- GenomeInfoDb::sortSeqlevels(Exons)
     Exons <- sort(Exons)
 
+    # transcript_biotype is very important field. If Gencode, this is transcript_type. In rare case we do not have this field
+    # This next bit ensures transcript_biotype exists.
+
     if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
         tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
     } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
-        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_type)]
+        colnames(mcols(Exons))[which(colnames(mcols(Exons)) == "transcript_type")] = "transcript_biotype"
+        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
     } else {
+        mcols(Exons)$transcript_biotype = "protein_coding"
         tmp.exons.exclude =  copy(Exons)
     }
 
@@ -355,13 +369,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
 #   Why filter by protein_coding or processed_transcript? Make this an option
     if(FilterIRByProcessedTranscript == TRUE) {
-        if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
+        # if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
             candidate.transcripts = Exons[Exons$transcript_biotype %in% c("processed_transcript", "protein_coding")]
-        } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
-            candidate.transcripts = Exons[Exons$transcript_type %in% c("processed_transcript", "protein_coding")]    
-        } else {
-            candidate.transcripts = Exons
-        }
+        # } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
+            # candidate.transcripts = Exons[Exons$transcript_type %in% c("processed_transcript", "protein_coding")]    
+        # } else {
+            # candidate.transcripts = Exons
+        # }
     } else {
         candidate.transcripts = copy(Exons)    
     }
@@ -370,23 +384,23 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         fst::write.fst(as.data.frame(Exons), paste(reference_path,"fst","Exons.fst", sep="/"))
 
     # Now setdiff using gene and exon grouped elements
-    obligate.introns.stranded = grlGaps(
-        GenomicRanges::split(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
-            tmp.Exons.Group.stranded$gene_group_stranded)
-    )
-    obligate.introns.stranded = as.data.table(obligate.introns.stranded)
-    obligate.introns.stranded = obligate.introns.stranded[, c("seqnames", "start", "end", "strand", "width")]
-        fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
+    # obligate.introns.stranded = grlGaps(
+        # GenomicRanges::split(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
+            # tmp.Exons.Group.stranded$gene_group_stranded)
+    # )
+    # obligate.introns.stranded = as.data.table(obligate.introns.stranded)
+    # obligate.introns.stranded = obligate.introns.stranded[, c("seqnames", "start", "end", "strand", "width")]
+        # fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
 
-    obligate.introns.unstranded = grlGaps(
-        GenomicRanges::split(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
-            tmp.Exons.Group.unstranded$gene_group_unstranded)
-    )
-    obligate.introns.unstranded = as.data.table(obligate.introns.unstranded)
-    obligate.introns.unstranded = obligate.introns.unstranded[, c("seqnames", "start", "end", "strand", "width")]
-        fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
+    # obligate.introns.unstranded = grlGaps(
+        # GenomicRanges::split(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
+            # tmp.Exons.Group.unstranded$gene_group_unstranded)
+    # )
+    # obligate.introns.unstranded = as.data.table(obligate.introns.unstranded)
+    # obligate.introns.unstranded = obligate.introns.unstranded[, c("seqnames", "start", "end", "strand", "width")]
+        # fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
 
     # Cleanup
     rm(OL, Genes.Group.stranded, Genes.Group.unstranded,
@@ -432,7 +446,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     candidate.introns[strand == "-", intron_number := max(intron_number) + 1 - intron_number, by = "transcript_id"]
     candidate.introns[,intron_id := paste0(transcript_id, "_Intron", intron_number)]
     candidate.introns[data.table::as.data.table(Transcripts), on = "transcript_id", 
-        c("gene_name", "gene_id", "transcript_name") := list(i.gene_name, i.gene_id, i.transcript_name)]
+        c("gene_name", "gene_id", "transcript_name", "transcript_biotype") := 
+            list(i.gene_name, i.gene_id, i.transcript_name, i.transcript_biotype)]
     
     # Grab splice motifs at this point; filter by valid splice motifs
     donor.introns = data.frame(seqnames = candidate.introns$seqnames,
@@ -473,7 +488,6 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
     # Annotate candidate introns by min and max exon_groups by reference to upstream / downstream exon
     
-    # TODO: check why ENST00000425657 yields NA
     Exons.Hash = as.data.table(Exons)
     Exons.Hash = Exons.Hash[, c("transcript_id", "exon_number", "gene_group_stranded", "gene_group_unstranded",
         "exon_group_stranded", "exon_group_unstranded")]
@@ -500,13 +514,23 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     message("Generating ref-cover.bed ...", appendLF = F)    
 
 # Finished annotating introns, now use it to build reference:
-    # Sort by tsl first, then reverse later
-    
-    if("transcript_support_level" %in% colnames(candidate.introns)) setorder(candidate.introns, transcript_support_level)    
-        introns.unique = unique(candidate.introns, by = c("seqnames", "start", "end", "width", "strand"))
-        setorder(introns.unique, seqnames, start, end, strand)
-        introns.unique = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(introns.unique), keep.extra.columns=TRUE)
-    if("transcript_support_level" %in% colnames(candidate.introns)) data.table::setorder(candidate.introns, seqnames, start, end, strand)
+    # Phase unique introns by first sorting for: protein_coding, then processed_transcript, then lincRNA, then 
+    candidate.introns = candidate.introns[transcript_biotype %in% c("protein_coding", "processed_transcript",
+        "lincRNA", "antisense", "nonsense_mediated_decay")]
+
+    candidate.introns[, transcript_biotype := factor(transcript_biotype, c("protein_coding", "processed_transcript",
+        "lincRNA", "antisense", "nonsense_mediated_decay"), ordered = TRUE)]
+    if("transcript_support_level" %in% colnames(candidate.introns)) {
+        # Sort by tsl first, then reverse later
+        setorder(candidate.introns, transcript_biotype, transcript_support_level)    
+    } else {
+        setorder(candidate.introns, transcript_biotype)
+    }
+
+    introns.unique = unique(candidate.introns, by = c("seqnames", "start", "end", "width", "strand"))
+    setorder(introns.unique, seqnames, start, end, strand)
+    introns.unique = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(introns.unique), keep.extra.columns=TRUE)
+    setorder(candidate.introns, seqnames, start, end, strand)
     
     exclude.directional = data.table::as.data.table(tmp.exons.exclude)
     exclude.directional = unique(exclude.directional, by = c("seqnames", "start", "end", "width", "strand"))
@@ -655,10 +679,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     tmpnd.IntronCover.summa = unique(tmpnd.IntronCover.summa[,c("intron_id", "num_blocks", "inclbases")]
         , by = "intron_id")
     tmpnd.IntronCover.summa[data.table::as.data.table(introns.unique), 
-        on = "intron_id", c("seqnames","intron_start", "intron_end", "intron_width", "width", "strand", "gene_name", "transcript_id", 
-        "known_exon_nd", "antiover", "antinear")
+        on = "intron_id", c("seqnames","intron_start", "intron_end", "intron_width", "width", "strand", 
+        "gene_name", "transcript_id", "known_exon_nd", "antiover", "antinear", "EG_up", "EG_down")
           := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, i.gene_name, i.transcript_id, 
-          i.known_exon_nd, i.antiover, i.antinear)]
+          i.known_exon_nd, i.antiover, i.antinear, i.exon_group_unstranded_upstream, i.exon_group_unstranded_downstream)]
     tmpnd.IntronCover.summa[, exclbases := intron_width - inclbases]
         # Exclude exclbases / width > 0.3
     tmpnd.IntronCover.summa = tmpnd.IntronCover.summa[exclbases / intron_width < 0.3]
@@ -1284,7 +1308,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
 	message("done\n")
 
-	message("Translating Alternate Splice Peptides", appendLF = F)
+	message("Translating Alternate Splice Peptides...", appendLF = F)
 
     # Proteomic Consequences of Splicing
     AS_Table.Extended = copy(AS_Table)
@@ -1457,6 +1481,8 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     AS_Table.Extended[!is.na(AA_downstr.B), AA_full.B := paste0(AA_full.B, AA_downstr.B)]
     
     fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"fst","Splice.Extended.fst", sep="/"))
+
+	message("done\n")
 
 	message("Splice Annotations finished\n")
     

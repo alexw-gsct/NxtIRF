@@ -162,8 +162,31 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     junc.common$gene_group_right = NULL
     
     # Assign region names to junctions:
-    junc.common[, name := paste0(seqnames, ":", start, "-", end, "/", strand)]
+    junc.common[, Event := paste0(seqnames, ":", start, "-", end, "/", strand)]
     
+    # Annotate junctions
+    candidate.introns = as.data.table(fst::read.fst(paste(reference_path, "fst", "candidate.introns.fst", sep="/")))
+    candidate.introns[, transcript_biotype_2 := transcript_biotype]
+    candidate.introns[!(transcript_biotype %in% c("protein_coding", "processed_transcript",
+        "lincRNA", "antisense", "nonsense_mediated_decay")), transcript_biotype_2 := "other"]
+
+    candidate.introns[, transcript_biotype_2 := factor(transcript_biotype_2, c("protein_coding", "processed_transcript",
+        "lincRNA", "antisense", "other", "nonsense_mediated_decay"), ordered = TRUE)]
+        
+    if("transcript_support_level" %in% colnames(candidate.introns)) {
+        setorder(candidate.introns, transcript_biotype_2, transcript_support_level)
+    } else {
+        setorder(candidate.introns, transcript_biotype_2)    
+    }
+    introns.unique = unique(candidate.introns, by = c("seqnames", "start", "end", "width", "strand"))
+    setorder(introns.unique, seqnames, start, end, strand)
+
+    junc.annotation = introns.unique[junc.common, 
+        c("seqnames", "start", "end", "strand", "transcript_id", "intron_number", "gene_name", "gene_id", "transcript_biotype"),
+        on = c("seqnames", "start", "end", "strand")]
+        
+    rm(candidate.introns, introns.unique)
+    gc()
     # obligate.introns.stranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.stranded.fst", sep="/"))        
     # obligate.introns.unstranded = fst::read.fst(paste(reference_path, "fst", "obligate.introns.unstranded.fst", sep="/"))        
 
@@ -213,7 +236,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
             junc[strand == "*", count := total]    
         }
         junc[is.na(count), count := 0]
-        junc = junc[,c("seqnames", "start", "end", "strand", "name", "count")]
+        junc = junc[,c("seqnames", "start", "end", "strand", "Event", "count")]
         
         # Calculate SpliceOver here
         # if(df.internal$strand[i] == 0) {
