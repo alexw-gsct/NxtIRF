@@ -62,3 +62,8 @@ GetCoverage = function(file, seqname, start = 0, end = 0, strand = 2) {
   }
   final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
 }
+
+#' @export
+DebugGetCoverage = function(file) {
+  raw_list = IRF_RLEList_From_Cov(normalizePath(file), 2)
+}

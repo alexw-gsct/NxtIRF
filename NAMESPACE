@@ -2,6 +2,7 @@
 
 export(BuildReference)
 export(CollateData)
+export(DebugGetCoverage)
 export(FetchAnnotation)
 export(FindSamples)
 export(GenerateMappability)
