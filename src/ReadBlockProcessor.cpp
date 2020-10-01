@@ -610,8 +610,7 @@ int FragmentsMap::WriteOutput(std::ostream *os, unsigned int threshold) const {
       covered = true;
     } else {
 		// Write first coordinate
-	  *os << itChr->first << "\t"
-		  << it_pos->first << "\t";
+	  *os << itChr->first << "\t0\t";
 	}
     for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
       coverage += it_pos->second;
