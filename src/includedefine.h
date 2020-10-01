@@ -31,7 +31,7 @@ using namespace std;
 		// [[Rcpp::depends(RcppArmadillo)]]
 		// [[Rcpp::depends(RcppProgress)]]
 	#else
-		const auto Rcout = cout;
+		#define Rcout cout
 	#endif
 
 #define DEF_lineLengthMax 10000
