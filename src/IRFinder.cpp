@@ -2,6 +2,7 @@
 #include "ReadBlockProcessor_CoverageBlocks.h"
 #include "BAM2blocks.h"
 #include "GZReader.h"
+#include "Mappability.h"
 
 #include "includedefine.h"
 
