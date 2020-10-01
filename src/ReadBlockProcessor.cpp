@@ -64,9 +64,6 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 		getline(lineStream, myField, '\t');
 		end = stol(myField);
 		getline(lineStream, direction, '\t');
-
-		std::map<string, std::map<std::pair<unsigned int,unsigned int>,unsigned int[2]>> chrName_junc_over;
-		std::vector<std::map<std::pair<unsigned int,unsigned int>,unsigned int[2]>*> chrID_junc_over;
 		
 		if (direction == "-")  {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] = 1;

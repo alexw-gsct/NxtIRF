@@ -3,7 +3,6 @@
 
 #include "ReadBlockProcessor.h"
 #include "ReadBlockProcessor_CoverageBlocks.h"
-#include "ReadBlockProcessor_OutputBAM.h"
 #include "BAM2blocks.h"
 #include "includedefine.h"
 #include "GZReader.h"

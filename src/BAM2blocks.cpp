@@ -8,8 +8,6 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <progress.hpp>
 
-//const char cigarChar[] = {'M','I','D','N','S','H','P','=','X'};
-
 BAM2blocks::BAM2blocks() {
 	oBlocks = FragmentBlocks(); //Right syntax to call the default constructor on an object variable, declared but not initialised?
 
@@ -253,10 +251,10 @@ int BAM2blocks::processAll(std::string& output) {
 	unsigned long long totalNucleotides = 0;
 	unsigned long j = 0;
 	int idx = 0;
-	int pair = 0;
+	// int pair = 0;
 	//int bytesread = 0;
     std::ostringstream oss;
-  uint64_t prev_bam_pos = IN->tellg();
+  uint64_t prev_bam_pos = IN->tellg();	// For progress bar
   
   Progress p(IN->IS_LENGTH, true);
 	while(1) {
@@ -300,8 +298,6 @@ int BAM2blocks::processAll(std::string& output) {
 		IN->read(reads[idx].cigar_buffer, reads[idx].n_cigar_op*4);    
 		IN->ignore(reads[idx].block_size - BAM_READ_CORE_BYTES + 4 - reads[idx].l_read_name - (reads[idx].n_cigar_op*4));
 
-        // cout << reads[idx].read_name << '\n';
-        
 		if (reads[idx].flag & 0x904) {
 			/* If is an unmapped / secondary / supplementary alignment -- discard/overwrite */
 			cSkippedReads ++;
