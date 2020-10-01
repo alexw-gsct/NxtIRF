@@ -74,14 +74,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // IRF_GenerateMappabilityRegions
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, unsigned int threshold);
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold);
 RcppExport SEXP _rIRFinder_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
     Rcpp::traits::input_parameter< std::string >::type output_file(output_fileSEXP);
-    Rcpp::traits::input_parameter< unsigned int >::type threshold(thresholdSEXP);
+    Rcpp::traits::input_parameter< int >::type threshold(thresholdSEXP);
     rcpp_result_gen = Rcpp::wrap(IRF_GenerateMappabilityRegions(bam_file, output_file, threshold));
     return rcpp_result_gen;
 END_RCPP
