@@ -1,10 +1,5 @@
-
-
 // GZ File writer
 
-#include <stdio.h>
-#include <string.h>
-#include <zlib.h>
 #include "includedefine.h"
 
 #define CHUNK_gz 262144
@@ -22,7 +17,7 @@ private:
 public:
   GZWriter();
   void SetOutputHandle(std::ostream *out_stream);
-//  int Open(const std::string s_file);
+
   int writebuffer(const char * src, unsigned int len);
   int writeline(const std::string& s_src);
   int writestring(const std::string& s_src);

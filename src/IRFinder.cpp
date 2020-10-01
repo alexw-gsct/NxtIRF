@@ -4,19 +4,9 @@
 #include "ReadBlockProcessor.h"
 #include "ReadBlockProcessor_CoverageBlocks.h"
 #include "BAM2blocks.h"
-#include "includedefine.h"
 #include "GZReader.h"
 
-#include <zlib.h>
-
-union stream_uint32 {
-  char c[4];
-  uint32_t u;
-};
-union stream_int32 {
-  char c[4];
-  int32_t i;
-};
+#include "includedefine.h"
 
 using namespace Rcpp;
 

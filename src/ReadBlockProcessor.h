@@ -2,9 +2,7 @@
 #define CODE_READBLOCKPROCESSOR
 
 #include "FragmentBlocks.h"
-
 #include "GZWriter.h"
-
 #include "covFile.h"
 
 /*

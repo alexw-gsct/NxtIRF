@@ -15,6 +15,8 @@
 #include <map>
 #include <algorithm> // std::sort
 #include <functional> // std::function
+#include <zlib.h>
+#include <zconf.h>
 
 //__asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 

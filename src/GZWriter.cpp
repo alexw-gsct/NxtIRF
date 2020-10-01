@@ -11,11 +11,7 @@ GZWriter::GZWriter() {
 void GZWriter::SetOutputHandle(std::ostream *out_stream) {
   OUT = out_stream;
 }
-/*
-int GZWriter::Open(const std::string s_file) {
-  gz_out = gzopen(s_file.c_str(), "w");
-}
-*/
+
 int GZWriter::writeline(const std::string& s_src) {
   unsigned int s_size = s_src.size() + 1;
   char * line = new char[s_size];

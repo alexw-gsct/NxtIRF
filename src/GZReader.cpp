@@ -1,5 +1,4 @@
 #include "GZReader.h"
-#include <stdexcept>
 
 #include "RcppArmadillo.h"
 
@@ -33,7 +32,6 @@ void GZReader::LoadGZ(std::string s_filename, bool asStream) {
     data = (unsigned char *)realloc((data_tmp = data), data_alloc += CHUNK_gz - 1);
     bytes_read = gzread (gz_in, data + curpos, CHUNK_gz - 1);
     curpos += bytes_read;
-//    Rcout << "Bytes read " << bytes_read << ", curpos " << curpos << "\n";
     
     if (bytes_read < CHUNK_gz - 1) {
       if (gzeof (gz_in)) {

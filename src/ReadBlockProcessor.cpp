@@ -601,15 +601,18 @@ int FragmentsMap::WriteBinary(covFile *os, const std::vector<std::string> chr_na
   return(0);
 }
 
-int FragmentsMap::WriteOutput(std::ostream *os) const {
+int FragmentsMap::WriteOutput(std::ostream *os, unsigned int threshold) const {
     // This is called on mappability
   for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;
     bool covered = false;
-    // std::sort( itChr->second.begin(), itChr->second.end() );
-    if (itChr->second.begin()->first == 0 && itChr->second.begin()->second > 4) {
+    if (itChr->second.begin()->first == 0 && itChr->second.begin()->second > threshold) {
       covered = true;
-    }
+    } else {
+		// Write first coordinate
+	  *os << itChr->first << "\t"
+		  << it_pos->first << "\t";
+	}
     for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
       coverage += it_pos->second;
       if(coverage > 4) {
@@ -620,9 +623,9 @@ int FragmentsMap::WriteOutput(std::ostream *os) const {
           covered = true;
         }
       } else {
-        if(covered || it_pos->first == 0) {
+        if(covered) {
           *os << itChr->first << "\t"
-              << it_pos->first + 1 << "\t";
+              << it_pos->first << "\t";
           covered = false;
         } else {
           

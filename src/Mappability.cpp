@@ -25,7 +25,6 @@ char c_complement(char n)
 void reverseit(char arr[])
 {
   int len= strlen(arr) - 1;
-  
   for(int i=0; i<=len/2; i++)
   {
     char temp=arr[i];
@@ -113,109 +112,8 @@ bool checkDNA(const std::string& strand) {
 }
 
 // [[Rcpp::export]]
-int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file, std::string out_fa, 
-                               int read_len, int read_stride, int error_pos) {
-  
-  std::ifstream inGenome;
-  inGenome.open(genome_file, std::ifstream::in);
-  FastaReader inFA;
-  inFA.SetInputHandle(&inGenome);
-  
-  std::ofstream outFA;
-  outFA.open(out_fa, std::ofstream::binary);
-  GZWriter outGZ;
-  outGZ.SetOutputHandle(&outFA);
-  
-  std::ifstream inRegions;
-  inRegions.open(region_file, std::ifstream::in);
-  
-  string myLine;
-  string myField;
-  std::map< std::string, std::vector< std::pair<unsigned int,unsigned int> > > region_list;
-  while(!inRegions.eof() && !inRegions.fail()) {
-    int start;
-    int end;
-    string s_chr;
-    
-    std::getline(inRegions, myLine, '\n');
-    std::stringstream region_line(myLine);
-    
-    std::getline(region_line, s_chr, '\t');
-    std::getline(region_line, myField, '\t');
-    start = stol(myField);
-    std::getline(region_line, myField, '\t');
-    end = stol(myField);
-    if(start == end) break;
-    region_list[s_chr].push_back(std::make_pair(start, end));
-  }
-  inRegions.close();
-  
-  unsigned int direction = 0;
-  char * read = new char[read_len + 1];
-  unsigned int seed = 0;
-  
-  string chr;
-  string sequence;
-  
-  
-  while(!inGenome.eof() && !inGenome.fail()) {
-    
-    inFA.ReadSeq();
-    sequence = inFA.sequence;
-    chr = inFA.seqname;
-
-    std::map< std::string, std::vector< std::pair<unsigned int,unsigned int> > >::iterator it_chr;
-    it_chr = region_list.find(chr);
-
-    
-    if(it_chr != region_list.end()) {
-
-      char * buffer = new char[sequence.length() + 1];
-      std::strcpy (buffer, sequence.c_str());
-      
-      // Iterate through each element in vector
-      for(auto it_region = it_chr->second.begin(); it_region!=it_chr->second.end(); it_region++) {
-
-        for(unsigned int bufferPos = it_region->first; (bufferPos < it_region->second - read_len - 1); bufferPos += read_stride) {
-          memcpy(read, &buffer[bufferPos - 1], read_len);
-          
-          if(checkDNA(string(read))) {
-            std::string write_name;
-            write_name = (direction == 0 ? ">RF!" : ">RR!");
-            write_name.append(chr);
-            write_name.append("!");
-            write_name.append(std::to_string(bufferPos));
-            outGZ.writeline(write_name);
-            //        read_names.push_back(write_name);
-            std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
-            outGZ.writeline(write_seq);
-            //        read_seqs.push_back(write_seq);
-            seed += 1;
-            direction = (direction == 0 ? 1 : 0);
-          }
-           
-          if((seed % 1000000 == 0) & (seed > 0)) {
-            Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
-          }
-        }
-       
-      }
-      delete[] buffer;
-    }
-  }
-  delete[] read;
-  
-  inGenome.close();
-  outGZ.flush(true);// outGZ.close();
-  outFA.flush();
-  outFA.close();
-  
-  return(0);
-}
-
-
-// [[Rcpp::export]]
-int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos) {
+int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
+	int read_len, int read_stride, int error_pos) {
   
   std::ifstream inGenome;
   inGenome.open(genome_file, std::ifstream::in);
@@ -229,7 +127,6 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
   char * read = new char[read_len + 1];
   unsigned int seed = 0;
   
-  string myLine;
   string chr;
   string sequence;
 
@@ -253,11 +150,12 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
         write_name.append(chr);
         write_name.append("!");
         write_name.append(std::to_string(bufferPos));
+
         outGZ.writeline(write_name);
-//        read_names.push_back(write_name);
+
         std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
         outGZ.writeline(write_seq);
-//        read_seqs.push_back(write_seq);
+
         seed += 1;
         direction = (direction == 0 ? 1 : 0);
       }
@@ -270,16 +168,16 @@ int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_l
   delete[] read;
   
   inGenome.close();
-  outGZ.flush(true); //outGZ.close();
+  outGZ.flush(true);
   outFA.flush();
   outFA.close();
   return(0);
 }
 
 // [[Rcpp::export]]
-int IRF_genmap(std::string bam_file, std::string output_path){
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, unsigned int threshold){
   std::string s_inBAM = bam_file;
-  std::string outputDir = output_path;
+  std::string s_outFile = output_file;
   
   FragmentsMap oFragMap;
   
@@ -293,14 +191,14 @@ int IRF_genmap(std::string bam_file, std::string output_path){
   inbam_stream.open(s_inBAM, std::ifstream::binary);
   inbam.SetInputHandle(&inbam_stream);
   
-  BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
+  BB.openFile(&inbam)
   
   std::string BBreport;
   BB.processAll(BBreport);
   
   std::ofstream outFragsMap;
-  outFragsMap.open(outputDir + "/Mappability.txt", std::ifstream::out);
-  oFragMap.WriteOutput(&outFragsMap);
+  outFragsMap.open(s_outFile, std::ifstream::out);
+  oFragMap.WriteOutput(&outFragsMap, threshold);
   outFragsMap.flush(); outFragsMap.close();
   
   return(0);

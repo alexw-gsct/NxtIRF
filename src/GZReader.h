@@ -1,10 +1,6 @@
 // GZ File reader
 
-#include <stdio.h>
-#include <string.h>
-#include <zlib.h>
-#include <zconf.h>
-#include <cstdlib>
+#include <stdexcept>
 #include "includedefine.h"
 
 #define CHUNK_gz 262144
@@ -18,6 +14,7 @@ public:
   void LoadGZ(std::string s_filename, bool asStream = false);
   void read(char * dest, const size_t len);
   void ignore(const size_t len);
+  
   std::istringstream iss;
   char * buffer;
   size_t bufferLen;
