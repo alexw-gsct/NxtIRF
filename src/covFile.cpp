@@ -1,6 +1,3 @@
-#include <stdexcept>
-#include <stddef.h>
-
 #include "covFile.h"
 
 const char covFile::bamEOF[covFile::bamEOFlength+1] =

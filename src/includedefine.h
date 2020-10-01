@@ -15,6 +15,7 @@
 #include <map>
 #include <algorithm> // std::sort
 #include <functional> // std::function
+#include <stdexcept>
 #include <zlib.h>
 #include <zconf.h>
 

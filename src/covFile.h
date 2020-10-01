@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <zlib.h>
 #include "includedefine.h"
 
 #include "RcppArmadillo.h"
