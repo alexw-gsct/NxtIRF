@@ -597,7 +597,7 @@ int FragmentsMap::WriteBinary(covFile *os, const std::vector<std::string> chr_na
   return(0);
 }
 
-int FragmentsMap::WriteOutput(std::ostream *os, unsigned int threshold) const {
+int FragmentsMap::WriteOutput(std::ostream *os, int threshold) const {
     // This is called on mappability
   for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;

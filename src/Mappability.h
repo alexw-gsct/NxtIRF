@@ -15,4 +15,4 @@ bool checkDNA(const std::string& strand);
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
 	int read_len, int read_stride, int error_pos);
 
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, unsigned int threshold);
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold);

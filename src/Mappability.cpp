@@ -170,7 +170,7 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
 }
 
 // [[Rcpp::export]]
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, unsigned int threshold){
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold){
   std::string s_inBAM = bam_file;
   std::string s_outFile = output_file;
   

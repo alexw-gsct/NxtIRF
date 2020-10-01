@@ -149,7 +149,7 @@ int main(int argc, char * argv[]) {
     } else if(argv[1] == "process_mappability_bam") {
         std::string s_bam = argv[2];
         std::string s_output = argv[3];
-		unsigned int threshold = atoi(argv[4]);
+		int threshold = atoi(argv[4]);
         IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
         exit(0);
     } else if(argv[1] == "main") {
