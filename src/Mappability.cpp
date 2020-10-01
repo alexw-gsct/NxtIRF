@@ -1,4 +1,5 @@
 #include "Mappability.h"
+include <cassert>
 
 char c_complement(char n)
 {   
@@ -58,35 +59,35 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
   case 0:
     switch(new_read[error_pos - 1]) {
     case 'A':
-      error_nuc = 'G';
+      error_nuc = 'G'; break;
     case 'C':
-      error_nuc = 'A';
+      error_nuc = 'A'; break;
     case 'G':
-      error_nuc = 'T';
+      error_nuc = 'T'; break;
     case 'T':
-      error_nuc = 'C';
+      error_nuc = 'C'; break;
     }
   case 1:
     switch(new_read[error_pos - 1]) {
     case 'A':
-      error_nuc = 'T';
+      error_nuc = 'T'; break;
     case 'C':
-      error_nuc = 'G';
+      error_nuc = 'G'; break;
     case 'G':
-      error_nuc = 'C';
+      error_nuc = 'C'; break;
     case 'T':
-      error_nuc = 'A';
+      error_nuc = 'A'; break;
     }    
   case 2:
     switch(new_read[error_pos - 1]) {
     case 'A':
-      error_nuc = 'C';
+      error_nuc = 'C'; break;
     case 'C':
-      error_nuc = 'T';
+      error_nuc = 'T'; break;
     case 'G':
-      error_nuc = 'A';
+      error_nuc = 'A'; break;
     case 'T':
-      error_nuc = 'G';
+      error_nuc = 'G'; break;
     }    
   }
   memcpy(&new_read[error_pos - 1], &error_nuc, 1);
