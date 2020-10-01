@@ -14,22 +14,14 @@ class covBuffer{
     unsigned long bufferPos;
     unsigned long bufferMax;
 
-    union stream_int32 {
-  		char c[4];
-  		int32_t i;
-		};
-		union stream_int16 {
-			char c[2];
-			int16_t i;
-		};
-		union stream_uint32 {
-			char c[4];
-			uint32_t u;
-		};
-		union stream_uint16 {
-			char c[2];
-			uint16_t u;
-		};
+	union stream_uint32 {
+		char c[4];
+		uint32_t u;
+	};
+	union stream_uint16 {
+		char c[2];
+		uint16_t u;
+	};
 
   public:
     covBuffer();
@@ -70,27 +62,23 @@ class covFile {
     size_t IS_LENGTH;
     size_t EOF_POS;
         
-		union stream_int32 {
-			char c[4];
-			int32_t i;
-		};
-		union stream_int16 {
-			char c[2];
-			int16_t i;
-		};
+	union stream_int32 {
+		char c[4];
+		int32_t i;
+	};
 
-		union stream_uint64 {
-			char c[8];
-			uint64_t u;
-		};
-		union stream_uint32 {
-			char c[4];
-			uint32_t u;
-		};
-		union stream_uint16 {
-			char c[2];
-			uint16_t u;
-		};
+	union stream_uint64 {
+		char c[8];
+		uint64_t u;
+	};
+	union stream_uint32 {
+		char c[4];
+		uint32_t u;
+	};
+	union stream_uint16 {
+		char c[2];
+		uint16_t u;
+	};
         
     unsigned int out_cur_seqID;
     char * chr_index;
@@ -111,7 +99,6 @@ class covFile {
     int ignore(unsigned int len);
     bool eof();
     bool fail();
-    
 
     // Input functions
     

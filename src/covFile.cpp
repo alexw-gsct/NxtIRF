@@ -4,7 +4,6 @@ const char covFile::bamEOF[covFile::bamEOFlength+1] =
 		"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00\x1b\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 const char covFile::bamGzipHead[covFile::bamGzipHeadLength+1] = 
 		"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00";
-
 const char covBuffer::bamGzipHead[covBuffer::bamGzipHeadLength+1] = 
 		"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00";
 
@@ -166,8 +165,7 @@ void covFile::SetInputHandle(std::istream *in_stream) {
          
     if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
         EOF_POS = IS_LENGTH - bamEOFlength;
-        // Rcout << "EOF detected at position: " << EOF_POS << "\n";
-          mode = "read";
+        mode = "read";
 
     } else {
         Rcout << "EOF bit not detected\n";
@@ -178,7 +176,6 @@ void covFile::SetInputHandle(std::istream *in_stream) {
 }
 
 int covFile::ReadBuffer() {
-    
     // read compressed buffer
     if((size_t)IN->tellg() >= EOF_POS) {
         IS_EOF = 1;
@@ -193,7 +190,6 @@ int covFile::ReadBuffer() {
     char GzipCheck[bamGzipHeadLength];
     IN->read(GzipCheck, bamGzipHeadLength);
 
-// Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
      if(strncmp(bamGzipHead, GzipCheck, bamGzipHeadLength) != 0) {
         std::ostringstream oss;
         oss << "Exception during BAM decompression - BGZF header corrupt: (at " << IN->tellg() << " bytes) ";
@@ -366,7 +362,6 @@ int covFile::ignore(unsigned int len) {
     }
     
     if (len <= bufferMax - bufferPos) {
-        // memcpy(dest, &buffer[bufferPos], len);
         bufferPos += len;
         return(Z_OK);
     } else {
@@ -443,7 +438,7 @@ int covFile::ReadHeader() {
     index_begin = IN->tellg();      // should be the start point of bgzf block containing index
     bufferPos = 0;
     bufferMax = 0;    
-    Rcout << "index_begin: " << index_begin << '\n';
+    // Rcout << "index_begin: " << index_begin << '\n';
     
     // keep profiling to identify where body_begin is
     stream_uint32 u32;
@@ -455,7 +450,7 @@ int covFile::ReadHeader() {
         }
     }
     body_begin = IN->tellg();
-    Rcout << "body_begin: " << body_begin << '\n';
+    // Rcout << "body_begin: " << body_begin << '\n';
     
     return(n_ref.u);
 }
