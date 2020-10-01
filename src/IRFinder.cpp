@@ -131,35 +131,7 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
 }
 
 #else
-// Galaxy main
-int main(int argc, char * argv[]) {
-	// Usage:
-    // irfinder_galaxy main sample.bam IRFinder.ref.gz OutputHeader
-    // irfinder_galaxy gen_map_reads genome.fa reads_to_map.fa 70 10
-    // irfinder_galaxy process_mappability_bam mappedreads.bam mappability.bed
-
-    if(argv[1] == "gen_map_reads") {
-        std::string s_genome = argv[2];
-        std::string s_output = argv[3];
-        int read_len = atoi(argv[4]);
-        int read_stride = atoi(argv[5]);
-        int read_error = atoi(argv[4]) / 2;
-        IRF_GenerateMappabilityReads(s_genome, s_output, read_len, read_stride, read_error);
-        exit(0);
-    } else if(argv[1] == "process_mappability_bam") {
-        std::string s_bam = argv[2];
-        std::string s_output = argv[3];
-		int threshold = atoi(argv[4]);
-        IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
-        exit(0);
-    } else if(argv[1] == "main") {
-        std::string s_bam = argv[2];
-        std::string s_ref = argv[3];		
-        std::string s_output = argv[4];		
-		IRF_main(s_bam, s_ref, s_output);
-	}
-}
-	
+	// galaxy
 #endif
 
 // [[Rcpp::export]]
@@ -317,3 +289,35 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   
   return(0);
 }
+
+#ifdef GALAXY
+// Galaxy main
+int main(int argc, char * argv[]) {
+	// Usage:
+    // irfinder_galaxy main sample.bam IRFinder.ref.gz OutputHeader
+    // irfinder_galaxy gen_map_reads genome.fa reads_to_map.fa 70 10
+    // irfinder_galaxy process_mappability_bam mappedreads.bam mappability.bed
+
+    if(argv[1] == "gen_map_reads") {
+        std::string s_genome = argv[2];
+        std::string s_output = argv[3];
+        int read_len = atoi(argv[4]);
+        int read_stride = atoi(argv[5]);
+        int read_error = atoi(argv[4]) / 2;
+        IRF_GenerateMappabilityReads(s_genome, s_output, read_len, read_stride, read_error);
+        exit(0);
+    } else if(argv[1] == "process_mappability_bam") {
+        std::string s_bam = argv[2];
+        std::string s_output = argv[3];
+		int threshold = atoi(argv[4]);
+        IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
+        exit(0);
+    } else if(argv[1] == "main") {
+        std::string s_bam = argv[2];
+        std::string s_ref = argv[3];		
+        std::string s_output = argv[4];		
+		IRF_main(s_bam, s_ref, s_output);
+	}
+}
+	
+#endif
