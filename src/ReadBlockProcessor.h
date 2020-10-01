@@ -130,7 +130,7 @@ public:
   ~FragmentsMap();
   void ProcessBlocks(const FragmentBlocks &blocks);
   void ChrMapUpdate(const std::vector<string> &chrmap);
-  int WriteOutput(std::ostream *os, unsigned int threshold = 4) const;
+  int WriteOutput(std::ostream *os, int threshold = 4) const;
   int WriteBinary(covFile *os, const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens) const;
 };
 
