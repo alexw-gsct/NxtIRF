@@ -191,7 +191,7 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file
   inbam_stream.open(s_inBAM, std::ifstream::binary);
   inbam.SetInputHandle(&inbam_stream);
   
-  BB.openFile(&inbam)
+  BB.openFile(&inbam);
   
   std::string BBreport;
   BB.processAll(BBreport);
