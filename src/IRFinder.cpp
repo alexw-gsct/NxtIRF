@@ -135,17 +135,22 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
 	// galaxy
 #endif
 
+#ifndef GALAXY
 // [[Rcpp::export]]
 int IRF_main(std::string bam_file, std::string reference_file, std::string output_file){
   
+  std::string s_output_txt = output_file + ".txt.gz";
+  std::string s_output_cov = output_file + ".cov";
+#else
+int IRF_main(std::string bam_file, std::string reference_file, std::string s_output_txt, std::string s_output_cov){	
+#endif
+
   std::string s_bam = bam_file;
-  
-  std::string s_output = output_file;
   
   std::string s_ref = reference_file;
   
     Rcout << "Running IRFinder on " << s_bam << "\nReference: " << reference_file << "\n";
-    Rcout << "Output file: " << output_file << "\n\n";
+    Rcout << "Output file: " << s_output_txt << "\t" << s_output_cov << "\n\n";
 
     Rcout << "Reading reference file\n";
     
@@ -227,7 +232,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   Rcout << "Writing output file\n";
 
   std::ofstream out;
-  out.open(s_output + ".txt.gz", std::ios::binary);
+  out.open(s_output_txt, std::ios::binary);
 
 // GZ compression:
   GZWriter outGZ;
@@ -280,7 +285,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string outpu
   // Write Coverage Binary file:
   
   std::ofstream ofCOV;
-  ofCOV.open(output_file + ".cov", std::ofstream::binary);
+  ofCOV.open(s_output_cov, std::ofstream::binary);
    
   covFile outCOV;
   outCOV.SetOutputHandle(&ofCOV);
@@ -315,9 +320,10 @@ int main(int argc, char * argv[]) {
         exit(0);
     } else if(strcmp(argv[1],"main")) {
         std::string s_bam = argv[2];
-        std::string s_ref = argv[3];		
-        std::string s_output = argv[4];		
-		IRF_main(s_bam, s_ref, s_output);
+        std::string s_ref = argv[3];
+        std::string s_output_txt = argv[4];		
+        std::string s_output_cov = argv[5];		
+		IRF_main(s_bam, s_ref, s_output_txt, s_output_cov);
 	}
 }
 	
