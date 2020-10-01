@@ -17,15 +17,11 @@ IRF_main <- function(bam_file, reference_file, output_file) {
     .Call(`_rIRFinder_IRF_main`, bam_file, reference_file, output_file)
 }
 
-IRF_SupplyMappaRegionReads <- function(genome_file, region_file, out_fa, read_len, read_stride, error_pos) {
-    .Call(`_rIRFinder_IRF_SupplyMappaRegionReads`, genome_file, region_file, out_fa, read_len, read_stride, error_pos)
+IRF_GenerateMappabilityReads <- function(genome_file, out_fa, read_len, read_stride, error_pos) {
+    .Call(`_rIRFinder_IRF_GenerateMappabilityReads`, genome_file, out_fa, read_len, read_stride, error_pos)
 }
 
-IRF_SupplyMappaReads <- function(genome_file, out_fa, read_len, read_stride, error_pos) {
-    .Call(`_rIRFinder_IRF_SupplyMappaReads`, genome_file, out_fa, read_len, read_stride, error_pos)
-}
-
-IRF_genmap <- function(bam_file, output_path) {
-    .Call(`_rIRFinder_IRF_genmap`, bam_file, output_path)
+IRF_GenerateMappabilityRegions <- function(bam_file, output_file, threshold) {
+    .Call(`_rIRFinder_IRF_GenerateMappabilityRegions`, bam_file, output_file, threshold)
 }
 

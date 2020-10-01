@@ -58,25 +58,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// IRF_SupplyMappaRegionReads
-int IRF_SupplyMappaRegionReads(std::string genome_file, std::string region_file, std::string out_fa, int read_len, int read_stride, int error_pos);
-RcppExport SEXP _rIRFinder_IRF_SupplyMappaRegionReads(SEXP genome_fileSEXP, SEXP region_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< std::string >::type genome_file(genome_fileSEXP);
-    Rcpp::traits::input_parameter< std::string >::type region_file(region_fileSEXP);
-    Rcpp::traits::input_parameter< std::string >::type out_fa(out_faSEXP);
-    Rcpp::traits::input_parameter< int >::type read_len(read_lenSEXP);
-    Rcpp::traits::input_parameter< int >::type read_stride(read_strideSEXP);
-    Rcpp::traits::input_parameter< int >::type error_pos(error_posSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_SupplyMappaRegionReads(genome_file, region_file, out_fa, read_len, read_stride, error_pos));
-    return rcpp_result_gen;
-END_RCPP
-}
-// IRF_SupplyMappaReads
-int IRF_SupplyMappaReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos);
-RcppExport SEXP _rIRFinder_IRF_SupplyMappaReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
+// IRF_GenerateMappabilityReads
+int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos);
+RcppExport SEXP _rIRFinder_IRF_GenerateMappabilityReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -85,19 +69,20 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type read_len(read_lenSEXP);
     Rcpp::traits::input_parameter< int >::type read_stride(read_strideSEXP);
     Rcpp::traits::input_parameter< int >::type error_pos(error_posSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_SupplyMappaReads(genome_file, out_fa, read_len, read_stride, error_pos));
+    rcpp_result_gen = Rcpp::wrap(IRF_GenerateMappabilityReads(genome_file, out_fa, read_len, read_stride, error_pos));
     return rcpp_result_gen;
 END_RCPP
 }
-// IRF_genmap
-int IRF_genmap(std::string bam_file, std::string output_path);
-RcppExport SEXP _rIRFinder_IRF_genmap(SEXP bam_fileSEXP, SEXP output_pathSEXP) {
+// IRF_GenerateMappabilityRegions
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold);
+RcppExport SEXP _rIRFinder_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
-    Rcpp::traits::input_parameter< std::string >::type output_path(output_pathSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_genmap(bam_file, output_path));
+    Rcpp::traits::input_parameter< std::string >::type output_file(output_fileSEXP);
+    Rcpp::traits::input_parameter< int >::type threshold(thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_GenerateMappabilityRegions(bam_file, output_file, threshold));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -107,9 +92,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rIRFinder_IRF_RLEList_From_Cov", (DL_FUNC) &_rIRFinder_IRF_RLEList_From_Cov, 2},
     {"_rIRFinder_IRF_gunzip", (DL_FUNC) &_rIRFinder_IRF_gunzip, 2},
     {"_rIRFinder_IRF_main", (DL_FUNC) &_rIRFinder_IRF_main, 3},
-    {"_rIRFinder_IRF_SupplyMappaRegionReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaRegionReads, 6},
-    {"_rIRFinder_IRF_SupplyMappaReads", (DL_FUNC) &_rIRFinder_IRF_SupplyMappaReads, 5},
-    {"_rIRFinder_IRF_genmap", (DL_FUNC) &_rIRFinder_IRF_genmap, 2},
+    {"_rIRFinder_IRF_GenerateMappabilityReads", (DL_FUNC) &_rIRFinder_IRF_GenerateMappabilityReads, 5},
+    {"_rIRFinder_IRF_GenerateMappabilityRegions", (DL_FUNC) &_rIRFinder_IRF_GenerateMappabilityRegions, 3},
     {NULL, NULL, 0}
 };
 
