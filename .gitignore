@@ -1,10 +1,13 @@
-# History files
-.Rhistory
-.Rapp.history
+# R/Bioconductor hidden_file_ext
+*.renviron
+*.rprofile
+*.Rproj
+*.rproj.user
+*.Rhistory
+*.Rapp.history
 
 # Session Data files
-.RData
-*.Rproj
+*.RData
 
 # User-specific files
 .Ruserdata
