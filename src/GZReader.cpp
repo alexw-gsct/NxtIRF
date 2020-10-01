@@ -1,8 +1,4 @@
 #include "GZReader.h"
-
-#include "RcppArmadillo.h"
-
-  using namespace Rcpp;
   
 GZReader::GZReader() {
   bufferLen = 0;

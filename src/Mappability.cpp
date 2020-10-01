@@ -1,9 +1,4 @@
-#include "RcppArmadillo.h"
 #include "Mappability.h"
-
-using namespace Rcpp;
-
-// [[Rcpp::depends(RcppArmadillo)]]
 
 char c_complement(char n)
 {   

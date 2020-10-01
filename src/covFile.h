@@ -1,8 +1,5 @@
 #include "includedefine.h"
 
-#include "RcppArmadillo.h"
-using namespace Rcpp;
-
 class covBuffer{
 	private:
     static const int bamGzipHeadLength = 16;  // +2 a uint16 with the full block length.

@@ -2,8 +2,6 @@
 #include "BAMReader.h"
 #include <stdexcept>
 
-#include "RcppArmadillo.h"
-using namespace Rcpp;
 
 const char BAMReader::bamEOF[BAMReader::bamEOFlength+1] =
 		"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00\x1b\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00";

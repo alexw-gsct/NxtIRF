@@ -24,6 +24,15 @@
 
 using namespace std;
 
+	#ifndef GALAXY
+		#include "RcppArmadillo.h"
+		using namespace Rcpp;
+		#include <progress.hpp>
+		// [[Rcpp::depends(RcppArmadillo)]]
+		// [[Rcpp::depends(RcppProgress)]]
+	#else
+		const auto Rcout = cout;
+	#endif
 
 #define DEF_lineLengthMax 10000
 #define DEF_adaptLengthMax 500

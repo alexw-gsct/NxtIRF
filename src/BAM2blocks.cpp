@@ -4,10 +4,6 @@
 #include "includedefine.h"
 // using namespace std;
 
-// Try RcppProgress
-// [[Rcpp::depends(RcppProgress)]]
-#include <progress.hpp>
-
 BAM2blocks::BAM2blocks() {
 	oBlocks = FragmentBlocks(); //Right syntax to call the default constructor on an object variable, declared but not initialised?
 
@@ -255,8 +251,9 @@ int BAM2blocks::processAll(std::string& output) {
 	//int bytesread = 0;
     std::ostringstream oss;
   uint64_t prev_bam_pos = IN->tellg();	// For progress bar
-  
+  #ifndef GALAXY
   Progress p(IN->IS_LENGTH, true);
+  #endif
 	while(1) {
 		j++;
 		if (IN->eof() && !(IN->fail()) ) {
@@ -326,7 +323,9 @@ int BAM2blocks::processAll(std::string& output) {
                 spare_reads[read_name] = reads[0];
             }
 		}
+		#ifndef GALAXY
 		p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
+		#endif
         prev_bam_pos = IN->tellg();
 	}
 	return(0);

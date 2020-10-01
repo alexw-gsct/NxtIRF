@@ -1,4 +1,4 @@
-OBJECTS := FragmentBlocks.o ReadBlockProcessor.o CoverageBlock.o ReadBlockProcessor_CoverageBlocks.o ReadBlockProcessor_OutputBAM.o BAM2blocks.o IRFinder.o BAMReader.o FastaReader.o GZWriter.o Mappability.o
+OBJECTS := FragmentBlocks.o covFile.o GZReader.o GZWriter.o FastaReader.o BAMReader.o ReadBlockProcessor.o Mappability.o CoverageBlock.o ReadBlockProcessor_CoverageBlocks.o BAM2blocks.o IRFinder.o
 SOURCES=$(wildcard *.cpp)
 LDFLAGS := -lz
 LDFLAGS_static := -static -static-libgcc
@@ -14,7 +14,7 @@ OPTIMFLAGS1 :=
 COMPTIMEPLACE := -D'COMPILATION_TIME_PLACE="$(shell echo `date` `hostname --fqdn`:`pwd`)"'
 CCFLAGS_MAIN := -pipe -std=c++0x -O3    -Wall -Wextra -fopenmp $(COMPTIMEPLACE) $(OPTIMFLAGS) $(OPTIMFLAGS1)
 CCFLAGS_GDB := -pipe  -std=c++0x -g -O0 -Wall -Wextra -fopenmp $(COMPTIMEPLACE)
-CC :=g++
+CC :=g++ -DGALAXY
 GCC:=gcc
 
 %.o : %.cpp

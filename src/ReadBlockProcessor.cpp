@@ -2,10 +2,6 @@
 #include "includedefine.h"
 // using namespace std;
 
-#include "RcppArmadillo.h"
-using namespace Rcpp;
-
-
 //chrName_junc_count holds the data structure -- ChrName(string) -> Junc Start/End -> count.
 //chrID_junc_count holds the ChrID -> ...
 //  where the ChrID is the ChrID relating to the appropriate ChrName, as understood by the currently processed BAM file.
