@@ -1,7 +1,7 @@
 OBJECTS := FragmentBlocks.o covFile.o GZReader.o GZWriter.o FastaReader.o BAMReader.o ReadBlockProcessor.o Mappability.o CoverageBlock.o ReadBlockProcessor_CoverageBlocks.o BAM2blocks.o IRFinder.o
 SOURCES=$(wildcard *.cpp)
 LDFLAGS := -lz
-LDFLAGS_static := -static -static-libgcc
+LDFLAGS_static := -static -static-libgcc -lz
 LDFLAGS_GDB :=
 OPTIMFLAGS :=
 OPTIMFLAGS1 :=
