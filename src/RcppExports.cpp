@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 // IRF_RLE_From_Cov
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand);
-RcppExport SEXP _rIRFinder_IRF_RLE_From_Cov(SEXP s_inSEXP, SEXP seqnameSEXP, SEXP startSEXP, SEXP endSEXP, SEXP strandSEXP) {
+RcppExport SEXP _NxtIRF_IRF_RLE_From_Cov(SEXP s_inSEXP, SEXP seqnameSEXP, SEXP startSEXP, SEXP endSEXP, SEXP strandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -23,7 +23,7 @@ END_RCPP
 }
 // IRF_RLEList_From_Cov
 List IRF_RLEList_From_Cov(std::string s_in, int strand);
-RcppExport SEXP _rIRFinder_IRF_RLEList_From_Cov(SEXP s_inSEXP, SEXP strandSEXP) {
+RcppExport SEXP _NxtIRF_IRF_RLEList_From_Cov(SEXP s_inSEXP, SEXP strandSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -35,7 +35,7 @@ END_RCPP
 }
 // IRF_gunzip
 int IRF_gunzip(std::string s_in, std::string s_out);
-RcppExport SEXP _rIRFinder_IRF_gunzip(SEXP s_inSEXP, SEXP s_outSEXP) {
+RcppExport SEXP _NxtIRF_IRF_gunzip(SEXP s_inSEXP, SEXP s_outSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -47,7 +47,7 @@ END_RCPP
 }
 // IRF_main
 int IRF_main(std::string bam_file, std::string reference_file, std::string output_file);
-RcppExport SEXP _rIRFinder_IRF_main(SEXP bam_fileSEXP, SEXP reference_fileSEXP, SEXP output_fileSEXP) {
+RcppExport SEXP _NxtIRF_IRF_main(SEXP bam_fileSEXP, SEXP reference_fileSEXP, SEXP output_fileSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -60,7 +60,7 @@ END_RCPP
 }
 // IRF_GenerateMappabilityReads
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos);
-RcppExport SEXP _rIRFinder_IRF_GenerateMappabilityReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
+RcppExport SEXP _NxtIRF_IRF_GenerateMappabilityReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -75,7 +75,7 @@ END_RCPP
 }
 // IRF_GenerateMappabilityRegions
 int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold);
-RcppExport SEXP _rIRFinder_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP) {
+RcppExport SEXP _NxtIRF_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,16 +88,16 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rIRFinder_IRF_RLE_From_Cov", (DL_FUNC) &_rIRFinder_IRF_RLE_From_Cov, 5},
-    {"_rIRFinder_IRF_RLEList_From_Cov", (DL_FUNC) &_rIRFinder_IRF_RLEList_From_Cov, 2},
-    {"_rIRFinder_IRF_gunzip", (DL_FUNC) &_rIRFinder_IRF_gunzip, 2},
-    {"_rIRFinder_IRF_main", (DL_FUNC) &_rIRFinder_IRF_main, 3},
-    {"_rIRFinder_IRF_GenerateMappabilityReads", (DL_FUNC) &_rIRFinder_IRF_GenerateMappabilityReads, 5},
-    {"_rIRFinder_IRF_GenerateMappabilityRegions", (DL_FUNC) &_rIRFinder_IRF_GenerateMappabilityRegions, 3},
+    {"_NxtIRF_IRF_RLE_From_Cov", (DL_FUNC) &_NxtIRF_IRF_RLE_From_Cov, 5},
+    {"_NxtIRF_IRF_RLEList_From_Cov", (DL_FUNC) &_NxtIRF_IRF_RLEList_From_Cov, 2},
+    {"_NxtIRF_IRF_gunzip", (DL_FUNC) &_NxtIRF_IRF_gunzip, 2},
+    {"_NxtIRF_IRF_main", (DL_FUNC) &_NxtIRF_IRF_main, 3},
+    {"_NxtIRF_IRF_GenerateMappabilityReads", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityReads, 5},
+    {"_NxtIRF_IRF_GenerateMappabilityRegions", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityRegions, 3},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_rIRFinder(DllInfo *dll) {
+RcppExport void R_init_NxtIRF(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

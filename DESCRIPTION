@@ -1,15 +1,15 @@
-Package: rIRFinder
+Package: NxtIRF
 Type: Package
 Title: An R/R/Studio enhancement of IRFinder 
 Version: 0.1.0
 Date: 2020-09-04
 Author: Alex C H Wong
 Maintainer: Alex C H Wong <a.wong@centenary.org.au>
-Description: rIRFinder is the next evolution for Intron Retention detection for RNA-seq 
-    data. rIRFinder is now fully compatible with Windows and Mac as well as Linux. In addition
+Description: NxtIRF is the next evolution for Intron Retention detection for RNA-seq 
+    data. NxtIRF is now fully compatible with Windows and Mac as well as Linux. In addition
     to analysis of bam files aligned to the genome using a splice-aware aligner (e.g. STAR),
-    rIRFinder provides convenient pipelines for downstream analysis and publication-ready
-    visualisation. Specifically, rIRFinder:
+    NxtIRF provides convenient pipelines for downstream analysis and publication-ready
+    visualisation. Specifically, NxtIRF:
     - Allows reference generation using Bioconductor/AnnotationHub
     - Directly analyses BAM files (with compatibility for coordinate-sorted BAMs)
     - (TODO) IRFinder output collation across multiple samples

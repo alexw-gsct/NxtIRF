@@ -2,26 +2,26 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 IRF_RLE_From_Cov <- function(s_in, seqname, start, end, strand) {
-    .Call(`_rIRFinder_IRF_RLE_From_Cov`, s_in, seqname, start, end, strand)
+    .Call(`_NxtIRF_IRF_RLE_From_Cov`, s_in, seqname, start, end, strand)
 }
 
 IRF_RLEList_From_Cov <- function(s_in, strand) {
-    .Call(`_rIRFinder_IRF_RLEList_From_Cov`, s_in, strand)
+    .Call(`_NxtIRF_IRF_RLEList_From_Cov`, s_in, strand)
 }
 
 IRF_gunzip <- function(s_in, s_out) {
-    .Call(`_rIRFinder_IRF_gunzip`, s_in, s_out)
+    .Call(`_NxtIRF_IRF_gunzip`, s_in, s_out)
 }
 
 IRF_main <- function(bam_file, reference_file, output_file) {
-    .Call(`_rIRFinder_IRF_main`, bam_file, reference_file, output_file)
+    .Call(`_NxtIRF_IRF_main`, bam_file, reference_file, output_file)
 }
 
 IRF_GenerateMappabilityReads <- function(genome_file, out_fa, read_len, read_stride, error_pos) {
-    .Call(`_rIRFinder_IRF_GenerateMappabilityReads`, genome_file, out_fa, read_len, read_stride, error_pos)
+    .Call(`_NxtIRF_IRF_GenerateMappabilityReads`, genome_file, out_fa, read_len, read_stride, error_pos)
 }
 
 IRF_GenerateMappabilityRegions <- function(bam_file, output_file, threshold) {
-    .Call(`_rIRFinder_IRF_GenerateMappabilityRegions`, bam_file, output_file, threshold)
+    .Call(`_NxtIRF_IRF_GenerateMappabilityRegions`, bam_file, output_file, threshold)
 }
 
