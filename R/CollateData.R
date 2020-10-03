@@ -332,6 +332,27 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     irf.common$exon_group_left = NULL
     irf.common$exon_group_right = NULL
 
+    Splice.Anno = as.data.table(fst::read.fst(paste(reference_path, "fst", "Splice.fst", sep="/")))
+    candidate.introns[, Event1a := Event]
+    candidate.introns[, Event2a := Event]
+    Splice.Anno[candidate.introns, on = "Event1a", up_1a := paste(i.gene_group_stranded, 
+        i.exon_group_stranded_upstream, sep="_")]
+    Splice.Anno[candidate.introns, on = "Event1a", down_1a := paste(i.gene_group_stranded, 
+        i.exon_group_stranded_downstream, sep="_")]
+    Splice.Anno[candidate.introns, on = "Event2a", down_2a := paste(i.gene_group_stranded, 
+        i.exon_group_stranded_downstream, sep="_")]
+    
+    Splice.Anno[EventType %in% c("MXE", "SE", "ALE", "A3SS"),
+        JG_up := up_1a]
+    Splice.Anno[EventType %in% c("SE", "AFE", "A5SS"),
+        JG_down := down_1a]
+    Splice.Anno[EventType %in% c("MXE"),
+        JG_down := down_2a]
+    
+    Splice.Anno$up_1a = NULL
+    Splice.Anno$down_1a = NULL
+    Splice.Anno$down_2a = NULL
+    
     rm(candidate.introns, introns.unique)
     gc()
 
