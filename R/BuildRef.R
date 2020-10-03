@@ -307,65 +307,64 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     # This next bit ensures transcript_biotype exists.
 
     if("transcript_biotype" %in% names(GenomicRanges::mcols(Exons))) {
-        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
+
     } else if("transcript_type" %in% names(GenomicRanges::mcols(Exons))) {
         colnames(mcols(Exons))[which(colnames(mcols(Exons)) == "transcript_type")] = "transcript_biotype"
-        tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
     } else {
         mcols(Exons)$transcript_biotype = "protein_coding"
-        tmp.exons.exclude =  copy(Exons)
     }
+    tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
 
     # Assign gene groups then bake exon-groups into Exons
     tmp.Exons.Group.stranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude))
     OL = GenomicRanges::findOverlaps(
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded)))
-    tmp.Exons.Group.stranded$gene_group_stranded[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+    tmp.Exons.Group.stranded$gene_group[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
     setorder(tmp.Exons.Group.stranded, seqnames, start, strand)
-    tmp.Exons.Group.stranded[, exon_group_stranded := data.table::rowid(gene_group_stranded)]
+    tmp.Exons.Group.stranded[, exon_group := data.table::rowid(gene_group)]
     tmp.Exons.Group.stranded[strand == "-", 
-        exon_group_stranded := max(exon_group_stranded) + 1 - exon_group_stranded, by = "gene_group_stranded"]
+        exon_group := max(exon_group) + 1 - exon_group, by = "gene_group"]
 
     tmp.Exons.Group.unstranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude, ignore.strand = TRUE))
     OL = GenomicRanges::findOverlaps(
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.unstranded)),
         , ignore.strand = TRUE)
-    tmp.Exons.Group.unstranded$gene_group_unstranded[OL@from] = Genes.Group.unstranded$gene_group_unstranded[OL@to]
+    tmp.Exons.Group.unstranded$gene_group[OL@from] = Genes.Group.unstranded$gene_group_unstranded[OL@to]
     setorder(tmp.Exons.Group.unstranded, seqnames, start, strand)
-    tmp.Exons.Group.unstranded[, exon_group_unstranded := data.table::rowid(gene_group_unstranded)]
+    tmp.Exons.Group.unstranded[, exon_group := data.table::rowid(gene_group)]
     tmp.Exons.Group.unstranded[strand == "-", 
-        exon_group_unstranded := max(exon_group_unstranded) + 1 - exon_group_unstranded, by = "gene_group_unstranded"]
+        exon_group := max(exon_group) + 1 - exon_group, by = "gene_group"]
 
-    # Now annotate all exons in tmp.exons.exclude with the gene and exon groups
+    # Now annotate all exons in Exons with the gene and exon groups
     OL = GenomicRanges::findOverlaps(
-        tmp.exons.exclude, 
+        Exons, 
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))
-    tmp.exons.exclude$gene_group_stranded[OL@from] = tmp.Exons.Group.stranded$gene_group_stranded[OL@to]
-    tmp.exons.exclude$exon_group_stranded[OL@from] = tmp.Exons.Group.stranded$exon_group_stranded[OL@to]
+    Exons$gene_group_stranded[OL@from] = tmp.Exons.Group.stranded$gene_group[OL@to]
+    Exons$exon_group_stranded[OL@from] = tmp.Exons.Group.stranded$exon_group[OL@to]
         # any(is.na(tmp.exons.exclude$gene_group_stranded))
         # [1] FALSE    
         # any(is.na(tmp.exons.exclude$exon_group_stranded))
         # [1] FALSE    
     OL = GenomicRanges::findOverlaps(
-        tmp.exons.exclude, 
+        Exons, 
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)),
         ignore.strand = TRUE)
-    tmp.exons.exclude$gene_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$gene_group_unstranded[OL@to]
-    tmp.exons.exclude$exon_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$exon_group_unstranded[OL@to]
+    Exons$gene_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$gene_group[OL@to]
+    Exons$exon_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$exon_group[OL@to]
         # any(is.na(tmp.exons.exclude$gene_group_unstranded))
         # [1] FALSE    
         # any(is.na(tmp.exons.exclude$exon_group_unstranded))
         # [1] FALSE      
     
     # Map this back to Exons:
-    Exons = as.data.table(Exons)
-    Exons[as.data.table(tmp.exons.exclude), on = c("transcript_id", "exon_id"),
-        c("gene_group_stranded", "gene_group_unstranded", 
-            "exon_group_stranded", "exon_group_unstranded") := 
-        list(i.gene_group_stranded, i.gene_group_unstranded, i.exon_group_stranded, i.exon_group_unstranded)]
-    Exons = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons), keep.extra.columns = TRUE)
+    # Exons = as.data.table(Exons)
+    # Exons[as.data.table(tmp.exons.exclude), on = c("transcript_id", "exon_id"),
+        # c("gene_group_stranded", "gene_group_unstranded", 
+            # "exon_group_stranded", "exon_group_unstranded") := 
+        # list(i.gene_group_stranded, i.gene_group_unstranded, i.exon_group_stranded, i.exon_group_unstranded)]
+    # Exons = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons), keep.extra.columns = TRUE)
 
 #   Why filter by protein_coding or processed_transcript? Make this an option
     if(FilterIRByProcessedTranscript == TRUE) {
@@ -377,11 +376,15 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
             # candidate.transcripts = Exons
         # }
     } else {
-        candidate.transcripts = copy(Exons)    
+        candidate.transcripts = Exons   
     }
     
     # Finally write to disk
         fst::write.fst(as.data.frame(Exons), paste(reference_path,"fst","Exons.fst", sep="/"))
+    # Also write tmp.Exon groups
+    
+        fst::write.fst(rbind(tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded), 
+            paste(reference_path,"fst","Exons.groups.fst", sep="/"))
 
     # Now setdiff using gene and exon grouped elements
     # obligate.introns.stranded = grlGaps(
@@ -464,7 +467,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     # Acceptable splice motifs: GT-AG, GC-AG, AT-AC, AT-AG, GT-AC
     # novel.introns = candidate.introns[!(splice_motif %in% c("GTAG", "GCAG", "ATAC", "ATAG", "GTAC"))]
-    candidate.introns = candidate.introns[splice_motif %in% c("GTAG", "GCAG", "ATAC", "ATAG", "GTAC")]
+
+    # candidate.introns = candidate.introns[splice_motif %in% c("GTAG", "GCAG", "ATAC", "ATAG", "GTAC")]
 
     
 # Do other annotations here:
@@ -507,7 +511,14 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     candidate.introns[,intron_end := end]
     candidate.introns[,Event :=  paste0(seqnames, ":", intron_start, "-", intron_end, "/", strand)]
     
-    fst::write.fst(candidate.introns, paste(reference_path,"fst","candidate.introns.fst", sep="/"))
+    # NB in candidate.introns, transcript_biotype == c("sense_intronic", "retained_intron") can have
+    # any of exon or gene groups equal null
+    
+    # candidate.introns = candidate.introns[, -c("gene_group_stranded", "gene_group_unstranded",
+        # "exon_group_stranded_upstream", "exon_group_unstranded_upstream",
+        # "exon_group_stranded_downstream", "exon_group_unstranded_downstream")]
+    
+    fst::write.fst(candidate.introns, paste(reference_path,"fst","junctions.fst", sep="/"))
 
     message("done\n")
 
@@ -599,6 +610,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     BiocGenerics::start(introns.unique) = BiocGenerics::start(introns.unique) + 5
     BiocGenerics::end(introns.unique) = BiocGenerics::end(introns.unique) - 5
 
+
     introns.unique.dir = introns.unique
     introns.unique.nd = introns.unique
 
@@ -645,9 +657,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         , by = "intron_id")
     tmpdir.IntronCover.summa[data.table::as.data.table(introns.unique), 
         on = "intron_id", c("seqnames", "intron_start", "intron_end", "intron_width", "width", "strand", 
-            "gene_name", "transcript_id", "known_exon_dir", "EG_up", "EG_down")
+            "gene_name", "transcript_id", "known_exon_dir", "GG", "EG_up", "EG_down")
           := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, 
-            i.gene_name, i.transcript_id, i.known_exon_dir, i.exon_group_stranded_upstream, i.exon_group_stranded_downstream)]
+            i.gene_name, i.transcript_id, i.known_exon_dir, i.gene_group_stranded,
+            i.exon_group_stranded_upstream, i.exon_group_stranded_downstream)]
     tmpdir.IntronCover.summa[, exclbases := intron_width - inclbases]
         # Exclude exclbases / width > 0.3
     tmpdir.IntronCover.summa = tmpdir.IntronCover.summa[exclbases / intron_width < 0.3]
@@ -680,9 +693,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         , by = "intron_id")
     tmpnd.IntronCover.summa[data.table::as.data.table(introns.unique), 
         on = "intron_id", c("seqnames","intron_start", "intron_end", "intron_width", "width", "strand", 
-        "gene_name", "transcript_id", "known_exon_nd", "antiover", "antinear", "EG_up", "EG_down")
+        "gene_name", "transcript_id", "known_exon_nd", "antiover", "antinear", "GG", "EG_up", "EG_down")
           := list(i.seqnames, i.intron_start, i.intron_end, i.intron_width, i.width, i.strand, i.gene_name, i.transcript_id, 
-          i.known_exon_nd, i.antiover, i.antinear, i.exon_group_unstranded_upstream, i.exon_group_unstranded_downstream)]
+          i.known_exon_nd, i.antiover, i.antinear, i.gene_group_unstranded,
+          i.exon_group_unstranded_upstream, i.exon_group_unstranded_downstream)]
     tmpnd.IntronCover.summa[, exclbases := intron_width - inclbases]
         # Exclude exclbases / width > 0.3
     tmpnd.IntronCover.summa = tmpnd.IntronCover.summa[exclbases / intron_width < 0.3]
@@ -739,6 +753,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.cover[, V9 := "255,0,0"]
 
     data.table::fwrite(ref.cover, paste(reference_path, "ref-cover.bed", sep="/"), sep="\t", col.names = F)
+
+# Now compile list of IRFinder introns here
+    fst::write.fst(tmpnd.IntronCover.summa, paste(reference_path, "fst", "Introns.ND.fst", sep="/"))
+    fst::write.fst(tmpdir.IntronCover.summa, paste(reference_path, "fst", "Introns.Dir.fst", sep="/"))
 
     message("done\n")
 
@@ -812,6 +830,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     message("Generating ref-sj.ref ...", appendLF = F)    
     
 # ref-sj.ref
+    # Reload candidate introns here, as we've filtered this before
+    rm(candidate.introns)
+    candidate.introns = as.data.table(fst::read.fst(paste(reference_path,"fst","junctions.fst", sep="/")))
+
     ref.sj = candidate.introns[,c("seqnames", "start", "end", "strand")]
     ref.sj = unique(ref.sj)
     ref.sj[,start := start - 1]
@@ -838,6 +860,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         sep="\t", eol = "\n", col.names = F)
     
 # Annotating Alternative Splicing Events
+    # Massive clean-up for memory purposes
+
+    
+
+    
 
     message("Annotating Splice Events\n")
 
@@ -1093,7 +1120,8 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     # Exons.Group[, exon_group := data.table::rowid(gene_group)]
     # Exons.Group[strand == "-", exon_group := max(exon_group) + 1 - exon_group, by = "gene_group"]
 
-    candidate.introns.ASS = copy(candidate.introns)
+    candidate.introns.ASS = candidate.introns[!is.na(exon_group_stranded_upstream) &
+        !is.na(exon_group_stranded_downstream)]
     # candidate.introns.ASS[, c("start", "end") := list(start - 1, end + 1)]
     # candidate.introns.ASS.ol = GenomicRanges::findOverlaps(
         # GenomicRanges::makeGRangesFromDataFrame(candidate.introns.ASS),

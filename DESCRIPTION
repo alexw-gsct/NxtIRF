@@ -1,7 +1,7 @@
 Package: NxtIRF
 Type: Package
-Title: An R/R/Studio enhancement of IRFinder 
-Version: 0.1.0
+Title: User-friendly Intron Retention and Alternative Splicing analysis using the IRFinder engine
+Version: 0.98.0
 Date: 2020-09-04
 Author: Alex C H Wong
 Maintainer: Alex C H Wong <a.wong@centenary.org.au>

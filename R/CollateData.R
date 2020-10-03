@@ -33,11 +33,6 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     if(!dir.exists(norm_output_path)) {
         dir.create(norm_output_path)
     }
-    for(i in 1:nrow(Experiment)) {
-        if(!dir.exists(paste(norm_output_path, Experiment$sample[i], sep="/"))) {
-            dir.create(paste(norm_output_path, Experiment$sample[i], sep="/"))
-        }
-    }
     
     df.internal = Experiment[,1:2]
     df.internal$paired = FALSE
@@ -64,9 +59,15 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     }
     gc()
     
+    if(any(df.internal$strand == 0)) {
+        runStranded = FALSE
+    } else {
+        runStranded = TRUE
+    }
+    
     # Compile junctions first
     for(i in 1:nrow(df.internal)) {
-        message(paste("Compiling junction list from sample: ", i))
+        message(paste("Compiling junction and IR lists from sample: ", i))
         junc = suppressWarnings(as.data.table(fread(df.internal$path[i], skip = "JC_seqname")))
         setnames(junc, "JC_seqname", "seqnames")
         if(!exists("junc.common")) {
@@ -74,29 +75,33 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         } else {
             junc.common = merge(junc.common, junc[,1:4], all = T)
         }
-		
+		# Write temp file
+        fst::write.fst(as.data.frame(junc), 
+            paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
+
+        
 		# Compile IRFinder based on strand
-		if(any(df.internal$strand == 0)) {
-			for(i in 1:nrow(Experiment)) {
-				message(paste("Processing file ", i))
-				irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Nondir_")))
-				if(!exists("irf.common")) {
-					irf.common = irf[,1:6]
-				} else {
-					irf.common = semi_join.DT(irf.common, irf[,1:6], by = colnames(irf.common))
-				}
-			}
+		if(!runStranded) {
+            # message(paste("Compiling  ", i))
+            irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Nondir_")))
+            setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+            if(!exists("irf.common")) {
+                irf.common = irf[,1:6]
+            } else {
+                irf.common = semi_join.DT(irf.common, irf[,1:6], by = colnames(irf.common))
+            }
 		} else {
-			for(i in 1:nrow(Experiment)) {
-				message(paste("Processing file ", i))
-				irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Dir_Chr")))
-				if(!exists("irf.common")) {
-					irf.common = irf[,1:6]
-				} else {
-					irf.common = semi_join.DT(irf.common, irf[,1:6], by = colnames(irf.common))
-				}
-			}
+            # message(paste("Processing file ", i))
+            irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Dir_Chr")))
+            setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+            if(!exists("irf.common")) {
+                irf.common = irf[,1:6]
+            } else {
+                irf.common = semi_join.DT(irf.common, irf[,1:6], by = colnames(irf.common))
+            }
 		}
+        fst::write.fst(as.data.frame(irf), 
+            paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
     }
     
 #   ah_genome = "AH65745"
@@ -187,14 +192,31 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     junc.annotation = introns.unique[junc.common, 
         c("seqnames", "start", "end", "strand", "transcript_id", "intron_number", "gene_name", "gene_id", "transcript_biotype"),
         on = c("seqnames", "start", "end", "strand")]
-        
+    
+    # Determine exon groups (really only to annotate novel junctions)
+    if(
+    Genes.Group.stranded = as.data.table(
+        GenomicRanges::reduce(Genes)
+    )
+    setorder(Genes.Group.stranded, seqnames, start, strand)
+    Genes.Group.stranded[, gene_group_stranded := .I]
+
+    Exons = GenomicRanges::makeGRangesFromDataFrame(
+        fst::read.fst(paste(reference_path, "fst", "Exons.fst", sep="/")),
+        keep.extra.columns = TRUE
+    )
+    
+    
+
     rm(candidate.introns, introns.unique)
     gc()
 
     for(i in seq_len(nrow(df.internal))) {
         message(paste("Processing data for sample: ", i))
-        junc = suppressWarnings(as.data.table(fread(df.internal$path[i], skip = "JC_seqname")))
-        setnames(junc, "JC_seqname", "seqnames")
+        junc = as.data.table(
+            fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
+        )
+        # setnames(junc, "JC_seqname", "seqnames")
         junc[, start := start + 1]
         junc$strand = NULL
 
@@ -217,32 +239,24 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         junc = junc[,c("seqnames", "start", "end", "strand", "Event", "count")]
 
         fst::write.fst(as.data.frame(junc), 
-            paste(norm_output_path, Experiment$sample[i], "junc.fst", sep="/"))
-			
-		if(any(df.internal$strand == 0)) {
-			# Open each file again and left_merge with irf.common
-			message(paste("Processing file ", i))
-			irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Nondir_")))
-			irf = irf.common[irf, on = colnames(irf.common)[1:6]]
-			fst::write.fst(as.data.frame(irf), 
-				paste(norm_output_path, Experiment$sample[i], "IR.fst", sep="/")
-			)
-		} else {
-			# Open each file again and left_merge with irf.common
-			message(paste("Processing file ", i))
-			irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Dir_Chr")))
-			irf = irf[irf.common, on = colnames(irf.common)[1:6]]
-			setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
-			irf[, start := start + 1]
-			# Extra statistics:
-			irf[, SpliceMax := 0]
-			irf[SpliceLeft >= SpliceRight, SpliceMax := SpliceLeft]
-			irf[SpliceLeft < SpliceRight, SpliceMax := SpliceRight]
+            paste(norm_output_path, paste(Experiment$sample[i], "junc.fst", sep="."), sep="/"))
+        
+        irf = as.data.table(
+            fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
+        )
+        irf = irf[irf.common, on = colnames(irf.common)[1:6]]
+        
+        irf[, start := start + 1]
+        # Extra statistics:
+        irf[, SpliceMax := 0]
+        irf[SpliceLeft >= SpliceRight, SpliceMax := SpliceLeft]
+        irf[SpliceLeft < SpliceRight, SpliceMax := SpliceRight]
 
-			fst::write.fst(as.data.frame(irf), 
-				paste(norm_output_path, Experiment$sample[i], "IR.fst", sep="/")
-			)
-		}
+		fst::write.fst(as.data.frame(irf),
+            paste(norm_output_path, paste(Experiment$sample[i], "irf.fst", sep="."), sep="/"))
+            
+        file.remove(paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
+        file.remove(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
     }
 }
 
