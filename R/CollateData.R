@@ -65,7 +65,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         runStranded = TRUE
     }
     
-    # Compile junctions first
+    # Compile junctions and IR lists first, save to temp files
     for(i in 1:nrow(df.internal)) {
         message(paste("Compiling junction and IR lists from sample: ", i))
         junc = suppressWarnings(as.data.table(fread(df.internal$path[i], skip = "JC_seqname")))
@@ -82,7 +82,6 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         
 		# Compile IRFinder based on strand
 		if(!runStranded) {
-            # message(paste("Compiling  ", i))
             irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Nondir_")))
             setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
             if(!exists("irf.common")) {
@@ -91,7 +90,6 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
                 irf.common = semi_join.DT(irf.common, irf[,1:6], by = colnames(irf.common))
             }
 		} else {
-            # message(paste("Processing file ", i))
             irf = suppressWarnings(as.data.table(fread(Experiment$path[i], skip = "Dir_Chr")))
             setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
             if(!exists("irf.common")) {
@@ -103,7 +101,8 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         fst::write.fst(as.data.frame(irf), 
             paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
     }
-    
+    irf.common[, start := start + 1]
+
 #   ah_genome = "AH65745"
     ah = AnnotationHub::AnnotationHub()
     genome = ah[[ah_genome]]
@@ -122,11 +121,12 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     junc.common$motif_infer_strand = "n"
     junc.common[ motif_pos %in% c("GTAG", "GCAG", "ATAC", "ATAG"), motif_infer_strand := "+"]
     junc.common[ motif_pos %in% c("CTAC", "CTGC", "GTAT", "CTAT"), motif_infer_strand := "-"]
-    junc.common[ motif_pos %in% c("GTAC"), motif_infer_strand := "*"]
+    junc.common[ motif_pos %in% c("GTAC"), motif_infer_strand := "n"]       # Do not accept un-annotated GTACs - too confusing
     # Exclude non-splice motifs (that are also not annotated - i.e. strand == "*")
-    junc.common = junc.common[motif_infer_strand != "n" & strand == "*"]
+    junc.common = junc.common[motif_infer_strand != "n" | strand != "*"]
 
     # Use motif_infer_strand
+    junc.common = junc.common[motif_infer_strand == "n", motif_infer_strand := strand]
     junc.common$strand = NULL
     setnames(junc.common, "motif_infer_strand", "strand")
 
@@ -134,46 +134,48 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     Genes = GenomicRanges::makeGRangesFromDataFrame(
         fst::read.fst(paste(reference_path, "fst", "Genes.fst", sep="/"))
     )
-    Genes.Group.stranded = as.data.table(
-        GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 5000),
-        GenomicRanges::flank(Genes, 5000, start = FALSE))
-    ))
-    setorder(Genes.Group.stranded, seqnames, start, strand)
-    Genes.Group.stranded[, gene_group_stranded := .I]
-    
-    junc.common.left = copy(junc.common)
-    junc.common.left[, start := start - 1]
-    junc.common.left[, end := start + 1]
-    OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
-        )
-    )
-    junc.common$gene_group_left[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
-
-    junc.common.right = copy(junc.common)
-    junc.common.right[, end := end + 1]
-    junc.common.right[, start := end - 1]
-    OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
-        )
-    )
-    junc.common$gene_group_right[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
-        
 
     # Exclude distant splice events:
-    junc.common = junc.common[gene_group_left == gene_group_right & !is.na(gene_group_left)]
-    junc.common$gene_group_left = NULL
-    junc.common$gene_group_right = NULL
+
+    # Genes.Group.stranded = as.data.table(
+        # GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 5000),
+        # GenomicRanges::flank(Genes, 5000, start = FALSE))
+    # ))
+    # setorder(Genes.Group.stranded, seqnames, start, strand)
+    # Genes.Group.stranded[, gene_group_stranded := .I]
+    
+    # junc.common.left = copy(junc.common)
+    # junc.common.left[, start := start - 1]
+    # junc.common.left[, end := start + 1]
+    # OL = suppressWarnings(
+        # GenomicRanges::findOverlaps(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        # )
+    # )
+    # junc.common$gene_group_left[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+
+    # junc.common.right = copy(junc.common)
+    # junc.common.right[, end := end + 1]
+    # junc.common.right[, start := end - 1]
+    # OL = suppressWarnings(
+        # GenomicRanges::findOverlaps(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        # )
+    # )
+    # junc.common$gene_group_right[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+        
+
+    # junc.common = junc.common[gene_group_left == gene_group_right & !is.na(gene_group_left)]
+    # junc.common$gene_group_left = NULL
+    # junc.common$gene_group_right = NULL
     
     # Assign region names to junctions:
     junc.common[, Event := paste0(seqnames, ":", start, "-", end, "/", strand)]
     
     # Annotate junctions
-    candidate.introns = as.data.table(fst::read.fst(paste(reference_path, "fst", "candidate.introns.fst", sep="/")))
+    candidate.introns = as.data.table(fst::read.fst(paste(reference_path, "fst", "junctions.fst", sep="/")))
     candidate.introns[, transcript_biotype_2 := transcript_biotype]
     candidate.introns[!(transcript_biotype %in% c("protein_coding", "processed_transcript",
         "lincRNA", "antisense", "nonsense_mediated_decay")), transcript_biotype_2 := "other"]
@@ -193,20 +195,142 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         c("seqnames", "start", "end", "strand", "transcript_id", "intron_number", "gene_name", "gene_id", "transcript_biotype"),
         on = c("seqnames", "start", "end", "strand")]
     
-    # Determine exon groups (really only to annotate novel junctions)
-    if(
-    Genes.Group.stranded = as.data.table(
-        GenomicRanges::reduce(Genes)
+    # Use Exon Groups file to designate exon groups to all junctions
+    Exon.Groups = GenomicRanges::makeGRangesFromDataFrame(
+        fst::read.fst(paste(reference_path, "fst", "Exons.groups.fst", sep="/")),
+        keep.extra.columns = TRUE)
+    
+    # Always calculate stranded for junctions
+    # if(!runStranded) {
+        # Exon.Groups = Exon.Groups[strand(Exon.Groups) == "*"]
+    # } else {
+        # Exon.Groups = Exon.Groups[strand(Exon.Groups) != "*"]    
+    # }
+    Exon.Groups.S = Exon.Groups[strand(Exon.Groups) != "*"]    
+    
+    junc.common.left = copy(junc.common)
+    junc.common.left[, start := start - 1]
+    junc.common.left[, end := start + 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
     )
-    setorder(Genes.Group.stranded, seqnames, start, strand)
-    Genes.Group.stranded[, gene_group_stranded := .I]
+    junc.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    junc.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
 
-    Exons = GenomicRanges::makeGRangesFromDataFrame(
-        fst::read.fst(paste(reference_path, "fst", "Exons.fst", sep="/")),
-        keep.extra.columns = TRUE
+    junc.common.right = copy(junc.common)
+    junc.common.right[, end := end + 1]
+    junc.common.right[, start := end - 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
     )
+    junc.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    junc.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
     
+    junc.common[, JG_up := ""]
+    junc.common[, JG_down := ""]
+    junc.common[strand == "+" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        JG_up := paste(gene_group_left, exon_group_left, sep="_")]
+    junc.common[strand == "-" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        JG_up := paste(gene_group_right, exon_group_right, sep="_")]
+    junc.common[strand == "+" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        JG_down := paste(gene_group_right, exon_group_right, sep="_")]
+    junc.common[strand == "-" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        JG_down := paste(gene_group_left, exon_group_left, sep="_")]
+
+    junc.common$gene_group_left = NULL
+    junc.common$gene_group_right = NULL
+    junc.common$exon_group_left = NULL
+    junc.common$exon_group_right = NULL
     
+    irf.common.left = copy(irf.common)
+    irf.common.left[, start := start - 1]
+    irf.common.left[, end := start + 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
+    )
+    irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    irf.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
+
+    irf.common.right = copy(irf.common)
+    irf.common.right[, end := end + 1]
+    irf.common.right[, start := end - 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
+    )
+    irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    irf.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
+    
+    irf.common[, JG_up := ""]
+    irf.common[, JG_down := ""]
+    irf.common[strand == "+" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        JG_up := paste(gene_group_left, exon_group_left, sep="_")]
+    irf.common[strand == "-" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        JG_up := paste(gene_group_right, exon_group_right, sep="_")]
+    irf.common[strand == "+" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        JG_down := paste(gene_group_right, exon_group_right, sep="_")]
+    irf.common[strand == "-" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        JG_down := paste(gene_group_left, exon_group_left, sep="_")]
+
+    irf.common$gene_group_left = NULL
+    irf.common$gene_group_right = NULL
+    irf.common$exon_group_left = NULL
+    irf.common$exon_group_right = NULL
+    
+    if(!runStranded) {
+        Exon.Groups = Exon.Groups[strand(Exon.Groups) == "*"]
+    } else {
+        Exon.Groups = Exon.Groups[strand(Exon.Groups) != "*"]    
+    }
+    irf.common.left = copy(irf.common)
+    irf.common.left[, start := start - 1]
+    irf.common.left[, end := start + 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
+    )
+    irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    irf.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
+
+    irf.common.right = copy(irf.common)
+    irf.common.right[, end := end + 1]
+    irf.common.right[, start := end - 1]
+    OL = suppressWarnings(
+        GenomicRanges::findOverlaps(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        )
+    )
+    irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
+    irf.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
+    
+    irf.common[, IRG_up := ""]
+    irf.common[, IRG_down := ""]
+    irf.common[strand == "+" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        IRG_up := paste(gene_group_left, exon_group_left, sep="_")]
+    irf.common[strand == "-" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        IRG_up := paste(gene_group_right, exon_group_right, sep="_")]
+    irf.common[strand == "+" & !is.na(gene_group_right) & !is.na(exon_group_right), 
+        IRG_down := paste(gene_group_right, exon_group_right, sep="_")]
+    irf.common[strand == "-" & !is.na(gene_group_left) & !is.na(exon_group_left), 
+        IRG_down := paste(gene_group_left, exon_group_left, sep="_")]
+    irf.common$gene_group_left = NULL
+    irf.common$gene_group_right = NULL
+    irf.common$exon_group_left = NULL
+    irf.common$exon_group_right = NULL
 
     rm(candidate.introns, introns.unique)
     gc()
@@ -237,21 +361,37 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         }
         junc[is.na(count), count := 0]
         junc = junc[,c("seqnames", "start", "end", "strand", "Event", "count")]
-
+        junc = cbind(junc, junc.common[, c("JG_up", "JG_down")])
+        junc[, SO_L := 0]
+        junc[, SO_R := 0]
+        junc[JG_up != "" & strand == "+", SO_L := sum(count), by = "JG_up"]
+        junc[JG_down != "" & strand == "+", SO_R := sum(count), by = "JG_down"]
+        junc[JG_up != "" & strand == "-", SO_R := sum(count), by = "JG_up"]
+        junc[JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
+        
         fst::write.fst(as.data.frame(junc), 
             paste(norm_output_path, paste(Experiment$sample[i], "junc.fst", sep="."), sep="/"))
         
         irf = as.data.table(
             fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
         )
+        irf[, start := start + 1]
         irf = irf[irf.common, on = colnames(irf.common)[1:6]]
         
-        irf[, start := start + 1]
         # Extra statistics:
         irf[, SpliceMax := 0]
         irf[SpliceLeft >= SpliceRight, SpliceMax := SpliceLeft]
         irf[SpliceLeft < SpliceRight, SpliceMax := SpliceRight]
 
+        irf[junc, on = c("seqnames", "start", "end", "strand"), SpliceOverLeft := SO_L]
+        irf[junc, on = c("seqnames", "start", "end", "strand"), SpliceOverRight := SO_R]
+        irf[SpliceOverLeft >= SpliceOverRight, SpliceOverMax := SpliceOverLeft]
+        irf[SpliceOverLeft < SpliceOverRight, SpliceOverMax := SpliceOverRight]
+        
+        irf[, IROratio := 0]
+        irf[IntronDepth < 1 & IntronDepth > 0 &(Coverage + SpliceOverMax) > 0, IROratio := Coverage / (Coverage + SpliceOverMax)]
+        irf[IntronDepth >= 1, IROratio := IntronDepth / (IntronDepth + SpliceOverMax)]
+        
 		fst::write.fst(as.data.frame(irf),
             paste(norm_output_path, paste(Experiment$sample[i], "irf.fst", sep="."), sep="/"))
             

@@ -575,11 +575,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         exclude.omnidirectional = GenomicRanges::makeGRangesFromDataFrame(blacklist)
     }
 
-    introns.unique.blacklisted = GenomicRanges::findOverlaps(introns.unique, exclude.omnidirectional, type = "within")
-    # length(introns.unique.blacklisted@from)
-    # [1] 3071
-    introns.unique = introns.unique[-introns.unique.blacklisted@from] # clean introns by those lying completely within blacklist regions
-
+    if(exists("exclude.omnidirectional")) {
+        introns.unique.blacklisted = GenomicRanges::findOverlaps(introns.unique, exclude.omnidirectional, type = "within")
+        # length(introns.unique.blacklisted@from)
+        # [1] 3071
+        introns.unique = introns.unique[-introns.unique.blacklisted@from] # clean introns by those lying completely within blacklist regions
+    }
+    
     # Now label introns as "known-exon", "anti-over", or "anti-near"
     introns.unique.exon.dir = GenomicRanges::findOverlaps(introns.unique, 
         GenomicRanges::makeGRangesFromDataFrame(exclude.directional), type = "within")
@@ -615,9 +617,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     introns.unique.nd = introns.unique
 
 # Dir
-    introns.intersect.dir = GenomicRanges::intersect(introns.unique.dir, 
-    c(exclude.omnidirectional, GenomicRanges::makeGRangesFromDataFrame(exclude.directional)))
-
+    if(exists("exclude.omnidirectional")) {
+        introns.intersect.dir = GenomicRanges::intersect(introns.unique.dir, 
+            c(exclude.omnidirectional, GenomicRanges::makeGRangesFromDataFrame(exclude.directional)))
+    } else {
+        introns.intersect.dir = GenomicRanges::intersect(introns.unique.dir, 
+            c(GenomicRanges::makeGRangesFromDataFrame(exclude.directional)))    
+    }
     introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique.dir, introns.intersect.dir)
     # make a GRanges same size as the number of intersections
     introns.intersect.dir.final = introns.intersect.dir[introns.intersect.ol@to]
@@ -628,10 +634,15 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     introns.unique.dir.ID.compare = introns.unique.dir.ID[names(introns.unique.dir.ID) %in% names(introns.intersect.dir.ID)]
 
 # nd
-    introns.intersect.nd = GenomicRanges::intersect(introns.unique.nd, c(exclude.omnidirectional, 
-        GenomicRanges::makeGRangesFromDataFrame(exclude.directional), 
-        GenomicRanges::makeGRangesFromDataFrame(exclude.directional.reverse)))
-
+    if(exists("exclude.omnidirectional")) {
+        introns.intersect.nd = GenomicRanges::intersect(introns.unique.nd, c(exclude.omnidirectional, 
+            GenomicRanges::makeGRangesFromDataFrame(exclude.directional), 
+            GenomicRanges::makeGRangesFromDataFrame(exclude.directional.reverse)))
+    } else {
+        introns.intersect.nd = GenomicRanges::intersect(introns.unique.nd, c(
+            GenomicRanges::makeGRangesFromDataFrame(exclude.directional), 
+            GenomicRanges::makeGRangesFromDataFrame(exclude.directional.reverse)))    
+    }
     introns.intersect.ol = GenomicRanges::findOverlaps(introns.unique.nd, introns.intersect.nd)
     # make a GRanges same size as the number of intersections
     introns.intersect.nd.final = introns.intersect.nd[introns.intersect.ol@to]
@@ -861,10 +872,23 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
 # Annotating Alternative Splicing Events
     # Massive clean-up for memory purposes
-
-    
-
-    
+    rm(acceptor.introns, acceptor.seq, AllChr, AllChr.split,
+        candidate.transcripts, donor.introns, donor.seq,
+        exclude.directional, exclude.directional.reverse,
+        Exons, Exons.Hash, Genes.chr, Genes.Extended, Genes.rev, gtf.misc, Intergenic,
+        introns.intersect.dir, introns.intersect.dir.final, introns.intersect.dir.ID,
+        introns.intersect.nd, introns.intersect.nd.final, introns.intersect.nd.ID, introns.intersect.ol,
+        introns.unique, introns.unique.antiover, introns.unique.antinear, introns.unique.blacklisted,
+        introns.unique.dir, introns.unique.dir.ID, introns.unique.dir.ID.compare, introns.unique.exon.dir,
+        introns.unique.exon.nd, introns.unique.nd, introns.unique.nd.ID, introns.unique.nd.ID.compare,
+        introns.unique.readcons, # mappability, nonPolyA,
+        readcons, readcons.left, readcons.right,
+        ref.cover, ref.ROI, ref.sj,
+        rRNA, tmpdir.IntronCover, tmpdir.IntronCover.summa,
+        tmpnd.IntronCover, tmpnd.IntronCover.summa, Transcripts,
+        tmp.exons.exclude)
+    gc()
+        
 
     message("Annotating Splice Events\n")
 
@@ -943,6 +967,7 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
 		"transcript_id_b","transcript_name_b","intron_number_b")]
 
 	message("done\n")
+    gc()
 
 message("Annotating Skipped-Exon Splice Events...", appendLF = F)
 
@@ -992,6 +1017,7 @@ message("Annotating Skipped-Exon Splice Events...", appendLF = F)
 	setnames(introns.found.SE, new = c("intron_number_a","intron_number_b"), old = c("inc_intron_number", "skip_intron_number"))
 
 	message("done\n")
+    gc()
 
 message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
@@ -1099,6 +1125,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 		"transcript_id_b", "transcript_name_b", "intron_number_b")]
 
 	message("done\n")
+    gc()
 
 	message("Annotating Alternate 5' / 3' Splice Site Splice Events...", appendLF = F)
 
@@ -1335,6 +1362,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         fst::write.fst(as.data.frame(AS_Table), paste(reference_path,"fst","Splice.fst", sep="/"))
 
 	message("done\n")
+    gc()
 
 	message("Translating Alternate Splice Peptides...", appendLF = F)
 
