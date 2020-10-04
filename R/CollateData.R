@@ -477,7 +477,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         irf[SpliceOverLeft < SpliceOverRight, SpliceOverMax := SpliceOverRight]
         
         irf[, IROratio := 0]
-        irf[IntronDepth < 1 & IntronDepth > 0 &(Coverage + SpliceOverMax) > 0, IROratio := Coverage / (Coverage + SpliceOverMax)]
+        irf[IntronDepth < 1 & IntronDepth > 0 & (Coverage + SpliceOverMax) > 0, IROratio := Coverage / (Coverage + SpliceOverMax)]
         irf[IntronDepth >= 1, IROratio := IntronDepth / (IntronDepth + SpliceOverMax)]
         
 		fst::write.fst(as.data.frame(irf),
@@ -490,18 +490,81 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
 
 BuildSE = function(output_path, reference_path) {
 
-    IR.df = FindSamples(output_path, "IR.fst", use_subdir = TRUE)
-    colnames(IR.df)[2] = "IR_path"
-    junc.df = FindSamples(output_path, "junc.fst", use_subdir = TRUE)
-    colnames(junc.df)[2] = "junc_path"
-    Experiment = dplyr::left_join(IR.df, junc.df, by = "sample")
+    IR.df = as.data.table(FindSamples(output_path, ".irf.fst"))
+    setnames(IR.df, "path", "IR_path")
+    junc.df = as.data.table(FindSamples(output_path, ".junc.fst"))
+    setnames(junc.df, "path", "junc_path")
+    splice.df = as.data.table(FindSamples(output_path, ".splice.fst"))
+    setnames(splice.df, "path", "splice_path")
     
-    DT = as.data.table(fst::read.fst(Experiment$IR_path[1], c("seqnames", "start", "end", "Name", "strand")))
+    files = IR.df[junc.df[splice.df, on = "sample"], on = "sample"]
     
-    for(i in seq_len(nrow(Experiment))) {
-        temp.DT = as.data.table(fst::read.fst(Experiment$IR_path[i]))
+    # Load skinny annotation
+    irf.anno = as.data.table(fst::read.fst(files$IR_path[1], 
+        c("Name")))
+    setnames(irf.anno, "Name", "EventName")
+    irf.anno[, EventType := "IR"]
+    splice.anno = as.data.table(fst::read.fst(files$splice_path[1],
+        c("EventName", "EventType")))
+    
+    # Use a common index centered around c("EventName", "EventType")
+    
+    rowEvent = rbind(irf.anno[, c("EventName", "EventType")], splice.anno[, c("EventName", "EventType")])
+    rowEvent.M = copy(rowEvent)
+    rowEvent.Cov = copy(rowEvent)
+    
+    for(i in seq_len(nrow(files))) {
+        irf = as.data.table(fst::read.fst(files$IR_path[i], c("Name", "IntronDepth", "Coverage", "SpliceOverMax")))
+        setnames(irf, "Name", "EventName")
+        irf[, EventType := "IR"]
+        splice = as.data.table(fst::read.fst(files$splice_path[i], c("EventName", "EventType", "count_Event1a", "count_Event1b",
+            "count_Event2a", "count_Event2b")))
+
+        rowEvent.M[, c(files$sample[i]) := 0]
+        rowEvent.M[irf[IntronDepth > 0 & IntronDepth < 1 & (Coverage + SpliceOverMax) > 0], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := Coverage]
+        rowEvent.M[irf[IntronDepth >= 1], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := IntronDepth]
+
+        rowEvent.M[splice[EventType %in% c("MXE", "SE")], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := count_Event1a + count_Event2a]
+        rowEvent.M[splice[EventType %in% c("ALE", "AFE", "A3SS", "A5SS")], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := count_Event1a]
+
+        rowEvent.Cov[, c(files$sample[i]) := 0]
+        rowEvent.Cov[irf[IntronDepth > 0 & IntronDepth < 1 & (Coverage + SpliceOverMax) > 0], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := Coverage + SpliceOverMax]
+        rowEvent.Cov[irf[IntronDepth >= 1], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := IntronDepth + SpliceOverMax]
+
+        rowEvent.Cov[splice[EventType %in% c("MXE")], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := count_Event1a + count_Event2a + count_Event1b + count_Event2b]
+        rowEvent.Cov[splice[EventType %in% c("SE")], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := count_Event1a + count_Event2a + 2 * count_Event1b]
+        rowEvent.Cov[splice[EventType %in% c("ALE", "AFE", "A3SS", "A5SS")], 
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := count_Event1a + count_Event1b]
+    }
+    
+    se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
+		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2]
+	), rowData = rowEvent, colData = files)
+    rownames(se) = rowData(se)$EventName
+
+# Apply filter calculations here
+    
+    for(i in seq_len(nrow(files))) {
+        temp.DT = as.data.table(fst::read.fst(files$IR_path[i]))
         temp.DT[IntronDepth > 20.0, Threshold_Coverage := Coverage]
-        DT[, c(paste(Experiment$sample[i], "Coverage", sep="_")) := temp.DT$Threshold_Coverage]
+        DT[, c(paste(files$sample[i], "Coverage", sep="_")) := temp.DT$Threshold_Coverage]
     }
     DT.Cov = as.matrix(DT[, -c("seqnames", "start", "end", "Name", "strand")])
     

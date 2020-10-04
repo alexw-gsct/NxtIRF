@@ -972,6 +972,8 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
 		"transcript_id_a","transcript_name_a","intron_number_a",
 		"transcript_id_b","transcript_name_b","intron_number_b")]
 
+    introns.found.MXE = unique(introns.found.MXE, by = c("Event1a", "Event1b", "Event2a", "Event2b"))
+    
 	message("done\n")
     gc()
 
