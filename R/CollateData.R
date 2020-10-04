@@ -352,6 +352,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     Splice.Anno$up_1a = NULL
     Splice.Anno$down_1a = NULL
     Splice.Anno$down_2a = NULL
+    Splice.Anno[, strand := tstrsplit(Event1a, split="/")[[2]]]
     
     rm(candidate.introns, introns.unique)
     gc()
@@ -392,6 +393,72 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
         
         fst::write.fst(as.data.frame(junc), 
             paste(norm_output_path, paste(Experiment$sample[i], "junc.fst", sep="."), sep="/"))
+        
+        splice = copy(Splice.Anno)
+        
+        splice[, count_Event1a := 0]
+        splice[!is.na(Event1a), count_Event1a := junc$count[match(Event1a, junc$Event)]]
+        splice[is.na(count_Event1a), count_Event1a := 0]
+        splice[, count_Event2a := 0]
+        splice[!is.na(Event2a), count_Event2a := junc$count[match(Event2a, junc$Event)]]
+        splice[is.na(count_Event2a), count_Event2a := 0]
+        splice[, count_Event1b := 0]
+        splice[!is.na(Event1b), count_Event1b := junc$count[match(Event1b, junc$Event)]]
+        splice[is.na(count_Event1b), count_Event1b := 0]
+        splice[, count_Event2b := 0]
+        splice[!is.na(Event2b), count_Event2b := junc$count[match(Event2b, junc$Event)]]
+        splice[is.na(count_Event2b), count_Event2b := 0]
+
+        splice[, count_JG_up := 0]
+        splice[!is.na(JG_up) & strand == "+", count_JG_up := junc$SO_L[match(JG_up, junc$JG_up)]]
+        splice[!is.na(JG_up) & strand == "-", count_JG_up := junc$SO_R[match(JG_up, junc$JG_up)]]
+        splice[is.na(count_JG_up), count_JG_up := 0]
+        splice[, count_JG_down := 0]
+        splice[!is.na(JG_down) & strand == "-", count_JG_down := junc$SO_L[match(JG_down, junc$JG_down)]]
+        splice[!is.na(JG_down) & strand == "+", count_JG_down := junc$SO_R[match(JG_down, junc$JG_down)]]
+        splice[is.na(count_JG_down), count_JG_down := 0]
+
+        # Splice participation: sum of two events compared to JG_up / JG_down
+        splice[, partic_up := 0]
+        splice[, partic_down := 0]
+
+        splice[EventType %in% c("MXE", "SE", "ALE", "A3SS"), partic_up := count_Event1a + count_Event1b]
+        splice[EventType %in% c("MXE"), partic_down := count_Event2a + count_Event2b]
+        splice[EventType %in% c("SE"), partic_down := count_Event2a + count_Event1b]
+        splice[EventType %in% c("AFE", "A5SS"), partic_down := count_Event1a + count_Event1b]
+
+        fst::write.fst(as.data.frame(splice), 
+            paste(norm_output_path, paste(Experiment$sample[i], "splice.fst", sep="."), sep="/"))
+
+        # Example: require partic_up / JG_up > 0.6 and partic_down / JG_down > 0.6 and JG_up > 10, JG_down > 10
+        # splice[, mainEvent := FALSE]
+        # splice[EventType %in% c("MXE", "SE"), mainEvent := partic_up / count_JG_up > 0.6 & partic_down / count_JG_down / 0.6]
+        # splice[EventType %in% c("MXE", "SE") & (count_JG_down < 10 | count_JG_up < 10), mainEvent := FALSE]
+
+        # splice[EventType %in% c("ALE", "A3SS"), mainEvent := partic_up / count_JG_up > 0.6]
+        # splice[EventType %in% c("ALE", "A3SS") & (count_JG_up < 10), mainEvent := FALSE]
+
+        # splice[EventType %in% c("AFE", "A5SS"), mainEvent := partic_down / count_JG_down > 0.6]
+        # splice[EventType %in% c("AFE", "A5SS") & (count_JG_down < 10), mainEvent := FALSE]
+
+        # Also where there are two events, they should lie within certain percentage of each other
+        # splice[EventType %in% c("MXE", "SE") & mainEvent == TRUE & (count_Event1a + count_Event2a > 10), 
+            # mainEvent := (
+                # (count_Event1a / count_Event2a > 0.5) & (count_Event1a / count_Event2a < 2.0)
+                # )]
+        # splice[EventType %in% c("MXE") & mainEvent == TRUE & (count_Event1b + count_Event2b > 10), 
+            # mainEvent := (
+                # (count_Event1b / count_Event2b > 0.5) & (count_Event1b / count_Event2b < 2.0)
+                # )]
+        
+        # splice[, PSI := -1]
+        # splice[EventType %in% c("MXE"), PSI := (count_Event1a + count_Event2a) /
+            # (count_Event1a + count_Event2a + count_Event1b + count_Event2b)]
+        # splice[EventType %in% c("SE"), PSI := (count_Event1a + count_Event2a) /
+            # (count_Event1a + count_Event2a + (2 * count_Event1b))]
+        # splice[!(EventType %in% c("MXE","SE")), PSI := (count_Event1a) /
+            # (count_Event1a + count_Event1b)]
+        # splice[PSI < 0 | !mainEvent, PSI := NA]
         
         irf = as.data.table(
             fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))

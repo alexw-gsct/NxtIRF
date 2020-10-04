@@ -588,14 +588,14 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     introns.unique.exon.nd = GenomicRanges::findOverlaps(introns.unique, 
         GenomicRanges::makeGRangesFromDataFrame(exclude.directional), type = "within", ignore.strand=TRUE)
 
-    introns.unique$known_exon_dir = ( seq(length(introns.unique)) %in% introns.unique.exon.dir@from )
-    introns.unique$known_exon_nd = ( seq(length(introns.unique)) %in% introns.unique.exon.nd@from )
+    introns.unique$known_exon_dir = ( seq_len(length(introns.unique)) %in% introns.unique.exon.dir@from )
+    introns.unique$known_exon_nd = ( seq_len(length(introns.unique)) %in% introns.unique.exon.nd@from )
 
     introns.unique.antiover = GenomicRanges::findOverlaps(introns.unique, Genes.rev)
-    introns.unique.antinear = GenomicRanges::findOverlaps(introns.unique, Genes.rev)
+    introns.unique.antinear = GenomicRanges::findOverlaps(introns.unique, Genes.Extended)
 
-    introns.unique$antiover = ( seq(length(introns.unique)) %in% introns.unique.antiover@from )
-    introns.unique$antinear = ( seq(length(introns.unique)) %in% introns.unique.antinear@from )
+    introns.unique$antiover = ( seq_len(length(introns.unique)) %in% introns.unique.antiover@from )
+    introns.unique$antinear = ( seq_len(length(introns.unique)) %in% introns.unique.antinear@from )
 
 # Now subset introns by punching holes using blacklist regions
 
@@ -654,9 +654,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
 # Dir setdiff
     tmpdir.IntronCover = GenomicRanges::setdiff(introns.unique.dir.ID.compare, introns.intersect.dir.ID)
-    # now add back introns that did not require intersection
+    # now add back introns that did not require intersection (or would have been excluded as known-exons
     tmpdir.IntronCover = c(tmpdir.IntronCover, 
-        introns.unique.dir.ID[!(names(introns.unique.dir.ID) %in% names(introns.intersect.dir.ID))])
+        introns.unique.dir.ID[!(names(introns.unique.dir.ID) %in% names(introns.intersect.dir.ID))],
+        introns.unique.dir.ID[names(introns.unique.dir.ID) %in% 
+            introns.unique.dir$intron_id[introns.unique.dir$known_exon_dir == TRUE]]
+        )
 
     tmpdir.IntronCover = data.table::as.data.table(tmpdir.IntronCover)
     tmpdir.IntronCover = tmpdir.IntronCover[,c("seqnames", "start", "end", "strand", "width", "group_name")]
@@ -692,7 +695,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     tmpnd.IntronCover = GenomicRanges::setdiff(introns.unique.nd.ID.compare, introns.intersect.nd.ID)
     # now add back introns that did not require intersection
     tmpnd.IntronCover = c(tmpnd.IntronCover, 
-        introns.unique.nd.ID[!(names(introns.unique.nd.ID) %in% names(introns.intersect.nd.ID))])
+        introns.unique.nd.ID[!(names(introns.unique.nd.ID) %in% names(introns.intersect.nd.ID))],
+        introns.unique.nd.ID[names(introns.unique.nd.ID) %in% 
+            introns.unique.nd$intron_id[introns.unique.dir$known_exon_nd == TRUE]]
+        )
 
     tmpnd.IntronCover = data.table::as.data.table(tmpnd.IntronCover)
     tmpnd.IntronCover = tmpnd.IntronCover[,c("seqnames", "start", "end", "strand", "width", "group_name")]
