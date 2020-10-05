@@ -1,4 +1,4 @@
-#' @useDynLib rIRFinder, .registration = TRUE 
+#' @useDynLib NxtIRF, .registration = TRUE 
 #' @import zlibbioc
 #' @importFrom Rcpp evalCpp
 #' @import data.table

@@ -488,6 +488,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     }
 }
 
+#' @export
 BuildSE = function(output_path, reference_path) {
 
     IR.df = as.data.table(FindSamples(output_path, ".irf.fst"))
@@ -513,12 +514,19 @@ BuildSE = function(output_path, reference_path) {
     rowEvent.M = copy(rowEvent)
     rowEvent.Cov = copy(rowEvent)
     
+    filter.Depth = copy(rowEvent)       # filter for .Cov > 20
+    filter.Cov = copy(rowEvent)         # IR: filter for coverage > 0.9 if .Cov > 10
+                                        # AS: filter for participation > 0.6
+    
     for(i in seq_len(nrow(files))) {
         irf = as.data.table(fst::read.fst(files$IR_path[i], c("Name", "IntronDepth", "Coverage", "SpliceOverMax")))
         setnames(irf, "Name", "EventName")
         irf[, EventType := "IR"]
-        splice = as.data.table(fst::read.fst(files$splice_path[i], c("EventName", "EventType", "count_Event1a", "count_Event1b",
-            "count_Event2a", "count_Event2b")))
+        splice = as.data.table(fst::read.fst(files$splice_path[i], c("EventName", "EventType", 
+            "count_Event1a", "count_Event1b",
+            "count_Event2a", "count_Event2b",
+            "partic_up", "partic_down",
+            "count_JG_up", "count_JG_down")))
 
         rowEvent.M[, c(files$sample[i]) := 0]
         rowEvent.M[irf[IntronDepth > 0 & IntronDepth < 1 & (Coverage + SpliceOverMax) > 0], 
@@ -552,20 +560,50 @@ BuildSE = function(output_path, reference_path) {
         rowEvent.Cov[splice[EventType %in% c("ALE", "AFE", "A3SS", "A5SS")], 
             on = c("EventName", "EventType"),
             c(files$sample[i]) := count_Event1a + count_Event1b]
+            
+        filter.Depth[, c(files$sample[i]) := 0]
+        filter.Depth[irf[IntronDepth + SpliceOverMax > 20],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Depth[splice[EventType %in% c("MXE", "SE") &
+            count_JG_down > 20 & count_JG_up > 20],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Depth[splice[EventType %in% c("ALE", "A3SS") &
+            count_JG_up > 20],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Depth[splice[EventType %in% c("AFE", "A5SS") &
+            count_JG_down > 20],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+
+        filter.Cov[, c(files$sample[i]) := 0]
+        filter.Cov[irf[IntronDepth < 10 | Coverage > 0.9],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Cov[splice[EventType %in% c("MXE", "SE") &
+            partic_up / count_JG_up > 0.6 & partic_down / count_JG_down / 0.6],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Cov[splice[EventType %in% c("ALE", "A3SS") &
+            partic_up / count_JG_up > 0.6],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+        filter.Cov[splice[EventType %in% c("AFE", "A5SS") &
+            partic_down / count_JG_down > 0.6],
+            on = c("EventName", "EventType"),
+            c(files$sample[i]) := 1]
+            
+        # sum by condition
+        which(condition.ft == levels(condition.ft)[1]) + 2
     }
     
     se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
-		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2]
+		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2],
+        filter.Depth = filter.Depth[,-1:-2], filter.Cov = filter.Cov[,-1:-2]
 	), rowData = rowEvent, colData = files)
     rownames(se) = rowData(se)$EventName
-
-# Apply filter calculations here
     
-    for(i in seq_len(nrow(files))) {
-        temp.DT = as.data.table(fst::read.fst(files$IR_path[i]))
-        temp.DT[IntronDepth > 20.0, Threshold_Coverage := Coverage]
-        DT[, c(paste(files$sample[i], "Coverage", sep="_")) := temp.DT$Threshold_Coverage]
-    }
-    DT.Cov = as.matrix(DT[, -c("seqnames", "start", "end", "Name", "strand")])
-    
+    se
 }

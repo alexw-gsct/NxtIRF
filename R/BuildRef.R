@@ -167,13 +167,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
     nonPolyAFile = ""
     if(genome_type == "hg38") {
-        nonPolyAFile = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "rIRFinder")
+        nonPolyAFile = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
     } else if(genome_type == "hg19")  {
-        nonPolyAFile = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "rIRFinder")
+        nonPolyAFile = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
     } else if(genome_type == "mm10")  {
-        nonPolyAFile = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "rIRFinder")
+        nonPolyAFile = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
     } else if(genome_type == "mm9")  {
-        nonPolyAFile = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "rIRFinder")
+        nonPolyAFile = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
     } else {
         nonPolyAFile = nonPolyARef
     }
