@@ -594,16 +594,13 @@ BuildSE = function(output_path, reference_path) {
             partic_down / count_JG_down > 0.6],
             on = c("EventName", "EventType"),
             c(files$sample[i]) := 1]
-            
-        # sum by condition
-        which(condition.ft == levels(condition.ft)[1]) + 2
-    }
+                }
     
     se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
 		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2],
         filter.Depth = filter.Depth[,-1:-2], filter.Cov = filter.Cov[,-1:-2]
 	), rowData = rowEvent, colData = files)
-    rownames(se) = rowData(se)$EventName
+    rownames(se) = SummarizedExperiment::rowData(se)$EventName
     
     se
 }
