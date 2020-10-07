@@ -82,10 +82,10 @@
         <data name="output2" format="data" label="IRFinder Coverage File"> 
 			<filter>mode_condition['mode'] == 'main'</filter>
         </data>
-        <data name="output3" format="fasta" label="Mappability Reads" help="Align these reads using your preferred aligner"> 
+        <data name="output3" format="fasta" label="Mappability Reads"> 
 			<filter>mode_condition['mode'] == 'gen_map_reads'</filter>
         </data>
-        <data name="output4" format="txt" label="Mappability Regions" help="Use this file to build a reference from within R, using NxtIRF::BuildReference()"> 
+        <data name="output4" format="txt" label="Mappability Regions"> 
 			<filter>mode_condition['mode'] == 'process_mappability_bam'</filter>
         </data>
     </outputs>    
