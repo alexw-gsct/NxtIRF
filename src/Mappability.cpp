@@ -47,7 +47,7 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
                               unsigned int direction, unsigned int error_seed) {
   
   char * new_read = new char[read_len + 1];
-  
+  new_read[read_len] = '\0';
   if(direction == 0) {
     memcpy(&new_read[0], input_read, read_len);  
   } else {
