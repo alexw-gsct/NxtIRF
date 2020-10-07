@@ -22,14 +22,14 @@ run_IRFinder_mappability = function(bamfile = "Unsorted.bam", ref_path = "./REF"
 #' @export
 run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
   return(
-    IRF_SupplyMappaReads(genome.fa, out.fa, read_len = read_len, read_stride = read_stride, error_pos = error_pos)
+    IRF_GenerateMappabilityReads(normalizePath(genome.fa), 
+        paste(normalizePath(dirname(out.fa)), out.fa, sep="/"),
+        read_len = read_len, 
+        read_stride = read_stride, 
+        error_pos = error_pos)
   )
 }
 
-#' @export
-run_IRFinder_GenerateMapRegionReads = function(genome.fa = "", out.fa, region.txt, read_len = 70, read_stride = 10, error_pos = 35) {
-  IRF_SupplyMappaRegionReads(genome.fa, region.txt, out.fa, read_len = read_len, read_stride = read_stride, error_pos = error_pos)
-}
 
 
 #' @export

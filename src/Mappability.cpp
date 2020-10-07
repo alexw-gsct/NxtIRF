@@ -94,7 +94,7 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
   
   string return_str = string(new_read);
   delete[] new_read;
-  return(string(new_read));
+  return(return_str);
 }
 
 bool checkDNA(const std::string& strand) {
@@ -115,9 +115,9 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   inGenome.open(genome_file, std::ifstream::in);
   
   std::ofstream outFA;
-  outFA.open(out_fa, std::ofstream::binary);
-  GZWriter outGZ;
-  outGZ.SetOutputHandle(&outFA);
+  outFA.open(out_fa, std::ios::binary);
+  // GZWriter outGZ;
+  // outGZ.SetOutputHandle(&outFA);
     
   unsigned int direction = 0;
   char * read = new char[read_len + 1];
@@ -134,7 +134,6 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
     inFA.ReadSeq();
     sequence = inFA.sequence;
     chr = inFA.seqname;
-    
     char * buffer = new char[sequence.length() + 1];
     std::strcpy (buffer, sequence.c_str());
     
@@ -147,15 +146,16 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
         write_name.append("!");
         write_name.append(std::to_string(bufferPos));
 
-        outGZ.writeline(write_name);
-
+        // outGZ.writeline(write_name);
+        outFA << write_name << '\n';
         std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
-        outGZ.writeline(write_seq);
-
+        // outGZ.writeline(write_seq);
+        outFA << write_seq << '\n';
+        
         seed += 1;
         direction = (direction == 0 ? 1 : 0);
       }
-      if((seed % 1000000 == 0) & (seed > 0)) {
+      if((seed % 100000 == 0) & (seed > 0)) {
         Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
       }
     }
@@ -164,7 +164,7 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   delete[] read;
   
   inGenome.close();
-  outGZ.flush(true);
+  // outGZ.flush(true);
   outFA.flush();
   outFA.close();
   return(0);

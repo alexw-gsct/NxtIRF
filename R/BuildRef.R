@@ -177,22 +177,24 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     } else {
         nonPolyAFile = nonPolyARef
     }
-    if(nonPolyAFile != "" & !file.exists(nonPolyAFile)) {
+    if(length(nonPolyAFile) > 0 && !(nonPolyAFile %in% c("", " ")) && !file.exists(nonPolyAFile)) {
         message(paste(nonPolyARef, "not found. Reference generated without non-polyA reference"))
         nonPolyAFile = ""
+    } else if(length(nonPolyAFile) == 0) {
+        nonPolyAFile = ""    
     }
     
     MappabilityFile = ""
-    if (MappabilityRef == "") {
+    if (length(MappabilityRef) == 0 || MappabilityRef %in% c("", " ")) {
         message("Mappability table not provided. IRFinder reference will be generated without mappability exclusion")        
     } else if(MappabilityRef != "" & !file.exists(MappabilityRef)) {
         message(paste(MappabilityRef, "not found. Reference generated without mappability exclusion"))
-    } else {
+    } else if (file.exists(MappabilityRef)) {
         MappabilityFile = MappabilityRef
     }
 
     BlacklistFile = ""
-    if (BlacklistRef == "") {
+    if (length(BlacklistRef) == 0 || BlacklistRef %in% c("", " ")) {
         message("Blacklist table not provided. IRFinder reference will be generated without Blacklist exclusion")        
     } else if(BlacklistRef != "" & !file.exists(BlacklistRef)) {
         message(paste(BlacklistRef, "not found. Reference generated without Blacklist exclusion"))
@@ -1387,7 +1389,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     Upstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
     # left_join with Exons
     Upstream.A = Proteins.Splice[Upstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.A.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.A)), keep.extra.columns = T)
+    Upstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.A)), keep.extra.columns = T)
     Upstream.A.seq = getSeq(genome, Upstream.A.gr)
     Upstream.A[!is.na(seqnames),seq := as.character(Upstream.A.seq)]
     # Trim sequence by phase
@@ -1406,7 +1408,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     Upstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
     # left_join with Exons
     Upstream.B = Proteins.Splice[Upstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.B.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.B)), keep.extra.columns = T)
+    Upstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.B)), keep.extra.columns = T)
     Upstream.B.seq = getSeq(genome, Upstream.B.gr)
     Upstream.B[!is.na(seqnames),seq := as.character(Upstream.B.seq)]
     # Trim sequence by phase
@@ -1430,7 +1432,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     Downstream.A[EventType %in% c("AFE", "A5SS"), exon_number := exon_number + 1]
     # left_join with Exons
     Downstream.A = Proteins.Splice[Downstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.A.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.A)), keep.extra.columns = T)
+    Downstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.A)), keep.extra.columns = T)
     Downstream.A.seq = getSeq(genome, Downstream.A.gr)
     Downstream.A[!is.na(seqnames),seq := as.character(Downstream.A.seq)]
     # Trim sequence by phase
@@ -1451,7 +1453,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     Downstream.B[EventType %in% c("SE", "AFE", "A5SS"), exon_number := exon_number + 1]
     # left_join with Exons
     Downstream.B = Proteins.Splice[Downstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.B.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.B)), keep.extra.columns = T)
+    Downstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.B)), keep.extra.columns = T)
     Downstream.B.seq = getSeq(genome, Downstream.B.gr)
     Downstream.B[!is.na(seqnames),seq := as.character(Downstream.B.seq)]
     # Trim sequence by phase
@@ -1472,7 +1474,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
     Casette.A = Proteins.Splice[Casette.A, on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.A.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.A)), keep.extra.columns = T)
+    Casette.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.A)), keep.extra.columns = T)
     Casette.A.seq = getSeq(genome, Casette.A.gr)
     Casette.A[!is.na(seqnames),casette_seq := as.character(Casette.A.seq)]
 
@@ -1507,7 +1509,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
     Casette.B = Proteins.Splice[Casette.B, on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.B.gr = makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.B)), keep.extra.columns = T)
+    Casette.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.B)), keep.extra.columns = T)
     Casette.B.seq = getSeq(genome, Casette.B.gr)
     Casette.B[!is.na(seqnames),casette_seq := as.character(Casette.B.seq)]
 
