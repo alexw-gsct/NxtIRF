@@ -47,13 +47,32 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
                               unsigned int direction, unsigned int error_seed) {
   
   char * new_read = new char[read_len + 1];
-  memcpy(&new_read[0], input_read, read_len);
   
+  if(direction == 0) {
+    memcpy(&new_read[0], input_read, read_len);  
+  } else {
+    for(unsigned int i = 0; i < read_len; i++) {
+      switch(input_read[i])
+      {   
+      case 'A':
+        new_read[read_len - i - 1] = 'T'; break;
+      case 'T':
+        new_read[read_len - i - 1] = 'A'; break;
+      case 'G':
+        new_read[read_len - i - 1] = 'C'; break;
+      case 'C':
+        new_read[read_len - i - 1] = 'G'; break;
+      default :
+        new_read[read_len - i - 1] = input_read[i];
+      }         
+    }
+  }
+  /*
   if(direction == 1) {
     string s_new_read = reverse_complement(string(new_read));
     memcpy(new_read, s_new_read.c_str(), s_new_read.length());
   }
-  
+  */
   char error_nuc;
   switch(error_seed % 2) {
   case 0:
