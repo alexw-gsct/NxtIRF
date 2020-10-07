@@ -97,6 +97,16 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
   return(return_str);
 }
 
+bool checkDNA(char * input_read, unsigned int read_len) {
+  for(unsigned int i = 0; i < read_len; i++) {
+    if(input_read[i]!='A' && input_read[i]!='T' && input_read[i]!='G' && input_read[i]!='C') {
+      return false;
+    }
+  }
+  return true;
+}
+
+/*
 bool checkDNA(const std::string& strand) {
   unsigned short size = strand.size();
   for(unsigned short i=0; i<size; ++i) {
@@ -106,6 +116,7 @@ bool checkDNA(const std::string& strand) {
   }
   return true;
 }
+*/
 
 // [[Rcpp::export]]
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
@@ -139,7 +150,7 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
     
     for(unsigned int bufferPos = 1; (bufferPos < sequence.length() - read_len - 1); bufferPos += read_stride) {
       memcpy(read, &buffer[bufferPos - 1], read_len);
-      if(checkDNA(string(read))) {
+      if(checkDNA(read, read_len)) {
         std::string write_name;
         write_name = (direction == 0 ? ">RF!" : ">RR!");
         write_name.append(chr);
