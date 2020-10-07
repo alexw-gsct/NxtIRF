@@ -597,11 +597,32 @@ int FragmentsMap::WriteBinary(covFile *os, const std::vector<std::string> chr_na
   return(0);
 }
 
-int FragmentsMap::WriteOutput(std::ostream *os, int threshold) const {
+int FragmentsMap::WriteOutput(std::ostream *os, 
+    const std::vector<std::string> chr_names, const std::vector<int32_t> chr_lens, 
+    int threshold) const {
     // This is called on mappability
+  // Issue is map constructs auto-sort
+  // Need to put chrs and lengths into a map structure
+  std::map< std::string, int32_t > chrmap;
+  
+  // Arrange chromosomes in same order as arranged by mapping chrs
+  for(unsigned int i = 0; i < chr_names.size(); i++) {
+      chrmap.insert({chr_names[i], chr_lens[i]});
+  }
+  // Re-push into alphabetical ordered chromosomes
+  std::vector<std::string> sort_chr_names;
+  std::vector<int32_t> sort_chr_lens;
+  for (auto chr = chrmap.begin(); chr != chrmap.end(); chr++) {
+    sort_chr_names.push_back(chr->first);
+    sort_chr_lens.push_back(chr->second);
+  }    
+    
   for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;
     bool covered = false;
+    int32_t cur_chrLen = 0;
+    
+    
     if (itChr->second.begin()->first == 0 && itChr->second.begin()->second > threshold) {
       covered = true;
     } else {
@@ -627,6 +648,10 @@ int FragmentsMap::WriteOutput(std::ostream *os, int threshold) const {
           // do nothing
         }
       }
+    }
+    // Write last entry
+    if(!covered) {
+      *os << chrmap[itChr->first] << "\n";    
     }
   }
   return 0;

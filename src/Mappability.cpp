@@ -224,7 +224,7 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file
   
   std::ofstream outFragsMap;
   outFragsMap.open(s_outFile, std::ifstream::out);
-  oFragMap.WriteOutput(&outFragsMap, threshold);
+  oFragMap.WriteOutput(&outFragsMap, BB.chr_names, BB.chr_lens, threshold);
   outFragsMap.flush(); outFragsMap.close();
   
   return(0);
