@@ -38,7 +38,7 @@ run_IRFinder_gunzip = function(infile, outfile) {
 }
 
 #' @export
-GetCoverage = function(file, seqname, start = 0, end = 0, strand = 2) {
+GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
   assertthat::assert_that(as.numeric(strand) %in% c(0,1,2),
                           msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
   assertthat::assert_that(as.numeric(start) <= as.numeric(end) | end == 0,

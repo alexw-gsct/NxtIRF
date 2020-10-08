@@ -631,7 +631,7 @@ int FragmentsMap::WriteOutput(std::ostream *os,
 	}
     for(auto it_pos = itChr->second.begin(); it_pos != itChr->second.end(); it_pos++) {
       coverage += it_pos->second;
-      if(coverage > 4) {
+      if(coverage > threshold) {
         if(covered) {
           // do nothing
         } else {

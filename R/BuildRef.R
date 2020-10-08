@@ -818,12 +818,15 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     AllChr = AllChr[names(Genes.chr)]
     AllChr.split = GenomicRanges::setdiff(AllChr, Genes.chr, ignore.strand = TRUE)
     Intergenic = unlist(AllChr.split)
-    names(Intergenic) = 1:length(Intergenic)
-    Intergenic = as.data.frame(Intergenic)
-    Intergenic = Intergenic[,c("seqnames", "start", "end")]
-    Intergenic$name = paste("Intergenic", Intergenic$seqnames, sep="/")
-    Intergenic$start = Intergenic$start - 1
-
+    if(length(Intergenic) > 0) {
+        names(Intergenic) = seq_len(length(Intergenic))
+        Intergenic = as.data.frame(Intergenic)
+        Intergenic = Intergenic[,c("seqnames", "start", "end")]
+        Intergenic$name = paste("Intergenic", Intergenic$seqnames, sep="/")
+        Intergenic$start = Intergenic$start - 1
+    } else {
+        Intergenic = c()
+    }
     ref.ROI = rbind(rRNA, nonPolyA, Intergenic) %>% dplyr::arrange(seqnames, start)
     
     data.table::fwrite(ref.ROI, paste(reference_path, "ref-ROI.bed", sep="/"), sep="\t", col.names = F)
@@ -947,35 +950,38 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
 	introns.search.MXE = unique(introns.search.MXE, by= c("gene_id","skip_coord","Event2"))
 	introns.search.MXE = introns.search.MXE[, if(.N>1) .SD, by = c("gene_id","skip_coord")]
 	
-	introns.found.MXE = introns.search.MXE[ , {
-		edge1 = rep(1:.N, (.N:1) - 1L)
-		i = 2L:(.N * (.N - 1L) / 2L + 1L)
-			o = cumsum(c(0, (.N-2L):1))
-		edge2 = i - o[edge1]
-		.(
-			gene_id = gene_id[edge1], gene_id_b = gene_id[edge2],
-			Event1a = Event1[edge1], Event1b = Event1[edge2],
-			Event2a = Event2[edge1], Event2b = Event2[edge2],
-			transcript_id_a = transcript_id[edge1], transcript_id_b = transcript_id[edge2],
-			transcript_name_a = transcript_name[edge1], transcript_name_b = transcript_name[edge2],
-			intron_number_a = intron_number[edge1], intron_number_b = intron_number[edge2]
-		)
-		}, by = skip_coord]
+    if(nrow(introns.search.MXE) > 0) {
+        introns.found.MXE = introns.search.MXE[ , {
+            edge1 = rep(1:.N, (.N:1) - 1L)
+            i = 2L:(.N * (.N - 1L) / 2L + 1L)
+                o = cumsum(c(0, (.N-2L):1))
+            edge2 = i - o[edge1]
+            .(
+                gene_id = gene_id[edge1], gene_id_b = gene_id[edge2],
+                Event1a = Event1[edge1], Event1b = Event1[edge2],
+                Event2a = Event2[edge1], Event2b = Event2[edge2],
+                transcript_id_a = transcript_id[edge1], transcript_id_b = transcript_id[edge2],
+                transcript_name_a = transcript_name[edge1], transcript_name_b = transcript_name[edge2],
+                intron_number_a = intron_number[edge1], intron_number_b = intron_number[edge2]
+            )
+            }, by = skip_coord]
 
-	introns.found.MXE[, gene_id := factor(gene_id,GeneOrder$gene_id,ordered=TRUE)]
-	setorder(introns.found.MXE, gene_id, transcript_name_a)
-	introns.found.MXE[, EventName := paste0("MXE:", transcript_name_a, "-exon",(1 + intron_number_a),";",
-			transcript_name_b,"-exon",(1 + intron_number_b))]
-	introns.found.MXE[, EventID := paste0("MXE#", 1:.N)]
-	setnames(introns.found.MXE, old = "skip_coord", new = "EventRegion")
-	introns.found.MXE[, EventType := "MXE"]
-	introns.found.MXE = introns.found.MXE[, c("EventType","EventID","EventName","Event1a","Event1b","Event2a","Event2b",
-		"gene_id","gene_id_b","EventRegion",
-		"transcript_id_a","transcript_name_a","intron_number_a",
-		"transcript_id_b","transcript_name_b","intron_number_b")]
+        introns.found.MXE[, gene_id := factor(gene_id,GeneOrder$gene_id,ordered=TRUE)]
+        setorder(introns.found.MXE, gene_id, transcript_name_a)
+        introns.found.MXE[, EventName := paste0("MXE:", transcript_name_a, "-exon",(1 + intron_number_a),";",
+                transcript_name_b,"-exon",(1 + intron_number_b))]
+        introns.found.MXE[, EventID := paste0("MXE#", 1:.N)]
+        setnames(introns.found.MXE, old = "skip_coord", new = "EventRegion")
+        introns.found.MXE[, EventType := "MXE"]
+        introns.found.MXE = introns.found.MXE[, c("EventType","EventID","EventName","Event1a","Event1b","Event2a","Event2b",
+            "gene_id","gene_id_b","EventRegion",
+            "transcript_id_a","transcript_name_a","intron_number_a",
+            "transcript_id_b","transcript_name_b","intron_number_b")]
 
-    introns.found.MXE = unique(introns.found.MXE, by = c("Event1a", "Event1b", "Event2a", "Event2b"))
-    
+        introns.found.MXE = unique(introns.found.MXE, by = c("Event1a", "Event1b", "Event2a", "Event2b"))
+    } else {
+        introns.found.MXE = c()
+    }
 	message("done\n")
     gc()
 
@@ -1294,264 +1300,271 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 		"transcript_id_a", "transcript_name_a", "intron_number_a",
 		"transcript_id_b", "transcript_name_b", "intron_number_b")]
 
-	AS_Table = rbindlist(list(introns.found.MXE, introns.found.SE,
-		introns.found.AFE, introns.found.ALE,
-		introns.found.A5SS, introns.found.A3SS))
-	
+    is_valid <- function(x) !is.null(x) && nrow(x) > 0
+    tmp_AS = list(introns.found.MXE, introns.found.SE,
+            introns.found.AFE, introns.found.ALE,
+            introns.found.A5SS, introns.found.A3SS)
+    tmp_AS <- base::Filter(is_valid, tmp_AS)
+    AS_Table = rbindlist(tmp_AS)    
+    
     # Rename based on tsl and protein-coding ability, if applicable
-    if("transcript_support_level" %in% colnames(candidate.introns)) {
-        candidate.introns.order = copy(candidate.introns)
-        candidate.introns.order[, is_protein_coding := !is.na(protein_id)]
-        candidate.introns.order[, by = "transcript_id", is_last_intron := (intron_number == max(intron_number))]
-        
-        AS_Table.search.a = AS_Table[, c("EventType", "EventID", "Event1a", "Event2a")]
-        AS_Table.search.a[,Event := Event1a]
-        AS_Table.search.a = candidate.introns.order[AS_Table.search.a, on = "Event", 
-            c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "intron_number")]
-        setnames(AS_Table.search.a, "intron_number", "in_1a")
-        AS_Table.search.a = AS_Table.search.a[EventType !=  "AFE" | in_1a == 1]
-        AS_Table.search.a = AS_Table.search.a[EventType !=  "ALE" | is_last_intron]
-        AS_Table.search.a[,Event := Event2a]
-        AS_Table.search.a[is.na(Event),Event := Event1a]
-        AS_Table.search.a = candidate.introns.order[AS_Table.search.a, 
-            on = c("Event",  "transcript_id", "transcript_support_level"),
-            c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","in_1a", "intron_number")]
-        AS_Table.search.a = AS_Table.search.a[!is.na(intron_number)]
-        setnames(AS_Table.search.a, "intron_number", "in_2a")
-        
-        AS_Table.search.b = AS_Table[, c("EventType", "EventID", "Event1b", "Event2b")]
-        AS_Table.search.b[,Event := Event1b]
-        AS_Table.search.b = candidate.introns.order[AS_Table.search.b, on = "Event", 
-            c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","intron_number")]
-        setnames(AS_Table.search.b, "intron_number", "in_1b")
-        AS_Table.search.b = AS_Table.search.b[EventType !=  "AFE" | in_1b == 1]
-        AS_Table.search.b = AS_Table.search.b[EventType !=  "ALE" | is_last_intron]
-        AS_Table.search.b[,Event := Event2b]
-        AS_Table.search.b[is.na(Event),Event := Event1b]
-        AS_Table.search.b = candidate.introns.order[AS_Table.search.b, 
-            on = c("Event",  "transcript_id", "transcript_support_level"),
-            c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "in_1b", "intron_number")]
-        AS_Table.search.b = AS_Table.search.b[!is.na(intron_number)]
-        setnames(AS_Table.search.b, "intron_number", "in_2b")
+    if(nrow(AS_Table) > 0) {
+        if("transcript_support_level" %in% colnames(candidate.introns)) {
+            candidate.introns.order = copy(candidate.introns)
+            candidate.introns.order[, is_protein_coding := !is.na(protein_id)]
+            candidate.introns.order[, by = "transcript_id", is_last_intron := (intron_number == max(intron_number))]
+            
+            AS_Table.search.a = AS_Table[, c("EventType", "EventID", "Event1a", "Event2a")]
+            AS_Table.search.a[,Event := Event1a]
+            AS_Table.search.a = candidate.introns.order[AS_Table.search.a, on = "Event", 
+                c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "intron_number")]
+            setnames(AS_Table.search.a, "intron_number", "in_1a")
+            AS_Table.search.a = AS_Table.search.a[EventType !=  "AFE" | in_1a == 1]
+            AS_Table.search.a = AS_Table.search.a[EventType !=  "ALE" | is_last_intron]
+            AS_Table.search.a[,Event := Event2a]
+            AS_Table.search.a[is.na(Event),Event := Event1a]
+            AS_Table.search.a = candidate.introns.order[AS_Table.search.a, 
+                on = c("Event",  "transcript_id", "transcript_support_level"),
+                c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","in_1a", "intron_number")]
+            AS_Table.search.a = AS_Table.search.a[!is.na(intron_number)]
+            setnames(AS_Table.search.a, "intron_number", "in_2a")
+            
+            AS_Table.search.b = AS_Table[, c("EventType", "EventID", "Event1b", "Event2b")]
+            AS_Table.search.b[,Event := Event1b]
+            AS_Table.search.b = candidate.introns.order[AS_Table.search.b, on = "Event", 
+                c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","intron_number")]
+            setnames(AS_Table.search.b, "intron_number", "in_1b")
+            AS_Table.search.b = AS_Table.search.b[EventType !=  "AFE" | in_1b == 1]
+            AS_Table.search.b = AS_Table.search.b[EventType !=  "ALE" | is_last_intron]
+            AS_Table.search.b[,Event := Event2b]
+            AS_Table.search.b[is.na(Event),Event := Event1b]
+            AS_Table.search.b = candidate.introns.order[AS_Table.search.b, 
+                on = c("Event",  "transcript_id", "transcript_support_level"),
+                c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "in_1b", "intron_number")]
+            AS_Table.search.b = AS_Table.search.b[!is.na(intron_number)]
+            setnames(AS_Table.search.b, "intron_number", "in_2b")
 
-        AS_Table.search.a[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
-        AS_Table.search.b[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
-        setorder(AS_Table.search.a, transcript_support_level, -is_protein_coding, transcript_name)
-        setorder(AS_Table.search.b, transcript_support_level, -is_protein_coding, transcript_name)
-        AS_Table.search.a = unique(AS_Table.search.a, by = "EventID")
-        AS_Table.search.a = AS_Table.search.a[AS_Table[, "EventID"], on = "EventID"]
-        AS_Table.search.b = unique(AS_Table.search.b, by = "EventID")
-        AS_Table.search.b = AS_Table.search.b[AS_Table[, "EventID"], on = "EventID"]
-        
-        AS_Table$transcript_id_a = AS_Table.search.a$transcript_id
-        AS_Table$transcript_name_a = AS_Table.search.a$transcript_name
-        AS_Table$intron_number_a = AS_Table.search.a$in_1a
-        AS_Table$transcript_id_b = AS_Table.search.b$transcript_id
-        AS_Table$transcript_name_b = AS_Table.search.b$transcript_name
-        AS_Table$intron_number_b = AS_Table.search.b$in_1b
-        
-        AS_Table[EventType == "MXE", EventName := paste0("MXE:", transcript_name_a,"-exon",
-            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-exon",
-            as.character(as.numeric(intron_number_b) + 1))]
-        AS_Table[EventType == "SE", EventName := paste0("SE:", transcript_name_a,"-exon",
-            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-int",
-            as.character(as.numeric(intron_number_b)))]
-        AS_Table[EventType == "AFE", EventName := paste0("AFE:", transcript_name_a,"-exon1;", 
-            transcript_name_b,"-exon1")]
-        AS_Table[EventType == "ALE", EventName := paste0("ALE:", transcript_name_a, "-exon", 
-            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b, "-exon",
-            as.character(as.numeric(intron_number_b) + 1))]
-        AS_Table[EventType == "A5SS", EventName := paste0("A5SS:", transcript_name_a,"-exon", 
-            as.character(as.numeric(intron_number_a)), ";", transcript_name_b,"-exon",
-            as.character(as.numeric(intron_number_b)))]
-        AS_Table[EventType == "A3SS", EventName := paste0("A3SS:", transcript_name_a,"-exon", 
-            as.character(as.numeric(intron_number_a + 1)), ";", transcript_name_b,"-exon",
-            as.character(as.numeric(intron_number_b + 1)))]
-    }
-	
+            AS_Table.search.a[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
+            AS_Table.search.b[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
+            setorder(AS_Table.search.a, transcript_support_level, -is_protein_coding, transcript_name)
+            setorder(AS_Table.search.b, transcript_support_level, -is_protein_coding, transcript_name)
+            AS_Table.search.a = unique(AS_Table.search.a, by = "EventID")
+            AS_Table.search.a = AS_Table.search.a[AS_Table[, "EventID"], on = "EventID"]
+            AS_Table.search.b = unique(AS_Table.search.b, by = "EventID")
+            AS_Table.search.b = AS_Table.search.b[AS_Table[, "EventID"], on = "EventID"]
+            
+            AS_Table$transcript_id_a = AS_Table.search.a$transcript_id
+            AS_Table$transcript_name_a = AS_Table.search.a$transcript_name
+            AS_Table$intron_number_a = AS_Table.search.a$in_1a
+            AS_Table$transcript_id_b = AS_Table.search.b$transcript_id
+            AS_Table$transcript_name_b = AS_Table.search.b$transcript_name
+            AS_Table$intron_number_b = AS_Table.search.b$in_1b
+            
+            AS_Table[EventType == "MXE", EventName := paste0("MXE:", transcript_name_a,"-exon",
+                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-exon",
+                as.character(as.numeric(intron_number_b) + 1))]
+            AS_Table[EventType == "SE", EventName := paste0("SE:", transcript_name_a,"-exon",
+                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-int",
+                as.character(as.numeric(intron_number_b)))]
+            AS_Table[EventType == "AFE", EventName := paste0("AFE:", transcript_name_a,"-exon1;", 
+                transcript_name_b,"-exon1")]
+            AS_Table[EventType == "ALE", EventName := paste0("ALE:", transcript_name_a, "-exon", 
+                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b, "-exon",
+                as.character(as.numeric(intron_number_b) + 1))]
+            AS_Table[EventType == "A5SS", EventName := paste0("A5SS:", transcript_name_a,"-exon", 
+                as.character(as.numeric(intron_number_a)), ";", transcript_name_b,"-exon",
+                as.character(as.numeric(intron_number_b)))]
+            AS_Table[EventType == "A3SS", EventName := paste0("A3SS:", transcript_name_a,"-exon", 
+                as.character(as.numeric(intron_number_a + 1)), ";", transcript_name_b,"-exon",
+                as.character(as.numeric(intron_number_b + 1)))]
+        }
         fst::write.fst(as.data.frame(AS_Table), paste(reference_path,"fst","Splice.fst", sep="/"))
-
-	message("done\n")
+        message("done\n")
+    } else {
+        message("no splice events found\n")
+    }
     gc()
-
-	message("Translating Alternate Splice Peptides...", appendLF = F)
-
-    # Proteomic Consequences of Splicing
-    AS_Table.Extended = copy(AS_Table)
-    Proteins.Splice = as.data.table(Proteins)
-    Proteins.Splice$exon_number = as.numeric(Proteins.Splice$exon_number)
-    Proteins.Splice[, phase := -phase %% 3]    # make phase easier for me to understand
-    # Upstream applicable for MXE, SE, ALE, A3SS
-    Upstream = AS_Table[EventType %in% c("MXE", "SE", "ALE", "A3SS")]
-
-    # Do A
-    Upstream.A = Upstream[, c("EventID", "transcript_id_a", "intron_number_a")]
-    Upstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
-    # left_join with Exons
-    Upstream.A = Proteins.Splice[Upstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.A)), keep.extra.columns = T)
-    Upstream.A.seq = getSeq(genome, Upstream.A.gr)
-    Upstream.A[!is.na(seqnames),seq := as.character(Upstream.A.seq)]
-    # Trim sequence by phase
-    seq = substr(Upstream.A$seq[!is.na(Upstream.A$seqnames)],
-        1 + (3 - Upstream.A$phase[!is.na(Upstream.A$seqnames)]) %% 3,
-        nchar(Upstream.A$seq[!is.na(Upstream.A$seqnames)]))        
-    # trim last n bases
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    # translate
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Upstream.A[!is.na(seqnames), AA_seq := as.character(prot)]
-    AS_Table.Extended[EventType %in% c("MXE", "SE", "ALE", "A3SS"), AA_upstr.A := Upstream.A$AA_seq]
-
-    # repeat for B:
-    Upstream.B = Upstream[, c("EventID", "transcript_id_b", "intron_number_b")]
-    Upstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
-    # left_join with Exons
-    Upstream.B = Proteins.Splice[Upstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.B)), keep.extra.columns = T)
-    Upstream.B.seq = getSeq(genome, Upstream.B.gr)
-    Upstream.B[!is.na(seqnames),seq := as.character(Upstream.B.seq)]
-    # Trim sequence by phase
-    seq = substr(Upstream.B$seq[!is.na(Upstream.B$seqnames)],
-        1 + (3 - Upstream.B$phase[!is.na(Upstream.B$seqnames)]) %% 3,
-        nchar(Upstream.B$seq[!is.na(Upstream.B$seqnames)]))        
-    # trim last n bases
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    # translate
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Upstream.B[!is.na(seqnames), AA_seq := as.character(prot)]
-    AS_Table.Extended[EventType %in% c("MXE", "SE", "ALE", "A3SS"), AA_upstr.B := Upstream.B$AA_seq]
     
-    # Do downstream seq before casette:
-    Downstream = AS_Table[EventType %in% c("MXE", "SE", "AFE", "A5SS")]
-    # Add EventType as exon_number is conditional on this
-    Downstream.A = Downstream[, c("EventType", "EventID", "transcript_id_a", "intron_number_a")]
-    Downstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
-    # Modify downstream exon number
-    Downstream.A[EventType %in% c("MXE", "SE"), exon_number := exon_number + 2]
-    Downstream.A[EventType %in% c("AFE", "A5SS"), exon_number := exon_number + 1]
-    # left_join with Exons
-    Downstream.A = Proteins.Splice[Downstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.A)), keep.extra.columns = T)
-    Downstream.A.seq = getSeq(genome, Downstream.A.gr)
-    Downstream.A[!is.na(seqnames),seq := as.character(Downstream.A.seq)]
-    # Trim sequence by phase
-    seq = substr(Downstream.A$seq[!is.na(Downstream.A$seqnames)],
-        1 + (3 - Downstream.A$phase[!is.na(Downstream.A$seqnames)]) %% 3,
-        nchar(Downstream.A$seq[!is.na(Downstream.A$seqnames)]))        
-    # trim last n bases
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    # translate
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Downstream.A[!is.na(seqnames), AA_seq := as.character(prot)]
-    AS_Table.Extended[EventType %in% c("MXE", "SE", "AFE", "A5SS"), AA_downstr.A := Downstream.A$AA_seq]
-    # B:
-    Downstream.B = Downstream[, c("EventType", "EventID", "transcript_id_b", "intron_number_b")]
-    Downstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
-    # Modify downstream exon number: Note SE is different for B
-    Downstream.B[EventType %in% c("MXE"), exon_number := exon_number + 2]
-    Downstream.B[EventType %in% c("SE", "AFE", "A5SS"), exon_number := exon_number + 1]
-    # left_join with Exons
-    Downstream.B = Proteins.Splice[Downstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.B)), keep.extra.columns = T)
-    Downstream.B.seq = getSeq(genome, Downstream.B.gr)
-    Downstream.B[!is.na(seqnames),seq := as.character(Downstream.B.seq)]
-    # Trim sequence by phase
-    seq = substr(Downstream.B$seq[!is.na(Downstream.B$seqnames)],
-        1 + (3 - Downstream.B$phase[!is.na(Downstream.B$seqnames)]) %% 3,
-        nchar(Downstream.B$seq[!is.na(Downstream.B$seqnames)]))        
-    # trim last n bases
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    # translate
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Downstream.B[!is.na(seqnames), AA_seq := as.character(prot)]
-    AS_Table.Extended[EventType %in% c("MXE", "SE", "AFE", "A5SS"), AA_downstr.B := Downstream.B$AA_seq]
-
-    # Casette A
-    Casette.A = AS_Table[, c("EventType", "EventID", "transcript_id_a", "intron_number_a")]
-    Casette.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
-    Casette.A[EventType %in% c("MXE", "SE", "ALE", "A3SS"), exon_number := exon_number + 1]
-
-    Casette.A = Proteins.Splice[Casette.A, on = c("transcript_id", "exon_number"), 
-        c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.A)), keep.extra.columns = T)
-    Casette.A.seq = getSeq(genome, Casette.A.gr)
-    Casette.A[!is.na(seqnames),casette_seq := as.character(Casette.A.seq)]
-
-    setnames(Casette.A, "phase", "phase_casette")
-# Add nucleotides from upstream and downstream
-    Casette.A = Upstream.A[Casette.A, on = "EventID", c("EventID", "phase_casette", "casette_seq", "seq")]
-    setnames(Casette.A, "seq", "upstr_seq")
-    Casette.A = Downstream.A[Casette.A, on = "EventID", c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
-    setnames(Casette.A, "seq", "Downstr_seq")
+    if(nrow(AS_Table) > 0) {
     
-# Construct extended casette sequence:
-    Casette.A[, casette_seq_extended := casette_seq]
-    # Trim casette_seq_extended if upstream sequence does not exists
-    Casette.A[!is.na(phase_casette) & is.na(upstr_seq), casette_seq_extended := 
-        substr(casette_seq_extended, phase_casette + 1, nchar(casette_seq_extended)) ]    
-    Casette.A[!is.na(phase_casette) & phase_casette > 0 & !is.na(upstr_seq), casette_seq_extended := paste0(
-        substr(upstr_seq, nchar(upstr_seq) + 1 - phase_casette, nchar(upstr_seq)), casette_seq_extended)]
-    Casette.A[nchar(casette_seq_extended) %% 3 > 0 & !is.na(Downstr_seq), casette_seq_extended := paste0(casette_seq_extended,
-        substr(Downstr_seq, 1, 3 - (nchar(casette_seq_extended) %% 3)))]
-# Translate:
-    seq = Casette.A$casette_seq_extended[!is.na(Casette.A$casette_seq_extended)]
-    # trim out-of-phase to be tidy:
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Casette.A[!is.na(casette_seq_extended), AA_seq := as.character(prot)]
-    AS_Table.Extended[, AA_casette.A := Casette.A$AA_seq]
-    
-    # Casette B
-    Casette.B = AS_Table[EventType != "SE", c("EventType", "EventID", "transcript_id_b", "intron_number_b")]
-    Casette.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
-    Casette.B[EventType %in% c("MXE", "ALE", "A3SS"), exon_number := exon_number + 1]
+        message("Translating Alternate Splice Peptides...", appendLF = F)
 
-    Casette.B = Proteins.Splice[Casette.B, on = c("transcript_id", "exon_number"), 
-        c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.B)), keep.extra.columns = T)
-    Casette.B.seq = getSeq(genome, Casette.B.gr)
-    Casette.B[!is.na(seqnames),casette_seq := as.character(Casette.B.seq)]
+        # Proteomic Consequences of Splicing
+        AS_Table.Extended = copy(AS_Table)
+        Proteins.Splice = as.data.table(Proteins)
+        Proteins.Splice$exon_number = as.numeric(Proteins.Splice$exon_number)
+        Proteins.Splice[, phase := -phase %% 3]    # make phase easier for me to understand
+        # Upstream applicable for MXE, SE, ALE, A3SS
+        Upstream = AS_Table[EventType %in% c("MXE", "SE", "ALE", "A3SS")]
 
-    setnames(Casette.B, "phase", "phase_casette")
-# Add nucleotides from upstream and downstream
-    Casette.B = Upstream.B[Casette.B, on = "EventID", c("EventID", "phase_casette", "casette_seq", "seq")]
-    setnames(Casette.B, "seq", "upstr_seq")
-    Casette.B = Downstream.B[Casette.B, on = "EventID", c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
-    setnames(Casette.B, "seq", "Downstr_seq")
-    
-# Construct extended casette sequence:
-    Casette.B[, casette_seq_extended := casette_seq]
-    # Trim casette_seq_extended if upstream sequence does not exists
-    Casette.B[!is.na(phase_casette) & is.na(upstr_seq), casette_seq_extended := 
-        substr(casette_seq_extended, phase_casette + 1, nchar(casette_seq_extended)) ]    
-    Casette.B[!is.na(phase_casette) & phase_casette > 0 & !is.na(upstr_seq), casette_seq_extended := paste0(
-        substr(upstr_seq, nchar(upstr_seq) + 1 - phase_casette, nchar(upstr_seq)), casette_seq_extended)]
-    Casette.B[nchar(casette_seq_extended) %% 3 > 0 & !is.na(Downstr_seq), casette_seq_extended := paste0(casette_seq_extended,
-        substr(Downstr_seq, 1, 3 - (nchar(casette_seq_extended) %% 3)))]
-# Translate:
-    seq = Casette.B$casette_seq_extended[!is.na(Casette.B$casette_seq_extended)]
-    # trim out-of-phase to be tidy:
-    seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
-    prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Casette.B[!is.na(casette_seq_extended), AA_seq := as.character(prot)]
-    AS_Table.Extended[EventType != "SE", AA_casette.B := Casette.B$AA_seq]
+        # Do A
+        Upstream.A = Upstream[, c("EventID", "transcript_id_a", "intron_number_a")]
+        Upstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
+        # left_join with Exons
+        Upstream.A = Proteins.Splice[Upstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Upstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.A)), keep.extra.columns = T)
+        Upstream.A.seq = getSeq(genome, Upstream.A.gr)
+        Upstream.A[!is.na(seqnames),seq := as.character(Upstream.A.seq)]
+        # Trim sequence by phase
+        seq = substr(Upstream.A$seq[!is.na(Upstream.A$seqnames)],
+            1 + (3 - Upstream.A$phase[!is.na(Upstream.A$seqnames)]) %% 3,
+            nchar(Upstream.A$seq[!is.na(Upstream.A$seqnames)]))        
+        # trim last n bases
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        # translate
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Upstream.A[!is.na(seqnames), AA_seq := as.character(prot)]
+        AS_Table.Extended[EventType %in% c("MXE", "SE", "ALE", "A3SS"), AA_upstr.A := Upstream.A$AA_seq]
 
-    AS_Table.Extended[, AA_full.A := ""]
-    AS_Table.Extended[!is.na(AA_upstr.A), AA_full.A := paste0(AA_full.A, AA_upstr.A)]
-    AS_Table.Extended[!is.na(AA_casette.A), AA_full.A := paste0(AA_full.A, AA_casette.A)]
-    AS_Table.Extended[!is.na(AA_downstr.A), AA_full.A := paste0(AA_full.A, AA_downstr.A)]
-    AS_Table.Extended[, AA_full.B := ""]
-    AS_Table.Extended[!is.na(AA_upstr.B), AA_full.B := paste0(AA_full.B, AA_upstr.B)]
-    AS_Table.Extended[!is.na(AA_casette.B), AA_full.B := paste0(AA_full.B, AA_casette.B)]
-    AS_Table.Extended[!is.na(AA_downstr.B), AA_full.B := paste0(AA_full.B, AA_downstr.B)]
-    
-    fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"fst","Splice.Extended.fst", sep="/"))
+        # repeat for B:
+        Upstream.B = Upstream[, c("EventID", "transcript_id_b", "intron_number_b")]
+        Upstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
+        # left_join with Exons
+        Upstream.B = Proteins.Splice[Upstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Upstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Upstream.B)), keep.extra.columns = T)
+        Upstream.B.seq = getSeq(genome, Upstream.B.gr)
+        Upstream.B[!is.na(seqnames),seq := as.character(Upstream.B.seq)]
+        # Trim sequence by phase
+        seq = substr(Upstream.B$seq[!is.na(Upstream.B$seqnames)],
+            1 + (3 - Upstream.B$phase[!is.na(Upstream.B$seqnames)]) %% 3,
+            nchar(Upstream.B$seq[!is.na(Upstream.B$seqnames)]))        
+        # trim last n bases
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        # translate
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Upstream.B[!is.na(seqnames), AA_seq := as.character(prot)]
+        AS_Table.Extended[EventType %in% c("MXE", "SE", "ALE", "A3SS"), AA_upstr.B := Upstream.B$AA_seq]
+        
+        # Do downstream seq before casette:
+        Downstream = AS_Table[EventType %in% c("MXE", "SE", "AFE", "A5SS")]
+        # Add EventType as exon_number is conditional on this
+        Downstream.A = Downstream[, c("EventType", "EventID", "transcript_id_a", "intron_number_a")]
+        Downstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
+        # Modify downstream exon number
+        Downstream.A[EventType %in% c("MXE", "SE"), exon_number := exon_number + 2]
+        Downstream.A[EventType %in% c("AFE", "A5SS"), exon_number := exon_number + 1]
+        # left_join with Exons
+        Downstream.A = Proteins.Splice[Downstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Downstream.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.A)), keep.extra.columns = T)
+        Downstream.A.seq = getSeq(genome, Downstream.A.gr)
+        Downstream.A[!is.na(seqnames),seq := as.character(Downstream.A.seq)]
+        # Trim sequence by phase
+        seq = substr(Downstream.A$seq[!is.na(Downstream.A$seqnames)],
+            1 + (3 - Downstream.A$phase[!is.na(Downstream.A$seqnames)]) %% 3,
+            nchar(Downstream.A$seq[!is.na(Downstream.A$seqnames)]))        
+        # trim last n bases
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        # translate
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Downstream.A[!is.na(seqnames), AA_seq := as.character(prot)]
+        AS_Table.Extended[EventType %in% c("MXE", "SE", "AFE", "A5SS"), AA_downstr.A := Downstream.A$AA_seq]
+        # B:
+        Downstream.B = Downstream[, c("EventType", "EventID", "transcript_id_b", "intron_number_b")]
+        Downstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
+        # Modify downstream exon number: Note SE is different for B
+        Downstream.B[EventType %in% c("MXE"), exon_number := exon_number + 2]
+        Downstream.B[EventType %in% c("SE", "AFE", "A5SS"), exon_number := exon_number + 1]
+        # left_join with Exons
+        Downstream.B = Proteins.Splice[Downstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Downstream.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Downstream.B)), keep.extra.columns = T)
+        Downstream.B.seq = getSeq(genome, Downstream.B.gr)
+        Downstream.B[!is.na(seqnames),seq := as.character(Downstream.B.seq)]
+        # Trim sequence by phase
+        seq = substr(Downstream.B$seq[!is.na(Downstream.B$seqnames)],
+            1 + (3 - Downstream.B$phase[!is.na(Downstream.B$seqnames)]) %% 3,
+            nchar(Downstream.B$seq[!is.na(Downstream.B$seqnames)]))        
+        # trim last n bases
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        # translate
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Downstream.B[!is.na(seqnames), AA_seq := as.character(prot)]
+        AS_Table.Extended[EventType %in% c("MXE", "SE", "AFE", "A5SS"), AA_downstr.B := Downstream.B$AA_seq]
 
-	message("done\n")
+        # Casette A
+        Casette.A = AS_Table[, c("EventType", "EventID", "transcript_id_a", "intron_number_a")]
+        Casette.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
+        Casette.A[EventType %in% c("MXE", "SE", "ALE", "A3SS"), exon_number := exon_number + 1]
 
-	message("Splice Annotations finished\n")
-    
+        Casette.A = Proteins.Splice[Casette.A, on = c("transcript_id", "exon_number"), 
+            c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Casette.A.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.A)), keep.extra.columns = T)
+        Casette.A.seq = getSeq(genome, Casette.A.gr)
+        Casette.A[!is.na(seqnames),casette_seq := as.character(Casette.A.seq)]
+
+        setnames(Casette.A, "phase", "phase_casette")
+    # Add nucleotides from upstream and downstream
+        Casette.A = Upstream.A[Casette.A, on = "EventID", c("EventID", "phase_casette", "casette_seq", "seq")]
+        setnames(Casette.A, "seq", "upstr_seq")
+        Casette.A = Downstream.A[Casette.A, on = "EventID", c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
+        setnames(Casette.A, "seq", "Downstr_seq")
+        
+    # Construct extended casette sequence:
+        Casette.A[, casette_seq_extended := casette_seq]
+        # Trim casette_seq_extended if upstream sequence does not exists
+        Casette.A[!is.na(phase_casette) & is.na(upstr_seq), casette_seq_extended := 
+            substr(casette_seq_extended, phase_casette + 1, nchar(casette_seq_extended)) ]    
+        Casette.A[!is.na(phase_casette) & phase_casette > 0 & !is.na(upstr_seq), casette_seq_extended := paste0(
+            substr(upstr_seq, nchar(upstr_seq) + 1 - phase_casette, nchar(upstr_seq)), casette_seq_extended)]
+        Casette.A[nchar(casette_seq_extended) %% 3 > 0 & !is.na(Downstr_seq), casette_seq_extended := paste0(casette_seq_extended,
+            substr(Downstr_seq, 1, 3 - (nchar(casette_seq_extended) %% 3)))]
+    # Translate:
+        seq = Casette.A$casette_seq_extended[!is.na(Casette.A$casette_seq_extended)]
+        # trim out-of-phase to be tidy:
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Casette.A[!is.na(casette_seq_extended), AA_seq := as.character(prot)]
+        AS_Table.Extended[, AA_casette.A := Casette.A$AA_seq]
+        
+        # Casette B
+        Casette.B = AS_Table[EventType != "SE", c("EventType", "EventID", "transcript_id_b", "intron_number_b")]
+        Casette.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
+        Casette.B[EventType %in% c("MXE", "ALE", "A3SS"), exon_number := exon_number + 1]
+
+        Casette.B = Proteins.Splice[Casette.B, on = c("transcript_id", "exon_number"), 
+            c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
+        Casette.B.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(na.omit(Casette.B)), keep.extra.columns = T)
+        Casette.B.seq = getSeq(genome, Casette.B.gr)
+        Casette.B[!is.na(seqnames),casette_seq := as.character(Casette.B.seq)]
+
+        setnames(Casette.B, "phase", "phase_casette")
+    # Add nucleotides from upstream and downstream
+        Casette.B = Upstream.B[Casette.B, on = "EventID", c("EventID", "phase_casette", "casette_seq", "seq")]
+        setnames(Casette.B, "seq", "upstr_seq")
+        Casette.B = Downstream.B[Casette.B, on = "EventID", c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
+        setnames(Casette.B, "seq", "Downstr_seq")
+        
+    # Construct extended casette sequence:
+        Casette.B[, casette_seq_extended := casette_seq]
+        # Trim casette_seq_extended if upstream sequence does not exists
+        Casette.B[!is.na(phase_casette) & is.na(upstr_seq), casette_seq_extended := 
+            substr(casette_seq_extended, phase_casette + 1, nchar(casette_seq_extended)) ]    
+        Casette.B[!is.na(phase_casette) & phase_casette > 0 & !is.na(upstr_seq), casette_seq_extended := paste0(
+            substr(upstr_seq, nchar(upstr_seq) + 1 - phase_casette, nchar(upstr_seq)), casette_seq_extended)]
+        Casette.B[nchar(casette_seq_extended) %% 3 > 0 & !is.na(Downstr_seq), casette_seq_extended := paste0(casette_seq_extended,
+            substr(Downstr_seq, 1, 3 - (nchar(casette_seq_extended) %% 3)))]
+    # Translate:
+        seq = Casette.B$casette_seq_extended[!is.na(Casette.B$casette_seq_extended)]
+        # trim out-of-phase to be tidy:
+        seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
+        prot = Biostrings::translate(as(seq, "DNAStringSet"))
+        Casette.B[!is.na(casette_seq_extended), AA_seq := as.character(prot)]
+        AS_Table.Extended[EventType != "SE", AA_casette.B := Casette.B$AA_seq]
+
+        AS_Table.Extended[, AA_full.A := ""]
+        AS_Table.Extended[!is.na(AA_upstr.A), AA_full.A := paste0(AA_full.A, AA_upstr.A)]
+        AS_Table.Extended[!is.na(AA_casette.A), AA_full.A := paste0(AA_full.A, AA_casette.A)]
+        AS_Table.Extended[!is.na(AA_downstr.A), AA_full.A := paste0(AA_full.A, AA_downstr.A)]
+        AS_Table.Extended[, AA_full.B := ""]
+        AS_Table.Extended[!is.na(AA_upstr.B), AA_full.B := paste0(AA_full.B, AA_upstr.B)]
+        AS_Table.Extended[!is.na(AA_casette.B), AA_full.B := paste0(AA_full.B, AA_casette.B)]
+        AS_Table.Extended[!is.na(AA_downstr.B), AA_full.B := paste0(AA_full.B, AA_downstr.B)]
+        
+        fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"fst","Splice.Extended.fst", sep="/"))
+
+        message("done\n")
+
+        message("Splice Annotations finished\n")
+    }
 	message("Reference build finished")
 }
 
