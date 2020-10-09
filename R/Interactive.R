@@ -356,8 +356,8 @@ startNxtIRF <- function(offline = FALSE) {
 			loadref_path = "",
 			settings = c()
 		)
-		observe({  
-			shinyDirChoose(input, "dir_reference_path_load", roots = volumes, session = session)
+		shinyDirChoose(input, "dir_reference_path_load", roots = volumes, session = session)
+		observeEvent(input$dir_reference_path_load,{  
 			output$txt_reference_path_load <- renderText({
 					validate(need(input$dir_reference_path_load, "Please select reference path"))
 					settings_loadref$loadref_path = parseDirPath(volumes, input$dir_reference_path_load)
