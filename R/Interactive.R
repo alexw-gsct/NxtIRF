@@ -1,0 +1,302 @@
+
+
+start <- function() {
+
+    ui <- navbarPage("NxtIRF", id = "navSelection",
+      navbarMenu("Title"),
+      navbarMenu("Reference",
+        tabPanel("New", value = "navRef_New",
+        fluidRow(
+            column(5,
+            h4("Select Reference Directory"),
+            shinyDirButton("dir_reference_path", label = "Choose reference path", title = "Choose reference path"),
+                verbatimTextOutput("txt_reference_path"),
+            br(),
+            h4("Select Reference from AnnotationHub"),
+            selectInput('newrefAH_Species', 'Select Species', width = '100%',
+                choices = c("")),
+            selectInput('newrefAH_Version_Trans', 'Select Transcriptome Version', width = '100%',
+                choices = c("")),
+            selectInput('newrefAH_Trans', 'Select Transcriptome Reference', width = '100%',
+                choices = c("")),
+            selectInput('newrefAH_Assembly', 'Select Genome Assembly', width = '100%',
+                choices = c("")),
+            selectInput('newrefAH_Version_Genome', 'Select Genome Version', width = '100%',
+                choices = c("")),
+            selectInput('newrefAH_Genome', 'Select Genome Reference', width = '100%',
+                choices = c("")),
+            br(),
+            h4("or select Reference from File"),
+            br(),
+            shinyFilesButton("file_genome", label = "Choose genome FASTA File", title = "Choose genome FASTA File", multiple = FALSE),
+            verbatimTextOutput("txt_genome"),
+            shinyFilesButton("file_gtf", label = "Choose transcriptome GTF File", title = "Choose transcriptome GTF File", multiple = FALSE),
+            verbatimTextOutput("txt_gtf"),
+        ), column(5,
+            selectInput('newref_genome_type', 'Select Genome Type to set Mappability and non-PolyA files (leave empty to reset)', 
+                c("", "hg38", "mm10", "hg19", "mm9", "other")),
+            shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion BED file", 
+                title = "Choose Mappability Exclusion BED file", multiple = FALSE),
+            verbatimTextOutput("txt_mappa"),
+            shinyFilesButton("file_NPA", label = "Choose non-PolyA BED file", title = "Choose non-PolyA BED file", multiple = FALSE),
+            verbatimTextOutput("txt_NPA"),
+            shinyFilesButton("file_bl", label = "Choose blacklist BED file", title = "Choose blacklist BED file", multiple = FALSE),
+            verbatimTextOutput("txt_bl"),
+            br(),
+            actionButton("buildRef", "Build Reference"),
+            actionButton("clearRef", "Clear Settings"),
+            uiOutput("refStatus")
+        )
+        )
+        )
+      )
+    )
+
+
+
+    server = function(input, output, session) {
+
+        settings <- shiny::reactiveValues(
+            ah = AnnotationHub::AnnotationHub(),
+            newref_path = getwd(),
+            newref_fasta = "",
+            newref_gtf = "",
+            newref_AH_fasta = "",
+            newref_AH_gtf = "",
+            newref_mappa = "",
+            newref_NPA = "",
+            newref_bl = ""
+        )
+
+        volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+        observe({  
+            shinyDirChoose(input, "dir_reference_path", roots = volumes, session = session)
+            if(!is.null(input$dir_reference_path)){
+                 output$txt_reference_path <- renderText(
+                if (is.integer(input$dir_reference_path)) {
+                } else {
+                  settings$newref_path = parseDirPath(volumes, input$dir_reference_path)
+                })
+            }
+        })
+        observe({  
+            shinyFileChoose(input, "file_genome", roots = c(Ref = settings$newref_path, volumes), session = session,
+                filetypes = c("fa", "fasta", "gz"))
+            if(!is.null(input$file_genome)){
+                 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_genome)
+                 settings$newref_fasta = as.character(file_selected$datapath)
+                 output$txt_genome <- renderText(as.character(file_selected$datapath))
+            }
+        })
+        observe({  
+            shinyFileChoose(input, "file_gtf", roots = c(Ref = settings$newref_path, volumes), session = session,
+                filetypes = c("gtf", "gz"))
+            if(!is.null(input$file_gtf)){
+                 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_gtf)
+                 settings$newref_gtf = as.character(file_selected$datapath)
+                 output$txt_gtf <- renderText(as.character(file_selected$datapath))
+            }
+        })
+        observe({  
+            shinyFileChoose(input, "file_mappa", roots = c(Ref = settings$newref_path, volumes), session = session,
+                filetypes = c("bed", "txt", "gz"))
+            if(!is.null(input$file_mappa)){
+                 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_mappa)
+                 settings$newref_mappa = as.character(file_selected$datapath)
+                 output$txt_mappa <- renderText(as.character(file_selected$datapath))
+            }
+        })
+        observe({  
+            shinyFileChoose(input, "file_NPA", roots = c(Ref = settings$newref_path, volumes), session = session,
+                filetypes = c("bed", "txt", "gz"))
+            if(!is.null(input$file_NPA)){
+                 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_NPA)
+                 settings$newref_NPA = as.character(file_selected$datapath)
+                 output$txt_NPA <- renderText(as.character(file_selected$datapath))
+            }
+        })
+        observe({  
+            shinyFileChoose(input, "file_bl", roots = c(Ref = settings$newref_path, volumes), session = session,
+                filetypes = c("bed", "txt", "gz"))
+            if(!is.null(input$file_bl)){
+                 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_bl)
+                 settings$newref_bl = as.character(file_selected$datapath)
+                 output$txt_bl <- renderText(as.character(file_selected$datapath))
+            }
+        })
+        observeEvent(input$newref_genome_type, {
+            if(input$newref_genome_type == "hg38") {
+                settings$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+            } else if(input$newref_genome_type == "hg19")  {
+                settings$newref_NPA = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+            } else if(input$newref_genome_type == "mm10")  {
+                settings$newref_NPA = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+            } else if(input$newref_genome_type == "mm9")  {
+                settings$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+            } else if(input$newref_genome_type == "") {
+                settings$newref_NPA = ""
+            } else {
+                
+            }
+            output$txt_NPA <- renderText(settings$newref_NPA)
+        })
+        observeEvent(input$buildRef, {
+            args <- list(ah_genome_tmp = settings$newref_AH_fasta, ah_gtf_tmp = settings$newref_AH_gtf,
+                reference_path = settings$newref_path, 
+                fasta = settings$newref_fasta, gtf = settings$newref_gtf,
+                genome_type = "other", nonPolyARef = settings$newref_NPA, MappabilityRef = settings$newref_mappa,
+                BlacklistRef = settings$newref_bl)
+            is_valid <- function(.) !is.null(.) && . != ""
+            
+            args <- Filter(is_valid, args)
+            if(!("reference_path" %in% names(args))) {
+                output$refStatus = renderText({ "Reference path not set" })
+            } else if(!any(c("fasta", "ah_genome_tmp") %in% names(args))) {
+                output$refStatus = renderText({ "Genome not provided" })        
+            } else if(!any(c("gtf", "ah_gtf_tmp") %in% names(args))) {
+                output$refStatus = renderText({ "Gene annotations not provided" })
+            } else {        
+                args.df = as.data.frame(t(as.data.frame(args)))
+                colnames(args.df) = "value"
+                data.table::fwrite(args.df, paste(args$reference_path, "settings.csv", sep="/"), row.names = TRUE)
+                if("ah_genome_tmp" %in% names(args)) {
+                    args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
+                    args$ah_genome_tmp = NULL
+                }
+                if("ah_gtf_tmp" %in% names(args)) {
+                    args$ah_transcriptome = data.table::tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
+                    args$ah_gtf_tmp = NULL
+                }
+                do.call(BuildReference, args)
+            }
+        })
+        
+        observeEvent(input$navSelection, {
+            if(input$navSelection == "navRef_New") {
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+                updateSelectInput(session = session, inputId = "newrefAH_Species", 
+                    choices = c("", sort(unique(ah.filtered$species))))
+            }
+        })
+        observeEvent(input$newrefAH_Species, {
+            if(input$newrefAH_Species != "") {
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+                ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+
+                queryfirst = data.table::tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+                query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+                choices = unlist(unique(data.table::tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+                    choices = c("", sort(choices)))
+            } else {
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                    choices = c(""))        
+            }
+        })
+
+        observeEvent(input$newrefAH_Version_Trans, {
+            if(input$newrefAH_Version_Trans != "") {
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+                ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+                ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Trans, ah.filtered$sourceurl)]
+
+                updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                    choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": ")))
+                            
+                # Also search for compatible genome
+                genomes_avail = ah.filtered$genome
+                
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
+
+                if(any(ah.filtered$genome %in% genomes_avail)) {
+                    ah.filtered = ah.filtered[ah.filtered$genome %in% genomes_avail]                
+                    updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                        choices = c("", unique(ah.filtered$genome)))
+                } else {
+                    updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                        choices = c(""))            
+                }
+            } else {
+                updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                    choices = c(""))        
+            }
+        })
+
+        observeEvent(input$newrefAH_Assembly, {
+            if(input$newrefAH_Assembly != "") {
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
+                ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+                ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
+
+                queryfirst = data.table::tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+                query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+                choices = unlist(unique(data.table::tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                    choices = c("", sort(choices)))
+            } else {
+                updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                    choices = c(""))
+                updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                    choices = c(""))        
+            }
+        })
+
+        observeEvent(input$newrefAH_Version_Genome, {
+            if(input$newrefAH_Version_Genome != "") {
+                ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+                ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
+                ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+                ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
+                ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Genome, ah.filtered$sourceurl)]
+
+                updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                    choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": ")))
+            } else {
+                updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                    choices = c(""))        
+            }
+        })
+        observeEvent(input$newrefAH_Genome, {
+            if(input$newrefAH_Genome != "") {
+                settings$newref_AH_fasta = input$newrefAH_Genome
+            } else {
+                settings$newref_AH_fasta = ""
+            }
+        })
+        observeEvent(input$newrefAH_Trans, {
+            if(input$newrefAH_Trans != "") {
+                settings$newref_AH_gtf = input$newrefAH_Trans
+            } else {
+                settings$newref_AH_gtf = ""
+            }
+        })
+    }
+
+    runApp(shinyApp(ui, server))
+
+}
