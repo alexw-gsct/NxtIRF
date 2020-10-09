@@ -349,7 +349,6 @@ startNxtIRF <- function(offline = FALSE) {
           choices = c(""))        
       
 		})
-	}
 
 # Load Reference Page
 		settings_loadref <- shiny::reactiveValues(
@@ -422,9 +421,9 @@ startNxtIRF <- function(offline = FALSE) {
 				error = function(e) req(NULL)
 			})
 		})
+  }
 
-
-    runApp(shinyApp(ui, server))
+  runApp(shinyApp(ui, server))
 
 }
 
