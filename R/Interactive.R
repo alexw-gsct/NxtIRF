@@ -52,7 +52,7 @@ startNxtIRF <- function(offline = FALSE) {
 						verbatimTextOutput("txt_bl"),
 						br(),
 						actionButton("buildRef", "Build Reference"),
-						actionButton("clearNewRef", "Clear Settings"),
+						actionButton("clearNewRef", "Clear settings"),
 						uiOutput("refStatus")
 					)
 				)
@@ -65,7 +65,7 @@ startNxtIRF <- function(offline = FALSE) {
 							verbatimTextOutput("txt_reference_path_load"),
 						br(),
 						actionButton("loadRef", "Load Reference"),
-						actionButton("clearLoadRef", "Clear Settings"),
+						actionButton("clearLoadRef", "Clear settings"),
 						br(),
 						verbatimTextOutput("loadRef_field1"),
 						verbatimTextOutput("loadRef_field2"),
@@ -84,7 +84,7 @@ startNxtIRF <- function(offline = FALSE) {
 
 	server = function(input, output, session) {
 
-		settings <- shiny::reactiveValues(
+		settings_newref <- shiny::reactiveValues(
 			newref_path = "",
 			newref_fasta = "",
 			newref_gtf = "",
@@ -100,69 +100,69 @@ startNxtIRF <- function(offline = FALSE) {
 			shinyDirChoose(input, "dir_reference_path", roots = volumes, session = session)
 			output$txt_reference_path <- renderText({
 					validate(need(input$dir_reference_path, "Please select reference path"))
-					settings$newref_path = parseDirPath(volumes, input$dir_reference_path)
+					settings_newref$newref_path = parseDirPath(volumes, input$dir_reference_path)
 			})
 		})
 		observe({
-			shinyFileChoose(input, "file_genome", roots = c(Ref = settings$newref_path, volumes), 
+			shinyFileChoose(input, "file_genome", roots = c(Ref = settings_newref$newref_path, volumes), 
 				session = session, filetypes = c("fa", "fasta", "gz"))
 			if(!is.null(input$file_genome)){
-			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_genome)
-			 settings$newref_fasta = as.character(file_selected$datapath)
+			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_genome)
+			 settings_newref$newref_fasta = as.character(file_selected$datapath)
 			 output$txt_genome <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_gtf", roots = c(Ref = settings$newref_path, volumes), 
+			shinyFileChoose(input, "file_gtf", roots = c(Ref = settings_newref$newref_path, volumes), 
 				session = session, filetypes = c("gtf", "gz"))
 			if(!is.null(input$file_gtf)){
-			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_gtf)
-			 settings$newref_gtf = as.character(file_selected$datapath)
+			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_gtf)
+			 settings_newref$newref_gtf = as.character(file_selected$datapath)
 			 output$txt_gtf <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-		shinyFileChoose(input, "file_mappa", roots = c(Ref = settings$newref_path, volumes), 
+		shinyFileChoose(input, "file_mappa", roots = c(Ref = settings_newref$newref_path, volumes), 
 			session = session, filetypes = c("txt", "gz"))
 			if(!is.null(input$file_mappa)){
-			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_mappa)
-			 settings$newref_mappa = as.character(file_selected$datapath)
+			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_mappa)
+			 settings_newref$newref_mappa = as.character(file_selected$datapath)
 			 output$txt_mappa <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_NPA", roots = c(Ref = settings$newref_path, volumes), 
+			shinyFileChoose(input, "file_NPA", roots = c(Ref = settings_newref$newref_path, volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_NPA)){
-				file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_NPA)
-				settings$newref_NPA = as.character(file_selected$datapath)
+				file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_NPA)
+				settings_newref$newref_NPA = as.character(file_selected$datapath)
 				output$txt_NPA <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_bl", roots = c(Ref = settings$newref_path, volumes), 
+			shinyFileChoose(input, "file_bl", roots = c(Ref = settings_newref$newref_path, volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_bl)){
-			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_bl)
-			 settings$newref_bl = as.character(file_selected$datapath)
+			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_bl)
+			 settings_newref$newref_bl = as.character(file_selected$datapath)
 			 output$txt_bl <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observeEvent(input$newref_genome_type, {
 			if(input$newref_genome_type == "hg38") {
-				settings$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "hg19")  {
-				settings$newref_NPA = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "mm10")  {
-				settings$newref_NPA = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "mm9")  {
-				settings$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "") {
-				settings$newref_NPA = ""
+				settings_newref$newref_NPA = ""
 			} else {
 
 			}
-			output$txt_NPA <- renderText(settings$newref_NPA)
+			output$txt_NPA <- renderText(settings_newref$newref_NPA)
 		})
 
 		observeEvent(input$navSelection, {
@@ -273,26 +273,26 @@ startNxtIRF <- function(offline = FALSE) {
 		})
 		observeEvent(input$newrefAH_Genome, {
 			if(input$newrefAH_Genome != "") {
-				settings$newref_AH_fasta = input$newrefAH_Genome
+				settings_newref$newref_AH_fasta = input$newrefAH_Genome
 			} else {
-				settings$newref_AH_fasta = ""
+				settings_newref$newref_AH_fasta = ""
 			}
 		})
 		observeEvent(input$newrefAH_Trans, {
 			if(input$newrefAH_Trans != "") {
-				settings$newref_AH_gtf = input$newrefAH_Trans
+				settings_newref$newref_AH_gtf = input$newrefAH_Trans
 			} else {
-				settings$newref_AH_gtf = ""
+				settings_newref$newref_AH_gtf = ""
 			}
 		})
 		
-		# refNew_BuildRef Button
+		# buildRef Button
 		observeEvent(input$buildRef, {
-			args <- list(reference_path = settings$newref_path,
-				ah_genome_tmp = settings$newref_AH_fasta, ah_gtf_tmp = settings$newref_AH_gtf, 
-				fasta = settings$newref_fasta, gtf = settings$newref_gtf,
-				genome_type = "other", nonPolyARef = settings$newref_NPA, MappabilityRef = settings$newref_mappa,
-				BlacklistRef = settings$newref_bl)
+			args <- list(reference_path = settings_newref$newref_path,
+				ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
+				fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
+				genome_type = "other", nonPolyARef = settings_newref$newref_NPA, MappabilityRef = settings_newref$newref_mappa,
+				BlacklistRef = settings_newref$newref_bl)
 
 			is_valid <- function(.) !is.null(.) && . != ""
 			args <- Filter(is_valid, args)
@@ -306,7 +306,7 @@ startNxtIRF <- function(offline = FALSE) {
 			} else {        
 				args.df = as.data.frame(t(as.data.frame(args)))
 				colnames(args.df) = "value"
-				data.table::fwrite(args.df, paste(args$reference_path, "settings.csv", sep="/"), row.names = TRUE)
+				data.table::fwrite(args.df, paste(args$reference_path, "settings_newref.csv", sep="/"), row.names = TRUE)
 				if("ah_genome_tmp" %in% names(args)) {
 					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_genome_tmp = NULL
@@ -319,6 +319,7 @@ startNxtIRF <- function(offline = FALSE) {
 			}
 		})
 		
+		# clearNewRef Button
 		observeEvent(input$clearNewRef, {
 			newref_path = getwd()
 			newref_fasta = ""
@@ -349,6 +350,79 @@ startNxtIRF <- function(offline = FALSE) {
       
 		})
 	}
+
+# Load Reference Page
+		settings_loadref <- shiny::reactiveValues(
+			loadref_path = "",
+			settings = c()
+		)
+		observe({  
+			shinyDirChoose(input, "dir_reference_path_load", roots = volumes, session = session)
+			output$txt_reference_path_load <- renderText({
+					validate(need(input$dir_reference_path_load, "Please select reference path"))
+					settings_loadref$loadref_path = parseDirPath(volumes, input$dir_reference_path_load)
+			})
+			req(settings_loadref$loadref_path)
+			tryCatch({
+				settings_loadref$settings = as.data.frame(fread(
+					paste(settings_loadref$loadref_path, "settings.csv", sep="/"), header = TRUE
+					))
+				colnames(settings_loadref$settings) = c("fields", "value")
+				if("reference_path" %in% settings_loadref$settings$fields) {
+					if("ah_genome_tmp" %in% settings_loadref$settings$fields) {
+						output$loadRef_field1 <- renderText({
+							paste("AnnotationHub genome:",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "ah_genome_tmp")]
+							)
+						})
+					}
+					if("ah_gtf_tmp" %in% settings_loadref$settings$fields) {
+						output$loadRef_field2 <- renderText({
+							paste("AnnotationHub gene annotations:",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "ah_gtf_tmp")]
+							)
+						})
+					}
+					if("fasta" %in% settings_loadref$settings$fields) {
+						output$loadRef_field3 <- renderText({
+							paste("Genome FASTA file (user):",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "fasta")]
+							)
+						})					
+					}
+					if("gtf" %in% settings_loadref$settings$fields) {
+						output$loadRef_field4 <- renderText({
+							paste("Annotation GTF file (user):",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "gtf")]
+							)
+						})					
+					}
+					if("MappabilityRef" %in% settings_loadref$settings$fields) {
+						output$loadRef_field5 <- renderText({
+							paste("Mappability Exclusions:",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "MappabilityRef")]
+							)
+						})					
+					}
+					if("nonPolyARef" %in% settings_loadref$settings$fields) {
+						output$loadRef_field6 <- renderText({
+							paste("Non-polyA Ref:",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "nonPolyARef")]
+							)
+						})					
+					}
+					if("BlacklistRef" %in% settings_loadref$settings$fields) {
+						output$loadRef_field7 <- renderText({
+							paste("Blacklist file:",
+							settings_loadref$settings$value[which(settings_loadref$settings$fields == "BlacklistRef")]
+							)
+						})					
+					}
+				}
+				error = function(e) req(NULL)
+			})
+		})
+
 
     runApp(shinyApp(ui, server))
 
