@@ -50,7 +50,7 @@ startNxtIRF <- function() {
 						verbatimTextOutput("txt_bl"),
 						br(),
 						actionButton("buildRef", "Build Reference"),
-						actionButton("clearRef", "Clear Settings"),
+						actionButton("clearNewRef", "Clear Settings"),
 						uiOutput("refStatus")
 					)
 				)
@@ -61,7 +61,17 @@ startNxtIRF <- function() {
 						h4("Select Reference Directory"),
 						shinyDirButton("dir_reference_path", label = "Choose reference path", title = "Choose reference path"),
 							verbatimTextOutput("txt_reference_path"),
+						br(),
 						actionButton("loadRef", "Load Reference")
+						actionButton("clearLoadRef", "Clear Settings"),
+						br(),
+						verbatimTextOutput("loadRef_field1"),
+						verbatimTextOutput("loadRef_field2"),
+						verbatimTextOutput("loadRef_field3"),
+						verbatimTextOutput("loadRef_field4"),
+						verbatimTextOutput("loadRef_field5"),
+						verbatimTextOutput("loadRef_field6"),
+						verbatimTextOutput("loadRef_field7"),						
 					)
 				)
 			)
@@ -74,7 +84,7 @@ startNxtIRF <- function() {
 
 		settings <- shiny::reactiveValues(
 			ah = AnnotationHub::AnnotationHub(),
-			newref_path = getwd(),
+			newref_path = "",
 			newref_fasta = "",
 			newref_gtf = "",
 			newref_AH_fasta = "",
@@ -87,14 +97,14 @@ startNxtIRF <- function() {
 		volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
 		observe({  
 			shinyDirChoose(input, "dir_reference_path", roots = volumes, session = session)
-		
 			output$txt_reference_path <- renderText({
 					validate(need(input$dir_reference_path, "Please select reference path"))
 					settings$newref_path = parseDirPath(volumes, input$dir_reference_path)
 			})
 		})
-		observe({  
-			shinyFileChoose(input, "file_genome", roots = c(Ref = settings$newref_path, volumes), 
+		observe({
+			shinyFileChoose(input, "file_genome", roots = 
+				ifelse(settings$newref_path != "", c(Ref = settings$newref_path, volumes), volumes),
 				session = session, filetypes = c("fa", "fasta", "gz"))
 			if(!is.null(input$file_genome)){
 			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_genome)
@@ -103,7 +113,8 @@ startNxtIRF <- function() {
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_gtf", roots = c(Ref = settings$newref_path, volumes), 
+			shinyFileChoose(input, "file_gtf", roots =
+				ifelse(settings$newref_path != "", c(Ref = settings$newref_path, volumes), volumes),
 				session = session, filetypes = c("gtf", "gz"))
 			if(!is.null(input$file_gtf)){
 			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_gtf)
@@ -153,37 +164,6 @@ startNxtIRF <- function() {
 
 			}
 			output$txt_NPA <- renderText(settings$newref_NPA)
-		})
-		observeEvent(input$buildRef, {
-			args <- list(reference_path = settings$newref_path,
-				ah_genome_tmp = settings$newref_AH_fasta, ah_gtf_tmp = settings$newref_AH_gtf, 
-				fasta = settings$newref_fasta, gtf = settings$newref_gtf,
-				genome_type = "other", nonPolyARef = settings$newref_NPA, MappabilityRef = settings$newref_mappa,
-				BlacklistRef = settings$newref_bl)
-
-			is_valid <- function(.) !is.null(.) && . != ""
-			args <- Filter(is_valid, args)
-		
-			if(!("reference_path" %in% names(args))) {
-				output$refStatus = renderText({ "Reference path not set" })
-			} else if(!any(c("fasta", "ah_genome_tmp") %in% names(args))) {
-				output$refStatus = renderText({ "Genome not provided" })        
-			} else if(!any(c("gtf", "ah_gtf_tmp") %in% names(args))) {
-				output$refStatus = renderText({ "Gene annotations not provided" })
-			} else {        
-				args.df = as.data.frame(t(as.data.frame(args)))
-				colnames(args.df) = "value"
-				data.table::fwrite(args.df, paste(args$reference_path, "settings.csv", sep="/"), row.names = TRUE)
-				if("ah_genome_tmp" %in% names(args)) {
-					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
-					args$ah_genome_tmp = NULL
-				}
-				if("ah_gtf_tmp" %in% names(args)) {
-					args$ah_transcriptome = data.table::tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
-					args$ah_gtf_tmp = NULL
-				}
-				do.call(BuildReference, args)
-			}
 		})
 
 		observeEvent(input$navSelection, {
@@ -305,6 +285,56 @@ startNxtIRF <- function() {
 			} else {
 				settings$newref_AH_gtf = ""
 			}
+		})
+		
+		# refNew_BuildRef Button
+		observeEvent(input$buildRef, {
+			args <- list(reference_path = settings$newref_path,
+				ah_genome_tmp = settings$newref_AH_fasta, ah_gtf_tmp = settings$newref_AH_gtf, 
+				fasta = settings$newref_fasta, gtf = settings$newref_gtf,
+				genome_type = "other", nonPolyARef = settings$newref_NPA, MappabilityRef = settings$newref_mappa,
+				BlacklistRef = settings$newref_bl)
+
+			is_valid <- function(.) !is.null(.) && . != ""
+			args <- Filter(is_valid, args)
+		
+			if(!("reference_path" %in% names(args))) {
+				output$refStatus = renderText({ "Reference path not set" })
+			} else if(!any(c("fasta", "ah_genome_tmp") %in% names(args))) {
+				output$refStatus = renderText({ "Genome not provided" })        
+			} else if(!any(c("gtf", "ah_gtf_tmp") %in% names(args))) {
+				output$refStatus = renderText({ "Gene annotations not provided" })
+			} else {        
+				args.df = as.data.frame(t(as.data.frame(args)))
+				colnames(args.df) = "value"
+				data.table::fwrite(args.df, paste(args$reference_path, "settings.csv", sep="/"), row.names = TRUE)
+				if("ah_genome_tmp" %in% names(args)) {
+					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
+					args$ah_genome_tmp = NULL
+				}
+				if("ah_gtf_tmp" %in% names(args)) {
+					args$ah_transcriptome = data.table::tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
+					args$ah_gtf_tmp = NULL
+				}
+				do.call(BuildReference, args)
+			}
+		})
+		
+		observeEvent(input$clearNewRef, {
+			newref_path = getwd()
+			newref_fasta = ""
+			newref_gtf = ""
+			newref_AH_fasta = ""
+			newref_AH_gtf = ""
+			newref_mappa = ""
+			newref_NPA = ""
+			newref_bl = ""
+			output$txt_reference_path <- renderText("Please select reference path")
+			output$txt_genome <- renderText("")
+			output$txt_gtf <- renderText("")
+			output$txt_mappa <- renderText("")
+			output$txt_NPA <- renderText("")
+			output$txt_bl <- renderText("")
 		})
 	}
 
