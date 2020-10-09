@@ -2,8 +2,10 @@
 #' @import zlibbioc
 #' @importFrom Rcpp evalCpp
 #' @import data.table
+#' @import shiny
+#' @import shinyFiles
+#' @import ggplot2
 #' @importFrom dplyr %>%
-#' @import BiocParallel
 #' @importFrom rtracklayer import
 #' @importFrom IRanges IRanges
 #' @importFrom Biostrings getSeq DNAStringSet startIndex endIndex vmatchPattern translate
