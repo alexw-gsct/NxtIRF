@@ -1,6 +1,8 @@
 
 #' @export
-startNxtIRF <- function() {
+startNxtIRF <- function(offline = FALSE) {
+
+  ah = AnnotationHub::AnnotationHub(localHub = offline)
 
 	ui <- navbarPage("NxtIRF", id = "navSelection",
 	# Title Page
@@ -17,7 +19,7 @@ startNxtIRF <- function() {
 						shinyDirButton("dir_reference_path", label = "Choose reference path", title = "Choose reference path"),
 							verbatimTextOutput("txt_reference_path"),
 						br(),
-						h4("Select Reference from AnnotationHub"),
+						h4("Select Ensembl Reference from AnnotationHub"),
 						selectInput('newrefAH_Species', 'Select Species', width = '100%',
 							choices = c("")),
 						selectInput('newrefAH_Version_Trans', 'Select Transcriptome Version', width = '100%',
@@ -41,8 +43,8 @@ startNxtIRF <- function() {
 					column(5,
 						selectInput('newref_genome_type', 'Select Genome Type to set Mappability and non-PolyA files (leave empty to reset)', 
 							c("", "hg38", "mm10", "hg19", "mm9", "other")),
-						shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion BED file", 
-							title = "Choose Mappability Exclusion BED file", multiple = FALSE),
+						shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion file", 
+							title = "Choose Mappability Exclusion file", multiple = FALSE),
 						verbatimTextOutput("txt_mappa"),
 						shinyFilesButton("file_NPA", label = "Choose non-PolyA BED file", title = "Choose non-PolyA BED file", multiple = FALSE),
 						verbatimTextOutput("txt_NPA"),
@@ -59,10 +61,10 @@ startNxtIRF <- function() {
 				fluidRow(
 					column(5,
 						h4("Select Reference Directory"),
-						shinyDirButton("dir_reference_path", label = "Choose reference path", title = "Choose reference path"),
-							verbatimTextOutput("txt_reference_path"),
+						shinyDirButton("dir_reference_path_load", label = "Choose reference path", title = "Choose reference path"),
+							verbatimTextOutput("txt_reference_path_load"),
 						br(),
-						actionButton("loadRef", "Load Reference")
+						actionButton("loadRef", "Load Reference"),
 						actionButton("clearLoadRef", "Clear Settings"),
 						br(),
 						verbatimTextOutput("loadRef_field1"),
@@ -83,7 +85,6 @@ startNxtIRF <- function() {
 	server = function(input, output, session) {
 
 		settings <- shiny::reactiveValues(
-			ah = AnnotationHub::AnnotationHub(),
 			newref_path = "",
 			newref_fasta = "",
 			newref_gtf = "",
@@ -94,7 +95,7 @@ startNxtIRF <- function() {
 			newref_bl = ""
 		)
 
-		volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+    volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
 		observe({  
 			shinyDirChoose(input, "dir_reference_path", roots = volumes, session = session)
 			output$txt_reference_path <- renderText({
@@ -103,8 +104,7 @@ startNxtIRF <- function() {
 			})
 		})
 		observe({
-			shinyFileChoose(input, "file_genome", roots = 
-				ifelse(settings$newref_path != "", c(Ref = settings$newref_path, volumes), volumes),
+			shinyFileChoose(input, "file_genome", roots = c(Ref = settings$newref_path, volumes), 
 				session = session, filetypes = c("fa", "fasta", "gz"))
 			if(!is.null(input$file_genome)){
 			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_genome)
@@ -113,8 +113,7 @@ startNxtIRF <- function() {
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_gtf", roots =
-				ifelse(settings$newref_path != "", c(Ref = settings$newref_path, volumes), volumes),
+			shinyFileChoose(input, "file_gtf", roots = c(Ref = settings$newref_path, volumes), 
 				session = session, filetypes = c("gtf", "gz"))
 			if(!is.null(input$file_gtf)){
 			 file_selected<-parseFilePaths(c(Ref = settings$newref_path, volumes), input$file_gtf)
@@ -168,7 +167,7 @@ startNxtIRF <- function() {
 
 		observeEvent(input$navSelection, {
 			if(input$navSelection == "navRef_New") {
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
 				updateSelectInput(session = session, inputId = "newrefAH_Species", 
@@ -177,7 +176,7 @@ startNxtIRF <- function() {
 		})
 		observeEvent(input$newrefAH_Species, {
 			if(input$newrefAH_Species != "") {
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
@@ -202,7 +201,7 @@ startNxtIRF <- function() {
 		})
 		observeEvent(input$newrefAH_Version_Trans, {
 			if(input$newrefAH_Version_Trans != "") {
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
@@ -213,7 +212,7 @@ startNxtIRF <- function() {
 									
 				# Also search for compatible genome
 				genomes_avail = ah.filtered$genome
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
 
@@ -238,7 +237,7 @@ startNxtIRF <- function() {
 		})
 		observeEvent(input$newrefAH_Assembly, {
 			if(input$newrefAH_Assembly != "") {
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
@@ -258,7 +257,7 @@ startNxtIRF <- function() {
 		})
 		observeEvent(input$newrefAH_Version_Genome, {
 			if(input$newrefAH_Version_Genome != "") {
-				ah.filtered = settings$ah[settings$ah$dataprovider == "Ensembl"]
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
 				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
@@ -335,9 +334,23 @@ startNxtIRF <- function() {
 			output$txt_mappa <- renderText("")
 			output$txt_NPA <- renderText("")
 			output$txt_bl <- renderText("")
+      updateSelectInput(session = session, inputId = "newrefAH_Species", 
+          choices = c(""))
+      updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+          choices = c(""))
+      updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+          choices = c(""))
+      updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+          choices = c(""))
+      updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+          choices = c(""))
+      updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+          choices = c(""))        
+      
 		})
 	}
 
     runApp(shinyApp(ui, server))
 
 }
+
