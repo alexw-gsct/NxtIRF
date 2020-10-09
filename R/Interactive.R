@@ -5,7 +5,7 @@ startNxtIRF <- function() {
 	ui <- navbarPage("NxtIRF", id = "navSelection",
 	# Title Page
 		tabPanel("About", value = "navTitle",
-			img(class="img-polaroid", src=system.file("jpg/RaskoLab_400x400.jpg", package = "NxtIRF"))
+			img(src="https://pbs.twimg.com/profile_images/1310789966293655553/7HawCItY_400x400.jpg")
 		),
 	# Reference
 		navbarMenu("Reference",

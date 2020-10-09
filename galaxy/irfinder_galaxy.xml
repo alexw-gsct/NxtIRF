@@ -29,7 +29,7 @@
             #end if
         #else if str($mode_condition.mode) == "process_mappability_bam":
 			${__tool_directory__}/irfinder_galaxy process_mappability_bam '$mode_condition.input' $output4 $mode_condition.threshold
-		# else if str($mode_condition.mode) == "shuffle_fasta":
+		#else if str($mode_condition.mode) == "shuffle_fasta":
             cat '$mode_condition.input' | awk '{OFS="\t"; getline seq; print $0,seq}' | shuf | awk '{OFS="\n"; print $1,$2}' > $output5
         #end if
     ]]></command>
