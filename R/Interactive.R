@@ -2,14 +2,17 @@
 #' @export
 startNxtIRF <- function(offline = FALSE) {
 
+	assertthat::assert_that(interactive(),
+		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
+
   ah = AnnotationHub::AnnotationHub(localHub = offline)
 
 	ui <- navbarPage("NxtIRF", id = "navSelection",
-	# Title Page
+# Title Page
 		tabPanel("About", value = "navTitle",
 			img(src="https://pbs.twimg.com/profile_images/1310789966293655553/7HawCItY_400x400.jpg")
 		),
-	# Reference
+# Reference
 		navbarMenu("Reference",
 		# New reference
 			tabPanel("New", value = "navRef_New",
@@ -77,7 +80,56 @@ startNxtIRF <- function(offline = FALSE) {
 					)
 				)
 			)
-		)
+		),
+		
+		tabPanel("Experiment", value = "navExpr",
+			fluidRow(
+				column(4,
+					textOutput("txt_reference_path_expr"),
+					br(),
+					
+					shinyDirButton("dir_bam_path_load", 
+						label = "Choose BAM path", title = "Choose BAM path"),
+					textOutput("txt_bam_path_expr"),
+					br(),
+					
+					shinyDirButton("dir_irf_path_load", 
+						label = "Choose IRFinder output path", title = "Choose IRFinder output path"),					
+					textOutput("txt_irf_path_expr"),
+					br(),
+					
+					actionButton("run_irf_expr", "Run IRFinder on selected bam files"),
+					br(),
+					
+					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
+						title = "Choose Sample Annotation Table", multiple = FALSE),
+					textOutput("txt_sample_anno_expr"),
+					br(),						
+					
+					wellPanel(
+						h3("Add annotation column"),
+						uiOutput("newcol_expr"),
+						radioButtons("type_newcol_expr", "Type", c("integer", "double", "character")),
+						actionButton("addcolumn_expr", "Add"), actionButton("removecolumn_expr", "Remove")
+					),
+					
+					actionButton("run_collate_expr", "Compile Experiment"),
+					br(),					
+				),
+				column(8,
+					rHandsontableOutput("hot_expr")
+				)	# last column
+			),
+		),
+		
+		navbarMenu("Analyze",
+
+		),
+
+		navbarMenu("Display",
+
+		) # last navbar
+
 	)
 
 
@@ -426,6 +478,127 @@ startNxtIRF <- function(offline = FALSE) {
           })
       }
 		})
+		
+# Design Experiment page
+		settings_expr <- shiny::reactiveValues(
+			expr_path = "",
+			bam_path = "",
+			irf_path = "",
+			collate_path = "",
+			DT = c(),
+		)
+		shinyDirChoose(input, "dir_bam_path_load", roots = volumes, session = session)
+		observeEvent(input$dir_bam_path_load,{
+			output$txt_bam_path_expr <- renderText({
+					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
+					settings_expr$bam_path = parseDirPath(volumes, input$dir_bam_path_load)
+			})
+			settings_expr$expr_path = dirname(settings_expr$bam_path)
+
+		# First assume bams are named by subdirectory names
+			temp.df = as.data.table(FindSamples(
+				settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE))
+			if(nrow(temp.df) > 0) {
+				if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+					# Assume subdirectory names designate sample names
+				} else {
+					temp.df = as.data.table(FindSamples(
+						settings_expr$bam_path, suffix = ".bam", use_subdir = FALSE))
+					if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+				# Else assume bam names designate sample names					
+					} else {
+						output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")							
+						settings_expr$bam_path = ""
+						temp.df = NULL
+					}
+				}
+			} else {
+				output$txt_bam_path_expr <- renderText("No bam files found in given path")
+				settings_expr$bam_path = ""
+				temp.df = NULL
+			}
+			
+		# compile experiment df with bam paths
+			if(!is.null(temp.df)) {
+					colnames(temp.df)[2] = "bam_file"
+					temp.DT = as.data.table(temp.df)
+				if(!is.null(DT)) {
+			# merge with existing dataframe	
+					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
+							fill = TRUE) # Add samples not in original DT
+					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
+				} else {
+			# start anew
+					DT = data.table(sample = temp.df$sample,
+						bam_file = "", irf_file = "", collated_file = "")
+					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
+				}			
+			}
+			output$hot_expr <- renderRHandsontable({
+				DF <- as.data.frame(settings_expr$DT)
+				if (!is.null(DF)) {
+					rhandsontable(DF, useTypes = TRUE, stretchH = "all")
+				}
+			})
+		})
+		
+		shinyDirChoose(input, "dir_irf_path_load", roots = c(Ref = settings_expr$expr_path, volumes), 
+			session = session)
+		observeEvent(input$dir_irf_path_load,{
+			output$txt_irf_path_expr <- renderText({
+					validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
+					settings_expr$irf_path = parseDirPath(c(Ref = settings_expr$expr_path, volumes), 
+						input$dir_irf_path_load)
+						
+				# merge irfinder paths
+			temp.df = as.data.table(FindSamples(
+				settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE))
+			if(nrow(temp.df) > 0) {
+				if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+					# Assume output names designate sample names
+				} else {
+					temp.df = as.data.table(FindSamples(
+						settings_expr$irf_path, suffix = ".txt.gz", use_subdir = TRUE))
+					if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+				# Else assume subdirectory names designate sample names					
+					} else {
+						output$txt_irf_path_expr <- renderText("IRFinder file names (or its path names) must be unique")							
+						settings_expr$irf_path = ""
+						temp.df = NULL
+					}
+				}
+			} else {
+				output$txt_irf_path_expr <- renderText("No IRFinder files found in given path")
+				settings_expr$irf_path = ""
+				temp.df = NULL
+			}
+			
+		# compile experiment df with irfinder paths
+			if(!is.null(temp.df)) {
+					colnames(temp.df)[2] = "irf_file"
+					temp.DT = as.data.table(temp.df)
+				if(!is.null(DT)) {
+			# merge with existing dataframe	
+					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
+							fill = TRUE) # Add samples not in original DT
+					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+				} else {
+			# start anew
+					DT = data.table(sample = temp.df$sample,
+						irf_file = "", irf_file = "", collated_file = "")
+					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+				}			
+			}
+			output$hot_expr <- renderRHandsontable({
+				DF <- as.data.frame(settings_expr$DT)
+				if (!is.null(DF)) {
+					rhandsontable(DF, useTypes = TRUE, stretchH = "all")
+				}
+			})
+			})
+		})
+		
+# End of server function		
   }
 
   runApp(shinyApp(ui, server))

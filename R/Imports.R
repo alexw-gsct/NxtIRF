@@ -4,7 +4,8 @@
 #' @import data.table
 #' @import shiny
 #' @import shinyFiles
-#' @import ggplot2
+#' @import shinyFiles
+#' @import rhandsontable
 #' @importFrom dplyr %>%
 #' @importFrom rtracklayer import
 #' @importFrom IRanges IRanges
