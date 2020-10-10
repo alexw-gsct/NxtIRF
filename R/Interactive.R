@@ -160,53 +160,53 @@ startNxtIRF <- function(offline = FALSE) {
     })
     
 		observe({  
-			shinyDirChoose(input, "dir_reference_path", roots = c(addit_volume, default_volumes), session = session)
+			shinyDirChoose(input, "dir_reference_path", roots = c(default_volume, addit_volumes), session = session)
 			output$txt_reference_path <- renderText({
 					validate(need(input$dir_reference_path, "Please select reference path"))
-					settings_newref$newref_path = parseDirPath(c(addit_volume, default_volumes), input$dir_reference_path)
+					settings_newref$newref_path = parseDirPath(c(default_volume, addit_volumes), input$dir_reference_path)
 			})
 		})
 		observe({
-			shinyFileChoose(input, "file_genome", roots = c(addit_volume, default_volumes), 
+			shinyFileChoose(input, "file_genome", roots = c(default_volume, addit_volumes), 
 				session = session, filetypes = c("fa", "fasta", "gz"))
 			if(!is.null(input$file_genome)){
-			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_genome)
+			 file_selected<-parseFilePaths(c(default_volume, addit_volumes), input$file_genome)
 			 settings_newref$newref_fasta = as.character(file_selected$datapath)
 			 output$txt_genome <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_gtf", roots = c(addit_volume, default_volumes), 
+			shinyFileChoose(input, "file_gtf", roots = c(default_volume, addit_volumes), 
 				session = session, filetypes = c("gtf", "gz"))
 			if(!is.null(input$file_gtf)){
-			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_gtf)
+			 file_selected<-parseFilePaths(c(default_volume, addit_volumes), input$file_gtf)
 			 settings_newref$newref_gtf = as.character(file_selected$datapath)
 			 output$txt_gtf <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-		shinyFileChoose(input, "file_mappa", roots = c(addit_volume, default_volumes), 
+		shinyFileChoose(input, "file_mappa", roots = c(default_volume, addit_volumes), 
 			session = session, filetypes = c("txt", "gz"))
 			if(!is.null(input$file_mappa)){
-			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_mappa)
+			 file_selected<-parseFilePaths(c(default_volume, addit_volumes), input$file_mappa)
 			 settings_newref$newref_mappa = as.character(file_selected$datapath)
 			 output$txt_mappa <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_NPA", roots = c(addit_volume, default_volumes), 
+			shinyFileChoose(input, "file_NPA", roots = c(default_volume, addit_volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_NPA)){
-				file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_NPA)
+				file_selected<-parseFilePaths(c(default_volume, addit_volumes), input$file_NPA)
 				settings_newref$newref_NPA = as.character(file_selected$datapath)
 				output$txt_NPA <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_bl", roots = c(addit_volume, default_volumes), 
+			shinyFileChoose(input, "file_bl", roots = c(default_volume, addit_volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_bl)){
-			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_bl)
+			 file_selected<-parseFilePaths(c(default_volume, addit_volumes), input$file_bl)
 			 settings_newref$newref_bl = as.character(file_selected$datapath)
 			 output$txt_bl <- renderText(as.character(file_selected$datapath))
 			}
@@ -418,11 +418,11 @@ startNxtIRF <- function(offline = FALSE) {
 			loadref_path = "",
 			settings = c()
 		)
-		shinyDirChoose(input, "dir_reference_path_load", roots = c(addit_volume, default_volumes), session = session)
+		shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volume, addit_volumes), session = session)
 		observeEvent(input$dir_reference_path_load,{  
 			output$txt_reference_path_load <- renderText({
 					validate(need(input$dir_reference_path_load, "Please select reference path"))
-					settings_loadref$loadref_path = parseDirPath(c(addit_volume, default_volumes), input$dir_reference_path_load)
+					settings_loadref$loadref_path = parseDirPath(c(default_volume, addit_volumes), input$dir_reference_path_load)
 			})
     })
 		observeEvent(settings_loadref$loadref_path,{ 
@@ -511,11 +511,11 @@ startNxtIRF <- function(offline = FALSE) {
 			}
 		})		
     observe({  
-      shinyDirChoose(input, "dir_bam_path_load", roots = c(addit_volume, default_volumes), session = session)
+      shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volume, addit_volumes), session = session)
 			output$txt_bam_path_expr <- renderText({
 					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
-          settings_expr$expr_path = dirname(parseDirPath(c(addit_volume, default_volumes), input$dir_bam_path_load))
-					settings_expr$bam_path = parseDirPath(c(addit_volume, default_volumes), input$dir_bam_path_load)
+          settings_expr$expr_path = dirname(parseDirPath(c(default_volume, addit_volumes), input$dir_bam_path_load))
+					settings_expr$bam_path = parseDirPath(c(default_volume, addit_volumes), input$dir_bam_path_load)
 			})
     })
 		observeEvent(settings_expr$bam_path,{
@@ -561,11 +561,11 @@ startNxtIRF <- function(offline = FALSE) {
 			}
 		})
     observe({
-      shinyDirChoose(input, "dir_irf_path_load", roots = c(addit_volume, default_volumes), 
+      shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volume, addit_volumes), 
         session = session)
       output$txt_irf_path_expr <- renderText({
           validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
-          settings_expr$irf_path = parseDirPath(c(addit_volume, default_volumes), 
+          settings_expr$irf_path = parseDirPath(c(default_volume, addit_volumes), 
             input$dir_irf_path_load)
       })        
     })
