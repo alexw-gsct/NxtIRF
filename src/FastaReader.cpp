@@ -22,8 +22,9 @@ bool FastaReader::ReadSeq() {
   std::istringstream iss;
   iss.str(myLine);
   std::getline(iss, myLine, '\t');  // chromosome name is tab-terminated
-  iss.str(myLine);
-  std::getline(iss, seqname, ' ');  // chromosome name is tab-terminated
+  std::istringstream iss2;
+  iss2.str(myLine);
+  std::getline(iss2, seqname, ' ');  // chromosome name is tab-terminated
   
   std::getline(*IN, sequence_raw, '>');
 

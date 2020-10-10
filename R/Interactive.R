@@ -496,18 +496,18 @@ startNxtIRF <- function(offline = FALSE) {
 			bam_path = "",
 			irf_path = "",
 			collate_path = "",
-			DT = c()
+			df = c()
 		)
 		
-		## Handsontable auto-updates settings_expr$DT on user edit
+		## Handsontable auto-updates settings_expr$df on user edit
     observe({
       if (!is.null(input$hot_expr)) {
-        settings_expr$DT = as.data.table(hot_to_r(input$hot_expr))
+        settings_expr$df = hot_to_r(input$hot_expr)
       }
     })
 		output$hot_expr <- renderRHandsontable({
-			if (!is.null(settings_expr$DT)) {
-				rhandsontable(as.data.frame(settings_expr$DT), useTypes = TRUE, stretchH = "all")
+			if (!is.null(settings_expr$df)) {
+				rhandsontable(settings_expr$df, useTypes = TRUE, stretchH = "all")
 			}
 		})		
     observe({  
@@ -521,50 +521,44 @@ startNxtIRF <- function(offline = FALSE) {
 		observeEvent(settings_expr$bam_path,{
       req(settings_expr$bam_path)
 		# First assume bams are named by subdirectory names
-			temp.df = as.data.table(FindSamples(
+			temp.DT = as.data.table(FindSamples(
 				settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE))
-			if(nrow(temp.df) > 0) {
-				if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+			if(nrow(temp.DT) > 0) {
+				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume subdirectory names designate sample names
 				} else {
-					temp.df = as.data.table(FindSamples(
+					temp.DT = as.data.table(FindSamples(
 						settings_expr$bam_path, suffix = ".bam", use_subdir = FALSE))
-					if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 				# Else assume bam names designate sample names					
 					} else {
 						output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")							
 						settings_expr$bam_path = ""
-						temp.df = NULL
+						temp.DT = NULL
 					}
 				}
 			} else {
 				output$txt_bam_path_expr <- renderText("No bam files found in given path")
 				settings_expr$bam_path = ""
-				temp.df = NULL
+				temp.DT = NULL
 			}
 			
 		# compile experiment df with bam paths
-			if(!is.null(temp.df)) {
-					colnames(temp.df)[2] = "bam_file"
-					temp.DT = as.data.table(temp.df)
-				if(!is.null(settings_expr$DT)) {
+			if(!is.null(temp.DT)) {
+					colnames(temp.DT)[2] = "bam_file"
+				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
-					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
-					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
+					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				} else {
 			# start anew
-					settings_expr$DT = data.table(sample = temp.df$sample,
+					DT = data.table(sample = temp.df$sample,
 						bam_file = "", irf_file = "", collated_file = "")
-					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
-				}			
+					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
+				}		
+        settings_expr$df = as.data.frame(DT)
 			}
-			# output$hot_expr <- renderRHandsontable({
-				# DF <- as.data.frame(settings_expr$DT)
-				# if (!is.null(DF)) {
-					# rhandsontable(DF, useTypes = TRUE, stretchH = "all")
-				# }
-			# })
 		})
     observe({
       shinyDirChoose(input, "dir_irf_path_load", roots = c(addit_volume, default_volumes), 
@@ -578,64 +572,64 @@ startNxtIRF <- function(offline = FALSE) {
 		observeEvent(settings_expr$irf_path,{
       req(settings_expr$irf_path)
 				# merge irfinder paths
-			temp.df = as.data.table(FindSamples(
+			temp.DT = as.data.table(FindSamples(
 				settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE))
-			if(nrow(temp.df) > 0) {
-				if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+			if(nrow(temp.DT) > 0) {
+				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume output names designate sample names
 				} else {
-					temp.df = as.data.table(FindSamples(
+					temp.DT = as.data.table(FindSamples(
 						settings_expr$irf_path, suffix = ".txt.gz", use_subdir = TRUE))
-					if(length(unique(temp.df$sample)) == nrow(temp.df)) {
+					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 				# Else assume subdirectory names designate sample names					
 					} else {
 						output$txt_irf_path_expr <- renderText("IRFinder file names (or its path names) must be unique")							
 						settings_expr$irf_path = ""
-						temp.df = NULL
+						temp.DT = NULL
 					}
 				}
 			} else {
 				output$txt_irf_path_expr <- renderText("No IRFinder files found in given path")
 				settings_expr$irf_path = ""
-				temp.df = NULL
+				temp.DT = NULL
 			}
 			
 		# compile experiment df with irfinder paths
-			if(!is.null(temp.df)) {
-					colnames(temp.df)[2] = "irf_file"
-					temp.DT = as.data.table(temp.df)
-				if(!is.null(settings_expr$DT)) {
+			if(!is.null(temp.DT)) {
+					colnames(temp.DT)[2] = "irf_file"
+				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
-					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
-					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
 				} else {
 			# start anew
-					settings_expr$DT = data.table(sample = temp.df$sample,
+					DT = data.table(sample = temp.DT$sample,
 						bam_file = "", irf_file = "", collated_file = "")
-					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
-				}			
+					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+				}
+        settings_expr$df = as.data.frame(DT)        
 			}
 		})
 		
 
     output$newcol_expr <- renderUI({
-      textInput("newcolumnname_expr", "Name", sprintf("newcol%s", 1+ncol(settings_expr$DT)))
+      textInput("newcolumnname_expr", "Name", sprintf("newcol%s", 1+ncol(settings_expr$df)))
     })
  		# Add column
 		observeEvent(input$addcolumn_expr, {
-      DT <- isolate(settings_expr$DT)
-      newcolumn <- eval(parse(text=sprintf('%s(nrow(DT))', isolate(input$type_newcol_expr))))
-      settings_expr$DT <- setNames(cbind(DT, newcolumn, stringsAsFactors=FALSE), 
-				c(names(DT), isolate(input$newcolumnname_expr)))
+      df <- isolate(settings_expr$df)
+      newcolumn <- eval(parse(text=sprintf('%s(nrow(df))', isolate(input$type_newcol_expr))))
+      settings_expr$df <- setNames(cbind(df, newcolumn, stringsAsFactors=FALSE), 
+				c(names(df), isolate(input$newcolumnname_expr)))
     })
  		# Remove column
 		observeEvent(input$removecolumn_expr, {
-      DT <- isolate(settings_expr$DT)
+      DT <- as.data.table(isolate(settings_expr$df))
 			if(isolate(input$newcolumnname_expr) %in% colnames(DT)) {
         message("removing column")
 				DT[, c(input$newcolumnname_expr) := NULL]
-				settings_expr$DT = DT
+				settings_expr$df = as.data.frame(DT)
 			}
     })	
 # End of server function		
