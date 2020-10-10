@@ -122,11 +122,11 @@ startNxtIRF <- function(offline = FALSE) {
 			),
 		),
 		
-		navbarMenu("Analyze",
+		navbarMenu("Analyze"
 
 		),
 
-		navbarMenu("Display",
+		navbarMenu("Display"
 
 		) # last navbar
 
@@ -147,55 +147,66 @@ startNxtIRF <- function(offline = FALSE) {
 			newref_bl = ""
 		)
 
-    volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+    default_volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+    addit_volume <- reactive({
+      req(input$navSelection)
+      if(input$navSelection == "navRef_New") {
+        req(settings_newref$newref_path)
+        return(c(Ref = settings_newref$newref_path))        
+      } else if(input$navSelection == "navExpr") {
+        req(settings_expr$expr_path)
+        return(c(Ref = settings_expr$expr_path))              
+      }
+    })
+    
 		observe({  
-			shinyDirChoose(input, "dir_reference_path", roots = volumes, session = session)
+			shinyDirChoose(input, "dir_reference_path", roots = c(addit_volume, default_volumes), session = session)
 			output$txt_reference_path <- renderText({
 					validate(need(input$dir_reference_path, "Please select reference path"))
-					settings_newref$newref_path = parseDirPath(volumes, input$dir_reference_path)
+					settings_newref$newref_path = parseDirPath(c(addit_volume, default_volumes), input$dir_reference_path)
 			})
 		})
 		observe({
-			shinyFileChoose(input, "file_genome", roots = c(Ref = settings_newref$newref_path, volumes), 
+			shinyFileChoose(input, "file_genome", roots = c(addit_volume, default_volumes), 
 				session = session, filetypes = c("fa", "fasta", "gz"))
 			if(!is.null(input$file_genome)){
-			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_genome)
+			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_genome)
 			 settings_newref$newref_fasta = as.character(file_selected$datapath)
 			 output$txt_genome <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_gtf", roots = c(Ref = settings_newref$newref_path, volumes), 
+			shinyFileChoose(input, "file_gtf", roots = c(addit_volume, default_volumes), 
 				session = session, filetypes = c("gtf", "gz"))
 			if(!is.null(input$file_gtf)){
-			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_gtf)
+			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_gtf)
 			 settings_newref$newref_gtf = as.character(file_selected$datapath)
 			 output$txt_gtf <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-		shinyFileChoose(input, "file_mappa", roots = c(Ref = settings_newref$newref_path, volumes), 
+		shinyFileChoose(input, "file_mappa", roots = c(addit_volume, default_volumes), 
 			session = session, filetypes = c("txt", "gz"))
 			if(!is.null(input$file_mappa)){
-			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_mappa)
+			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_mappa)
 			 settings_newref$newref_mappa = as.character(file_selected$datapath)
 			 output$txt_mappa <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_NPA", roots = c(Ref = settings_newref$newref_path, volumes), 
+			shinyFileChoose(input, "file_NPA", roots = c(addit_volume, default_volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_NPA)){
-				file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_NPA)
+				file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_NPA)
 				settings_newref$newref_NPA = as.character(file_selected$datapath)
 				output$txt_NPA <- renderText(as.character(file_selected$datapath))
 			}
 		})
 		observe({  
-			shinyFileChoose(input, "file_bl", roots = c(Ref = settings_newref$newref_path, volumes), 
+			shinyFileChoose(input, "file_bl", roots = c(addit_volume, default_volumes), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_bl)){
-			 file_selected<-parseFilePaths(c(Ref = settings_newref$newref_path, volumes), input$file_bl)
+			 file_selected<-parseFilePaths(c(addit_volume, default_volumes), input$file_bl)
 			 settings_newref$newref_bl = as.character(file_selected$datapath)
 			 output$txt_bl <- renderText(as.character(file_selected$datapath))
 			}
@@ -407,11 +418,11 @@ startNxtIRF <- function(offline = FALSE) {
 			loadref_path = "",
 			settings = c()
 		)
-		shinyDirChoose(input, "dir_reference_path_load", roots = volumes, session = session)
+		shinyDirChoose(input, "dir_reference_path_load", roots = c(addit_volume, default_volumes), session = session)
 		observeEvent(input$dir_reference_path_load,{  
 			output$txt_reference_path_load <- renderText({
 					validate(need(input$dir_reference_path_load, "Please select reference path"))
-					settings_loadref$loadref_path = parseDirPath(volumes, input$dir_reference_path_load)
+					settings_loadref$loadref_path = parseDirPath(c(addit_volume, default_volumes), input$dir_reference_path_load)
 			})
     })
 		observeEvent(settings_loadref$loadref_path,{ 
@@ -485,16 +496,18 @@ startNxtIRF <- function(offline = FALSE) {
 			bam_path = "",
 			irf_path = "",
 			collate_path = "",
-			DT = c(),
+			DT = c()
 		)
-		shinyDirChoose(input, "dir_bam_path_load", roots = volumes, session = session)
-		observeEvent(input$dir_bam_path_load,{
+    observe({  
+      shinyDirChoose(input, "dir_bam_path_load", roots = c(addit_volume, default_volumes), session = session)
 			output$txt_bam_path_expr <- renderText({
 					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
-					settings_expr$bam_path = parseDirPath(volumes, input$dir_bam_path_load)
+          settings_expr$expr_path = dirname(parseDirPath(c(addit_volume, default_volumes), input$dir_bam_path_load))
+					settings_expr$bam_path = parseDirPath(c(addit_volume, default_volumes), input$dir_bam_path_load)
 			})
-			settings_expr$expr_path = dirname(settings_expr$bam_path)
-
+    })
+		observeEvent(settings_expr$bam_path,{
+      req(settings_expr$bam_path)
 		# First assume bams are named by subdirectory names
 			temp.df = as.data.table(FindSamples(
 				settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE))
@@ -522,14 +535,14 @@ startNxtIRF <- function(offline = FALSE) {
 			if(!is.null(temp.df)) {
 					colnames(temp.df)[2] = "bam_file"
 					temp.DT = as.data.table(temp.df)
-				if(!is.null(DT)) {
+				if(!is.null(settings_expr$DT)) {
 			# merge with existing dataframe	
 					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
 							fill = TRUE) # Add samples not in original DT
 					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				} else {
 			# start anew
-					DT = data.table(sample = temp.df$sample,
+					settings_expr$DT = data.table(sample = temp.df$sample,
 						bam_file = "", irf_file = "", collated_file = "")
 					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}			
@@ -541,15 +554,17 @@ startNxtIRF <- function(offline = FALSE) {
 				}
 			})
 		})
-		
-		shinyDirChoose(input, "dir_irf_path_load", roots = c(Ref = settings_expr$expr_path, volumes), 
-			session = session)
-		observeEvent(input$dir_irf_path_load,{
-			output$txt_irf_path_expr <- renderText({
-					validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
-					settings_expr$irf_path = parseDirPath(c(Ref = settings_expr$expr_path, volumes), 
-						input$dir_irf_path_load)
-						
+    observe({
+      shinyDirChoose(input, "dir_irf_path_load", roots = c(addit_volume, default_volumes), 
+        session = session)
+      output$txt_irf_path_expr <- renderText({
+          validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
+          settings_expr$irf_path = parseDirPath(c(addit_volume, default_volumes), 
+            input$dir_irf_path_load)
+      })        
+    })
+		observeEvent(settings_expr$irf_path,{
+      req(settings_expr$irf_path)
 				# merge irfinder paths
 			temp.df = as.data.table(FindSamples(
 				settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE))
@@ -577,15 +592,15 @@ startNxtIRF <- function(offline = FALSE) {
 			if(!is.null(temp.df)) {
 					colnames(temp.df)[2] = "irf_file"
 					temp.DT = as.data.table(temp.df)
-				if(!is.null(DT)) {
+				if(!is.null(settings_expr$DT)) {
 			# merge with existing dataframe	
 					settings_expr$DT = rbind(settings_expr$DT, temp.DT[!(sample %in% settings_expr$DT$sample)],
 							fill = TRUE) # Add samples not in original DT
 					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
 				} else {
 			# start anew
-					DT = data.table(sample = temp.df$sample,
-						irf_file = "", irf_file = "", collated_file = "")
+					settings_expr$DT = data.table(sample = temp.df$sample,
+						bam_file = "", irf_file = "", collated_file = "")
 					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
 				}			
 			}
@@ -594,7 +609,6 @@ startNxtIRF <- function(offline = FALSE) {
 				if (!is.null(DF)) {
 					rhandsontable(DF, useTypes = TRUE, stretchH = "all")
 				}
-			})
 			})
 		})
 		
