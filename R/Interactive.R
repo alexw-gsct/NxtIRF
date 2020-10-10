@@ -107,7 +107,7 @@ startNxtIRF <- function(offline = FALSE) {
 					br(),						
 					
 					wellPanel(
-						h3("Add annotation column"),
+						h5("Add annotation column"),
 						uiOutput("newcol_expr"),
 						radioButtons("type_newcol_expr", "Type", c("integer", "double", "character")),
 						actionButton("addcolumn_expr", "Add"), actionButton("removecolumn_expr", "Remove")
@@ -498,6 +498,25 @@ startNxtIRF <- function(offline = FALSE) {
 			collate_path = "",
 			DT = c()
 		)
+		
+		## Handsontable auto-updates settings_expr$DT on user edit
+    observe({
+      if (!is.null(input$hot_expr)) {
+        DT = as.data.table(hot_to_r(input$hot_expr))
+      } else {
+        if (is.null(settings_expr$DT))
+          DT <- DT
+        else
+          DT <- settings_expr$DT
+      }
+      settings_expr$DT <- DT
+    })
+		output$hot_expr <- renderRHandsontable({
+			DF <- as.data.frame(settings_expr$DT)
+			if (!is.null(DF)) {
+				rhandsontable(DF, useTypes = TRUE, stretchH = "all")
+			}
+		})		
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(addit_volume, default_volumes), session = session)
 			output$txt_bam_path_expr <- renderText({
@@ -547,12 +566,12 @@ startNxtIRF <- function(offline = FALSE) {
 					settings_expr$DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}			
 			}
-			output$hot_expr <- renderRHandsontable({
-				DF <- as.data.frame(settings_expr$DT)
-				if (!is.null(DF)) {
-					rhandsontable(DF, useTypes = TRUE, stretchH = "all")
-				}
-			})
+			# output$hot_expr <- renderRHandsontable({
+				# DF <- as.data.frame(settings_expr$DT)
+				# if (!is.null(DF)) {
+					# rhandsontable(DF, useTypes = TRUE, stretchH = "all")
+				# }
+			# })
 		})
     observe({
       shinyDirChoose(input, "dir_irf_path_load", roots = c(addit_volume, default_volumes), 
@@ -604,14 +623,27 @@ startNxtIRF <- function(offline = FALSE) {
 					settings_expr$DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
 				}			
 			}
-			output$hot_expr <- renderRHandsontable({
-				DF <- as.data.frame(settings_expr$DT)
-				if (!is.null(DF)) {
-					rhandsontable(DF, useTypes = TRUE, stretchH = "all")
-				}
-			})
 		})
 		
+
+    output$newcol_expr <- renderUI({
+      textInput("newcolumnname_expr", "Name", sprintf("newcol%s", 1+ncol(settings_expr$DT)))
+    })
+ 		# Add column
+		observeEvent(input$addcolumn_expr, {
+      DT <- isolate(settings_expr$DT)
+      newcolumn <- eval(parse(text=sprintf('%s(nrow(DF))', isolate(input$type_newcol_expr))))
+      settings_expr$DT <- setNames(cbind(DF, newcolumn, stringsAsFactors=FALSE), 
+				c(names(DT), isolate(input$newcolumnname_expr)))
+    })
+ 		# Remove column
+		observeEvent(input$removecolumn_expr, {
+      DT <- isolate(settings_expr$DT)
+			if(isolate(input$newcolumnname_expr) %in% colnames(DT)) {
+				DT[, c(input$newcolumnname_expr) := NULL]
+				settings_expr$DT = DT
+			}
+    })	
 # End of server function		
   }
 
