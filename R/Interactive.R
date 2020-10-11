@@ -168,13 +168,18 @@ startNxtIRF <- function(offline = FALSE) {
 	# tabEvent Observer
 		observeEvent(input$navSelection, {
 			if(input$navSelection == "navRef_New") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
-				updateSelectInput(session = session, inputId = "newrefAH_Species", 
-					choices = c("", sort(unique(ah.filtered$species))))
+				# autopopulate if previous settings detected
+				if(settings_newref$newref_path != "") output$txt_reference_path <- renderText(settings_newref$newref_path)
+				if(input$newrefAH_Species != "") {
+					ah.filtered = ah[ah$dataprovider == "Ensembl"]
+					ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+					ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+					updateSelectInput(session = session, inputId = "newrefAH_Species", 
+						choices = c("", sort(unique(ah.filtered$species))))				
+				} else {
+				}
 			} else if(input$navSelection == "navExpr") {
-				
+
 				output$txt_reference_path <- renderText({
 					validate(
 						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
