@@ -395,19 +395,24 @@ startNxtIRF <- function(offline = FALSE) {
 					args$ah_gtf_tmp = NULL
 				}
 				do.call(BuildReference, args)
+				# If successfully created, load this reference automatically
+				if(file.exists(paste(settings_newref$newref_path, "settings.Rds"))) {
+					settings_loadref$loadref_path = settings_newref$newref_path
+					load_ref()
+				}
 			}
 		})
 		
 		# clearNewRef Button
 		observeEvent(input$clearNewRef, {
-			newref_path = getwd()
-			newref_fasta = ""
-			newref_gtf = ""
-			newref_AH_fasta = ""
-			newref_AH_gtf = ""
-			newref_mappa = ""
-			newref_NPA = ""
-			newref_bl = ""
+			settings_newref$newref_path = getwd()
+			settings_newref$newref_fasta = ""
+			settings_newref$newref_gtf = ""
+			settings_newref$newref_AH_fasta = ""
+			settings_newref$newref_AH_gtf = ""
+			settings_newref$newref_mappa = ""
+			settings_newref$newref_NPA = ""
+			settings_newref$newref_bl = ""
 			output$txt_reference_path <- renderText("Please select reference path")
 			output$txt_genome <- renderText("")
 			output$txt_gtf <- renderText("")
@@ -441,10 +446,8 @@ startNxtIRF <- function(offline = FALSE) {
 					settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
 			})
     })
-		observeEvent(settings_loadref$loadref_path,{ 
-      req(settings_loadref$loadref_path)
-			if(file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
-        settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
+		load_ref = function() {
+			settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
         if("reference_path" %in% names(settings_loadref$settings)) {
           if("ah_genome" %in% names(settings_loadref$settings)) {
             output$loadRef_field1 <- renderText({
@@ -500,7 +503,13 @@ startNxtIRF <- function(offline = FALSE) {
           output$loadRef_field1 <- renderText({
             paste(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"), "not found")
           })
-      }
+      }		
+		}
+		observeEvent(settings_loadref$loadref_path,{ 
+		  req(settings_loadref$loadref_path)
+			if(file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+				load_ref()
+			}
 		})
 		
 # Design Experiment page
