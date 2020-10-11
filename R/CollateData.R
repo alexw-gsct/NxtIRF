@@ -103,9 +103,15 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     }
     irf.common[, start := start + 1]
 
-#   ah_genome = "AH65745"
-    ah = AnnotationHub::AnnotationHub()
-    genome = ah[[ah_genome]]
+		settings = readRDS(paste(reference_path, "settings.Rds", sep="/"))
+		if(settings$ah_genome != "") {
+			ah = AnnotationHub::AnnotationHub()
+			genome = ah[[settings$ah_genome]]			
+		} else {
+			genome = Biostrings::readDNAStringSet(
+				normalizePath(paste(reference_path, basename(fasta), sep="/"))
+			)
+		}
 
     junc.common[, start := start + 1]
     junc.common[strand == ".", strand := "*"]
@@ -129,6 +135,7 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
     junc.common = junc.common[motif_infer_strand == "n", motif_infer_strand := strand]
     junc.common$strand = NULL
     setnames(junc.common, "motif_infer_strand", "strand")
+
 
     # Should splicing across gene groups be allowed? Exclude
     Genes = GenomicRanges::makeGRangesFromDataFrame(

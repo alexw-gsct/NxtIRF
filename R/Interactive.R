@@ -460,17 +460,17 @@ startNxtIRF <- function(offline = FALSE) {
               )
             })
           }
-          if("fasta" %in% names(settings_loadref$settings)) {
+          if("fasta_file" %in% names(settings_loadref$settings)) {
             output$loadRef_field3 <- renderText({
               paste("Genome FASTA file (user):",
-								settings_loadref$settings$fasta
+								settings_loadref$settings$fasta_file
               )
             })					
           }
-          if("gtf" %in% names(settings_loadref$settings)) {
+          if("gtf_file" %in% names(settings_loadref$settings)) {
             output$loadRef_field4 <- renderText({
               paste("Annotation GTF file (user):",
-								settings_loadref$settings$gtf
+								settings_loadref$settings$gtf_file
               )
             })					
           }
@@ -752,7 +752,7 @@ startNxtIRF <- function(offline = FALSE) {
 			is_valid <- function(.) !is.null(.) && . != ""
 			args <- Filter(is_valid, args)
       if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
-      
+				do.call(CollateData, args)
       }
     })
 # End of server function		

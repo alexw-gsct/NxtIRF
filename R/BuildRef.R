@@ -225,6 +225,14 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     } else {
         assertthat::assert_that(file.exists(normalizePath(fasta)),
             msg = paste("Given genome fasta file", normalizePath(fasta), "not found"))
+				# make copy of fasta file into reference directory if this is not the same file
+				if(normalizePath(paste(reference_path, basename(fasta), sep="/")) !=
+					normalizePath(fasta)) {
+					file.copy(from = normalizePath(fasta), 
+						to = normalizePath(paste(reference_path, basename(fasta), sep="/")))
+				}
+				fasta_file = basename(fasta)
+				
         message("Connecting to genome file...", appendLF = F)
         genome = Biostrings::readDNAStringSet(fasta)
         genome_ah = FALSE
@@ -242,6 +250,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
             msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
+				if(normalizePath(paste(reference_path, basename(gtf), sep="/")) !=
+					normalizePath(gtf)) {
+					file.copy(from = normalizePath(gtf), 
+						to = normalizePath(paste(reference_path, basename(gtf), sep="/")))
+				}
+				gtf_file = basename(gtf)
+				
         message("Reading source GTF file...", appendLF = F)
         gtf.gr = rtracklayer::import(gtf, "gtf")
         message("done\n")
@@ -1568,7 +1583,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	message("Reference build finished")
   
   # create settings.csv only after everything is finalised
-	settings.list = list(fasta, gtf, ah_genome, ah_transcriptome,
+	settings.list = list(fasta_file, gtf_file, ah_genome, ah_transcriptome,
 		reference_path, genome_type, nonPolyARef, MappabilityRef, BlacklistRef,
 		FilterIRByProcessedTranscript)
 	saveRDS(settings.list, paste(reference_path, "settings.Rds", sep="/"))
