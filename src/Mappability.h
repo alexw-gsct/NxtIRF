@@ -3,14 +3,10 @@
 #include "FastaReader.h"
 #include "includedefine.h"
 
-char c_complement(char n);
-void reverseit(char arr[]);
-std::string reverse_complement(std::string sequence);
 
 std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned int error_pos,
-                              unsigned int direction, unsigned int error_seed);
+  unsigned int direction, unsigned int error_seed);
 
-//bool checkDNA(const std::string& strand);
 bool checkDNA(char * input_read, unsigned int read_len);
 
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,

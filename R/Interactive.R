@@ -179,10 +179,14 @@ startNxtIRF <- function(offline = FALSE) {
 						choices = c("", sort(unique(ah.filtered$species))))				
 				}
 			} else if(input$navSelection == "navRef_Load") {
-				if(settings_loadref$loadref_path != ""){
-					load_ref()
-					output$txt_reference_path_load <- renderText(settings_loadref$loadref_path)
-				}			
+        if(settings_loadref$loadref_path != "" && 
+          file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+          load_ref()
+        }
+        output$txt_reference_path_load <- renderText({
+            validate(need(settings_loadref$loadref_path, "Please select reference path"))
+            settings_loadref$loadref_path
+        })
 			} else if(input$navSelection == "navExpr") {
 
 				output$txt_reference_path <- renderText({
@@ -452,7 +456,6 @@ startNxtIRF <- function(offline = FALSE) {
 		shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volumes, addit_volume), session = session)
 		observeEvent(input$dir_reference_path_load,{  
 				settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
-			})
     })
 		load_ref = function() {
 			settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
@@ -460,14 +463,16 @@ startNxtIRF <- function(offline = FALSE) {
         if("ah_genome" %in% names(settings_loadref$settings)) {
           output$loadRef_field1 <- renderText({
             paste("AnnotationHub genome:",
-              settings_loadref$settings$ah_genome
+              settings_loadref$settings$ah_genome, "\n",
+              ah$description[which(names(ah) == settings_loadref$settings$ah_genome)]
             )
           })
         }
         if("ah_transcriptome" %in% names(settings_loadref$settings)) {
           output$loadRef_field2 <- renderText({
             paste("AnnotationHub gene annotations:",
-              settings_loadref$settings$ah_transcriptome
+              settings_loadref$settings$ah_transcriptome, "\n",
+              ah$description[which(names(ah) == settings_loadref$settings$ah_transcriptome)]
             )
           })
         }

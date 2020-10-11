@@ -1581,9 +1581,11 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	message("Reference build finished")
   
   # create settings.csv only after everything is finalised
-	settings.list = list(fasta_file, gtf_file, ah_genome, ah_transcriptome,
-		reference_path, genome_type, nonPolyARef, MappabilityRef, BlacklistRef,
-		FilterIRByProcessedTranscript)
+	settings.list = list(fasta_file = fasta_file, gtf_file = gtf_file, 
+    ah_genome = ah_genome, ah_transcriptome = ah_transcriptome,
+		reference_path = reference_path, genome_type = genome_type, 
+    nonPolyARef = nonPolyARef, MappabilityRef = MappabilityRef, BlacklistRef = BlacklistRef,
+		FilterIRByProcessedTranscript = FilterIRByProcessedTranscript)
 	saveRDS(settings.list, paste(reference_path, "settings.Rds", sep="/"))
 	
 }

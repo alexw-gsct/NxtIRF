@@ -1,50 +1,8 @@
 #include "Mappability.h"
 #include <cassert>
 
-char c_complement(char n)
-{   
-  switch(n)
-  {   
-  case 'A':
-    return 'T';
-  case 'T':
-    return 'A';
-  case 'G':
-    return 'C';
-  case 'C':
-    return 'G';
-  }   
-  assert(false);
-  return ' ';
-}
-
-void reverseit(char arr[])
-{
-  int len= strlen(arr) - 1;
-  for(int i=0; i<=len/2; i++)
-  {
-    char temp=arr[i];
-    arr[i]=arr[len-i];
-    arr[len-i]=temp;
-  }
-}
-
-std::string reverse_complement(std::string sequence) {
-  char * buffer = new char[sequence.length() + 1];
-  strcpy(buffer, sequence.c_str());
-  reverseit(buffer);
-  string nucs = string(buffer);
-  delete[] buffer;
-  transform(
-    begin(nucs),
-    end(nucs),
-    begin(nucs),
-    c_complement);
-  return(nucs);
-}
-
 std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned int error_pos,
-                              unsigned int direction, unsigned int error_seed) {
+  unsigned int direction, unsigned int error_seed) {
   
   char * new_read = new char[read_len + 1];
   new_read[read_len] = '\0';
@@ -62,17 +20,20 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
         new_read[read_len - i - 1] = 'C'; break;
       case 'C':
         new_read[read_len - i - 1] = 'G'; break;
+      case 'a':
+        new_read[read_len - i - 1] = 't'; break;
+      case 't':
+        new_read[read_len - i - 1] = 'a'; break;
+      case 'g':
+        new_read[read_len - i - 1] = 'c'; break;
+      case 'c':
+        new_read[read_len - i - 1] = 'g'; break;
       default :
         new_read[read_len - i - 1] = input_read[i];
       }         
     }
   }
-  /*
-  if(direction == 1) {
-    string s_new_read = reverse_complement(string(new_read));
-    memcpy(new_read, s_new_read.c_str(), s_new_read.length());
-  }
-  */
+
   char error_nuc;
   switch(error_seed % 2) {
   case 0:
@@ -85,6 +46,14 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
       error_nuc = 'T'; break;
     case 'T':
       error_nuc = 'C'; break;
+    case 'a':
+      error_nuc = 'g'; break;
+    case 'c':
+      error_nuc = 'a'; break;
+    case 'g':
+      error_nuc = 't'; break;
+    case 't':
+      error_nuc = 'c'; break;
     }
   case 1:
     switch(new_read[error_pos - 1]) {
@@ -96,6 +65,14 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
       error_nuc = 'C'; break;
     case 'T':
       error_nuc = 'A'; break;
+    case 'a':
+      error_nuc = 't'; break;
+    case 'c':
+      error_nuc = 'g'; break;
+    case 'g':
+      error_nuc = 'c'; break;
+    case 't':
+      error_nuc = 'a'; break;
     }    
   case 2:
     switch(new_read[error_pos - 1]) {
@@ -107,6 +84,14 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
       error_nuc = 'A'; break;
     case 'T':
       error_nuc = 'G'; break;
+    case 'a':
+      error_nuc = 'c'; break;
+    case 'c':
+      error_nuc = 't'; break;
+    case 'g':
+      error_nuc = 'a'; break;
+    case 't':
+      error_nuc = 'g'; break;
     }    
   }
   memcpy(&new_read[error_pos - 1], &error_nuc, 1);
@@ -118,24 +103,13 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
 
 bool checkDNA(char * input_read, unsigned int read_len) {
   for(unsigned int i = 0; i < read_len; i++) {
-    if(input_read[i]!='A' && input_read[i]!='T' && input_read[i]!='G' && input_read[i]!='C') {
+    if(input_read[i]!='A' && input_read[i]!='T' && input_read[i]!='G' && input_read[i]!='C' &&
+      input_read[i]!='a' && input_read[i]!='t' && input_read[i]!='g' && input_read[i]!='c') {
       return false;
     }
   }
   return true;
 }
-
-/*
-bool checkDNA(const std::string& strand) {
-  unsigned short size = strand.size();
-  for(unsigned short i=0; i<size; ++i) {
-    if(strand[i]!='A' && strand[i]!='T' && strand[i]!='G' && strand[i]!='C') {
-      return false;
-    }
-  }
-  return true;
-}
-*/
 
 // [[Rcpp::export]]
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
