@@ -67,8 +67,7 @@ startNxtIRF <- function(offline = FALSE) {
 						shinyDirButton("dir_reference_path_load", label = "Choose reference path", title = "Choose reference path"),
 							textOutput("txt_reference_path_load"),
 						br(),
-						actionButton("loadRef", "Load Reference"),
-						actionButton("clearLoadRef", "Clear settings"),
+						actionButton("clearLoadRef", "Clear settings"), # TODO
 						br(),
 						textOutput("loadRef_field1"), br(),
 						textOutput("loadRef_field2"), br(),
@@ -94,7 +93,7 @@ startNxtIRF <- function(offline = FALSE) {
 					br(),
 					
 					shinyDirButton("dir_irf_path_load", 
-						label = "Choose IRFinder output path", title = "Choose IRFinder output path"),					
+						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
 					textOutput("txt_irf_path_expr"),
 					br(),
 					
@@ -102,21 +101,21 @@ startNxtIRF <- function(offline = FALSE) {
 					br(),
 					
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
-						title = "Choose Sample Annotation Table", multiple = FALSE),
-					textOutput("txt_sample_anno_expr"),
+						title = "Choose Sample Annotation Table", multiple = FALSE), # done
+					textOutput("txt_sample_anno_expr"), # done
 					br(),						
 					
 					wellPanel(
 						h5("Add annotation column"),
-						uiOutput("newcol_expr"),
+						uiOutput("newcol_expr"), # done
 						radioButtons("type_newcol_expr", "Type", c("character", "integer", "double")),
-						actionButton("addcolumn_expr", "Add"), 
-						actionButton("removecolumn_expr", "Remove")
+						actionButton("addcolumn_expr", "Add"),  # done
+						actionButton("removecolumn_expr", "Remove") # done
 					),
 
 					shinyDirButton("dir_collate_path_load", 
-						label = "Choose NxtIRF FST output path", title = "Choose NxtIRF FST output path"),
-					textOutput("txt_collate_path_expr"),
+						label = "Choose NxtIRF FST output path", title = "Choose NxtIRF FST output path"), # done
+					textOutput("txt_collate_path_expr"), # done
 					br(),
 					
 					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
@@ -679,7 +678,7 @@ startNxtIRF <- function(offline = FALSE) {
           settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
           settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_collate_path_load)
-      })        
+      })      
     })
 		observeEvent(settings_expr$collate_path,{
       req(settings_expr$collate_path)
@@ -743,6 +742,22 @@ startNxtIRF <- function(offline = FALSE) {
 				settings_expr$df = as.data.frame(DT)
 			}
     })	
+    
+    # Run CollateData()
+    observeEvent(input$run_collate_expr, {
+      req(settings_expr$df)
+      
+			args <- list(
+        Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")])),
+        reference_path = settings_loadref$loadref_path,
+        output_path = settings_expr$collate_path
+      )
+			is_valid <- function(.) !is.null(.) && . != ""
+			args <- Filter(is_valid, args)
+      if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
+      
+      }
+    })
 # End of server function		
   }
 

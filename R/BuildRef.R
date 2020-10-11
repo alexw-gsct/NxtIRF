@@ -1566,6 +1566,10 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         message("Splice Annotations finished\n")
     }
 	message("Reference build finished")
+  
+  # create settings.csv only after everything is finalised
+  
+  
 }
 
 grlGaps<-function(grl) {
