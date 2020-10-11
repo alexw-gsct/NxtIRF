@@ -178,6 +178,11 @@ startNxtIRF <- function(offline = FALSE) {
 						choices = c("", sort(unique(ah.filtered$species))))				
 				} else {
 				}
+			} else if(input$navSelection == "navRef_Load") {
+				if(settings_loadref$loadref_path != ""){
+					load_ref()
+					output$txt_reference_path_load <- renderText(settings_loadref$loadref_path)
+				}			
 			} else if(input$navSelection == "navExpr") {
 
 				output$txt_reference_path <- renderText({
@@ -446,9 +451,7 @@ startNxtIRF <- function(offline = FALSE) {
 		)
 		shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volumes, addit_volume), session = session)
 		observeEvent(input$dir_reference_path_load,{  
-			output$txt_reference_path_load <- renderText({
-					validate(need(input$dir_reference_path_load, "Please select reference path"))
-					settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
+				settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
 			})
     })
 		load_ref = function() {
@@ -504,16 +507,18 @@ startNxtIRF <- function(offline = FALSE) {
           })					
         }
       } else {
-        output$loadRef_field1 <- renderText({
-          paste(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"), "not found")
-        })
+        settings_loadref$loadref_path = ""
       }
 		}
 		observeEvent(settings_loadref$loadref_path,{ 
-		  req(settings_loadref$loadref_path)
-			if(file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+			if(settings_loadref$loadref_path != "" && 
+				file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
 				load_ref()
 			}
+			output$txt_reference_path_load <- renderText({
+					validate(need(settings_loadref$loadref_path, "Please select reference path"))
+					settings_loadref$loadref_path
+			})
 		})
 		
 # Design Experiment page
