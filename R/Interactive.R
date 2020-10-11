@@ -171,12 +171,12 @@ startNxtIRF <- function(offline = FALSE) {
 				# autopopulate if previous settings detected
 				if(settings_newref$newref_path != "") output$txt_reference_path <- renderText(settings_newref$newref_path)
 				if(input$newrefAH_Species != "") {
+				} else {
 					ah.filtered = ah[ah$dataprovider == "Ensembl"]
 					ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
 					ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
 					updateSelectInput(session = session, inputId = "newrefAH_Species", 
 						choices = c("", sort(unique(ah.filtered$species))))				
-				} else {
 				}
 			} else if(input$navSelection == "navExpr") {
 
