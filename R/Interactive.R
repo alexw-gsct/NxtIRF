@@ -156,11 +156,11 @@ startNxtIRF <- function(offline = FALSE) {
     addit_volume <- reactive({
       req(input$navSelection)
       if(input$navSelection == "navRef_New") {
-        req(settings_newref$newref_path)
-        return(c(Ref = settings_newref$newref_path))        
+        # req(settings_newref$newref_path)
+        c(Ref = settings_newref$newref_path)    
       } else if(input$navSelection == "navExpr") {
-        req(settings_expr$expr_path)
-        return(c(Ref = settings_expr$expr_path))              
+        # req(settings_expr$expr_path)
+        c(Ref = settings_expr$expr_path)            
       }
     })
 
@@ -522,38 +522,21 @@ startNxtIRF <- function(offline = FALSE) {
       }
     })
 		output$hot_expr <- renderRHandsontable({
-			if (!is.null(settings_expr$df)) {
+			if (!is.null(settings_expr$df)) {     
 				rhandsontable(settings_expr$df, useTypes = TRUE, stretchH = "all")
 			}
 		})
 		
-		settings_expr$expr_path <- reactive({
-			req(expr_path$df)		# exits if this data frame is empty
-			if(any(!is.null(expr_path$df$bam_file))) {
-				expr_path = tryCatch(
-					dirname(settings_expr$bam_path),
-					error = function(e) "")
-			} else if(any(!is.null(expr_path$df$irf_file))) {
-				expr_path = tryCatch(
-					dirname(settings_expr$irf_path),
-					error = function(e) "")
-			} else if(any(!is.null(expr_path$df$fst_file))) {
-				expr_path = tryCatch(
-					dirname(settings_expr$collate_path),
-					error = function(e) "")			
-			}
-		})
-		
 		observeEvent(settings_expr$expr_path, {
-			req(settings_expr$expr_path)
-			output$txt_reference_path_expr <- renderText{{
-				settings_expr$expr_path
-			}}
+      output$txt_reference_path_expr <- renderText({
+				paste("Root folder:", settings_expr$expr_path)
+			})
 		})
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
 			output$txt_bam_path_expr <- renderText({
 					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
+          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
 					settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
 			})
     })
@@ -604,6 +587,7 @@ startNxtIRF <- function(offline = FALSE) {
         session = session)
       output$txt_irf_path_expr <- renderText({
           validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
+          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load))
           settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_irf_path_load)
       })        
@@ -653,7 +637,7 @@ startNxtIRF <- function(offline = FALSE) {
 
 		# Add annotation to data frame
     observe({
-      shinyDirChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
+      shinyFileChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
         session = session)
       output$txt_sample_anno_expr <- renderText({
           validate(need(input$file_expr_path_load, "Please select file where sample annotations are kept"))
@@ -673,7 +657,7 @@ startNxtIRF <- function(offline = FALSE) {
 				df = settings_expr$df
 				commonNames <- names(temp.df)[which(colnames(temp.df) %in% colnames(df))]
 				commonNames <- commonNames[commonNames != "sample"]
-				dfmerge<- merge(df,temp.df,by="key",all=T)
+				dfmerge<- merge(df,temp.df,by="sample",all=T)
 				for(i in commonNames){
 					left <- paste(i, ".x", sep="")
 					right <- paste(i, ".y", sep="")
@@ -682,7 +666,7 @@ startNxtIRF <- function(offline = FALSE) {
 					colnames(dfmerge)[colnames(dfmerge) == left] <- i
 				}
 			}
-			settings_expr$df = df     
+			settings_expr$df = dfmerge     
 		})
 
     observe({
@@ -690,6 +674,7 @@ startNxtIRF <- function(offline = FALSE) {
         session = session)
       output$txt_collate_path_expr <- renderText({
           validate(need(input$dir_collate_path_load, "Please select path where NxtIRF compiled output should be kept"))
+          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
           settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_collate_path_load)
       })        
