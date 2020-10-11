@@ -443,65 +443,62 @@ startNxtIRF <- function(offline = FALSE) {
     })
 		observeEvent(settings_loadref$loadref_path,{ 
       req(settings_loadref$loadref_path)
-			if(file.exists(paste(settings_loadref$loadref_path, "settings.csv", sep="/"))) {
-        settings_loadref$settings = as.data.frame(fread(
-          paste(settings_loadref$loadref_path, "settings.csv", sep="/"), header = TRUE
-          ))
-        colnames(settings_loadref$settings) = c("fields", "value")
-        if("reference_path" %in% settings_loadref$settings$fields) {
-          if("ah_genome_tmp" %in% settings_loadref$settings$fields) {
+			if(file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+        settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
+        if("reference_path" %in% names(settings_loadref$settings)) {
+          if("ah_genome" %in% names(settings_loadref$settings)) {
             output$loadRef_field1 <- renderText({
-              paste("AnnotationHub genome:\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "ah_genome_tmp")]
+              paste("AnnotationHub genome:",
+								settings_loadref$settings$ah_genome
               )
             })
           }
-          if("ah_gtf_tmp" %in% settings_loadref$settings$fields) {
+          if("ah_transcriptome" %in% names(settings_loadref$settings)) {
             output$loadRef_field2 <- renderText({
-              paste("AnnotationHub gene annotations:\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "ah_gtf_tmp")]
+              paste("AnnotationHub gene annotations:",
+								settings_loadref$settings$ah_transcriptome
               )
             })
           }
-          if("fasta" %in% settings_loadref$settings$fields) {
+          if("fasta" %in% names(settings_loadref$settings)) {
             output$loadRef_field3 <- renderText({
-              paste("Genome FASTA file (user):\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "fasta")]
+              paste("Genome FASTA file (user):",
+								settings_loadref$settings$fasta
               )
             })					
           }
-          if("gtf" %in% settings_loadref$settings$fields) {
+          if("gtf" %in% names(settings_loadref$settings)) {
             output$loadRef_field4 <- renderText({
-              paste("Annotation GTF file (user):\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "gtf")]
+              paste("Annotation GTF file (user):",
+								settings_loadref$settings$gtf
               )
             })					
           }
-          if("MappabilityRef" %in% settings_loadref$settings$fields) {
+          if("MappabilityRef" %in% names(settings_loadref$settings)) {
             output$loadRef_field5 <- renderText({
-              paste("Mappability Exclusions:\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "MappabilityRef")]
+              paste("Mappability Exclusion file:",
+								settings_loadref$settings$MappabilityRef
               )
             })					
           }
-          if("nonPolyARef" %in% settings_loadref$settings$fields) {
+          if("nonPolyARef" %in% names(settings_loadref$settings)) {
             output$loadRef_field6 <- renderText({
-              paste("Non-polyA Ref:\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "nonPolyARef")]
+              paste("Non-PolyA file:",
+								settings_loadref$settings$nonPolyARef
               )
             })					
           }
-          if("BlacklistRef" %in% settings_loadref$settings$fields) {
+          if("BlacklistRef" %in% names(settings_loadref$settings)) {
             output$loadRef_field7 <- renderText({
-              paste("Blacklist file:\n",
-              settings_loadref$settings$value[which(settings_loadref$settings$fields == "BlacklistRef")]
+              paste("Blacklist Exclusion file:",
+								settings_loadref$settings$BlacklistRef
               )
             })					
           }
         }
 			} else {
           output$loadRef_field1 <- renderText({
-            paste(paste(settings_loadref$loadref_path, "settings.csv", sep="/"), "not found")
+            paste(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"), "not found")
           })
       }
 		})

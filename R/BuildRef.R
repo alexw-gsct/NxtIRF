@@ -1568,8 +1568,11 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	message("Reference build finished")
   
   # create settings.csv only after everything is finalised
-  
-  
+	settings.list = list(fasta, gtf, ah_genome, ah_transcriptome,
+		reference_path, genome_type, nonPolyARef, MappabilityRef, BlacklistRef,
+		FilterIRByProcessedTranscript)
+	saveRDS(settings.list, paste(reference_path, "settings.Rds", sep="/"))
+	
 }
 
 grlGaps<-function(grl) {
