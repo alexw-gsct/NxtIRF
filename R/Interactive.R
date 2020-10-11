@@ -85,7 +85,7 @@ startNxtIRF <- function(offline = FALSE) {
 		tabPanel("Experiment", value = "navExpr",
 			fluidRow(
 				column(4,
-					textOutput("txt_reference_path_expr"),
+					textOutput("txt_reference_path_expr"),	# done
 					br(),
 					
 					shinyDirButton("dir_bam_path_load", 
@@ -112,6 +112,11 @@ startNxtIRF <- function(offline = FALSE) {
 						radioButtons("type_newcol_expr", "Type", c("integer", "double", "character")),
 						actionButton("addcolumn_expr", "Add"), actionButton("removecolumn_expr", "Remove")
 					),
+
+					shinyDirButton("dir_collate_path_load", 
+						label = "Choose Collated output path", title = "Choose Compiled output path"),
+					textOutput("txt_collate_path_expr"),
+					br(),
 					
 					actionButton("run_collate_expr", "Compile Experiment"),
 					br(),					
@@ -158,6 +163,25 @@ startNxtIRF <- function(offline = FALSE) {
         return(c(Ref = settings_expr$expr_path))              
       }
     })
+
+	# tabEvent Observer
+		observeEvent(input$navSelection, {
+			if(input$navSelection == "navRef_New") {
+				ah.filtered = ah[ah$dataprovider == "Ensembl"]
+				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+				updateSelectInput(session = session, inputId = "newrefAH_Species", 
+					choices = c("", sort(unique(ah.filtered$species))))
+			} else if(input$navSelection == "navExpr") {
+				
+				output$txt_reference_path <- renderText({
+					validate(
+						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
+					)
+					settings_loadref$loadref_path
+				})
+			}
+		})
     
 		observe({  
 			shinyDirChoose(input, "dir_reference_path", roots = c(default_volumes, addit_volume), session = session)
@@ -228,15 +252,6 @@ startNxtIRF <- function(offline = FALSE) {
 			output$txt_NPA <- renderText(settings_newref$newref_NPA)
 		})
 
-		observeEvent(input$navSelection, {
-			if(input$navSelection == "navRef_New") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
-				updateSelectInput(session = session, inputId = "newrefAH_Species", 
-					choices = c("", sort(unique(ah.filtered$species))))
-			}
-		})
 		observeEvent(input$newrefAH_Species, {
 			if(input$newrefAH_Species != "") {
 				ah.filtered = ah[ah$dataprovider == "Ensembl"]
@@ -495,6 +510,7 @@ startNxtIRF <- function(offline = FALSE) {
 			expr_path = "",
 			bam_path = "",
 			irf_path = "",
+			anno_file = "",
 			collate_path = "",
 			df = c()
 		)
@@ -509,12 +525,35 @@ startNxtIRF <- function(offline = FALSE) {
 			if (!is.null(settings_expr$df)) {
 				rhandsontable(settings_expr$df, useTypes = TRUE, stretchH = "all")
 			}
-		})		
+		})
+		
+		settings_expr$expr_path <- reactive({
+			req(expr_path$df)		# exits if this data frame is empty
+			if(any(!is.null(expr_path$df$bam_file))) {
+				expr_path = tryCatch(
+					dirname(settings_expr$bam_path),
+					error = function(e) "")
+			} else if(any(!is.null(expr_path$df$irf_file))) {
+				expr_path = tryCatch(
+					dirname(settings_expr$irf_path),
+					error = function(e) "")
+			} else if(any(!is.null(expr_path$df$fst_file))) {
+				expr_path = tryCatch(
+					dirname(settings_expr$collate_path),
+					error = function(e) "")			
+			}
+		})
+		
+		observeEvent(settings_expr$expr_path, {
+			req(settings_expr$expr_path)
+			output$txt_reference_path_expr <- renderText{{
+				settings_expr$expr_path
+			}}
+		})
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
 			output$txt_bam_path_expr <- renderText({
 					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
-          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
 					settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
 			})
     })
@@ -545,7 +584,7 @@ startNxtIRF <- function(offline = FALSE) {
 			
 		# compile experiment df with bam paths
 			if(!is.null(temp.DT)) {
-					colnames(temp.DT)[2] = "bam_file"
+				colnames(temp.DT)[2] = "bam_file"
 				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
 					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
@@ -554,7 +593,7 @@ startNxtIRF <- function(offline = FALSE) {
 				} else {
 			# start anew
 					DT = data.table(sample = temp.df$sample,
-						bam_file = "", irf_file = "", collated_file = "")
+						bam_file = "", irf_file = "", fst_file = "")
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}		
         settings_expr$df = as.data.frame(DT)
@@ -601,18 +640,103 @@ startNxtIRF <- function(offline = FALSE) {
 			# merge with existing dataframe	
 					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
-					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				} else {
 			# start anew
 					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", collated_file = "")
-					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new bam paths
+						bam_file = "", irf_file = "", fst_file = "")
+					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				}
         settings_expr$df = as.data.frame(DT)        
 			}
 		})
-		
 
+		# Add annotation to data frame
+    observe({
+      shinyDirChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
+        session = session)
+      output$txt_sample_anno_expr <- renderText({
+          validate(need(input$file_expr_path_load, "Please select file where sample annotations are kept"))
+					file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
+            input$file_expr_path_load)
+					settings_expr$anno_file = as.character(file_selected$datapath)
+      })
+    })
+		observeEvent(settings_expr$anno_file,{
+      req(settings_expr$anno_file)
+			temp.df = tryCatch(as.data.frame(fread(settings_expr$anno_file)),
+				error = function(e) NULL)
+			if(!is.null(temp.df)) {
+				colnames(temp.df)[1] = "sample"
+			}
+			if(!is.null(settings_expr$df) && nrow(temp.df) > 0) {
+				df = settings_expr$df
+				commonNames <- names(temp.df)[which(colnames(temp.df) %in% colnames(df))]
+				commonNames <- commonNames[commonNames != "sample"]
+				dfmerge<- merge(df,temp.df,by="key",all=T)
+				for(i in commonNames){
+					left <- paste(i, ".x", sep="")
+					right <- paste(i, ".y", sep="")
+					dfmerge[is.na(dfmerge[right]),left] <- dfmerge[is.na(dfmerge[right]),right]
+					dfmerge[right]<- NULL
+					colnames(dfmerge)[colnames(dfmerge) == left] <- i
+				}
+			}
+			settings_expr$df = df     
+		})
+
+    observe({
+      shinyDirChoose(input, "dir_collate_path_load", roots = c(default_volumes, addit_volume), 
+        session = session)
+      output$txt_collate_path_expr <- renderText({
+          validate(need(input$dir_collate_path_load, "Please select path where NxtIRF compiled output should be kept"))
+          settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
+            input$dir_collate_path_load)
+      })        
+    })
+		observeEvent(settings_expr$collate_path,{
+      req(settings_expr$collate_path)
+				# merge irfinder paths
+			temp.DT = as.data.table(FindSamples(
+				settings_expr$collate_path, suffix = ".irf.fst", use_subdir = FALSE))
+			if(nrow(temp.DT) > 0) {
+				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+					# Assume output names designate sample names
+				} else {
+					temp.DT = as.data.table(FindSamples(
+						settings_expr$collate_path, suffix = ".irf.fst", use_subdir = TRUE))
+					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+				# Else assume subdirectory names designate sample names					
+					} else {
+						output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
+						settings_expr$collate_path = ""
+						temp.DT = NULL
+					}
+				}
+			} else {
+				output$txt_collate_path_expr <- renderText("No NxtIRF FST files found in given path")
+				settings_expr$collate_path = ""
+				temp.DT = NULL
+			}
+			
+		# compile experiment df with fst paths
+			if(!is.null(temp.DT)) {
+					colnames(temp.DT)[2] = "fst_file"
+				if(!is.null(settings_expr$df)) {
+			# merge with existing dataframe	
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
+							fill = TRUE) # Add samples not in original DT
+					DT[temp.DT, on = "sample", fst_file := i.fst_file] # Update new fst paths
+				} else {
+			# start anew
+					DT = data.table(sample = temp.DT$sample,
+						bam_file = "", irf_file = "", fst_file = "")
+					DT[temp.DT, on = "sample", fst_file := i.fst_file] # Update new fst paths
+				}
+        settings_expr$df = as.data.frame(DT)        
+			}
+		})
+	
     output$newcol_expr <- renderUI({
       textInput("newcolumnname_expr", "Name", sprintf("newcol%s", 1+ncol(settings_expr$df)))
     })
