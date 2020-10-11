@@ -85,11 +85,11 @@ startNxtIRF <- function(offline = FALSE) {
 		tabPanel("Experiment", value = "navExpr",
 			fluidRow(
 				column(4,
-					textOutput("txt_reference_path_expr"),	# done
+					textOutput("txt_reference_path_expr"), # done
 					br(),
 					
 					shinyDirButton("dir_bam_path_load", 
-						label = "Choose BAM path", title = "Choose BAM path"),
+						label = "Choose BAM path", title = "Choose BAM path"), # done
 					textOutput("txt_bam_path_expr"),
 					br(),
 					
@@ -98,7 +98,7 @@ startNxtIRF <- function(offline = FALSE) {
 					textOutput("txt_irf_path_expr"),
 					br(),
 					
-					actionButton("run_irf_expr", "Run IRFinder on selected bam files"),
+					actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
 					br(),
 					
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
@@ -109,17 +109,19 @@ startNxtIRF <- function(offline = FALSE) {
 					wellPanel(
 						h5("Add annotation column"),
 						uiOutput("newcol_expr"),
-						radioButtons("type_newcol_expr", "Type", c("integer", "double", "character")),
-						actionButton("addcolumn_expr", "Add"), actionButton("removecolumn_expr", "Remove")
+						radioButtons("type_newcol_expr", "Type", c("character", "integer", "double")),
+						actionButton("addcolumn_expr", "Add"), 
+						actionButton("removecolumn_expr", "Remove")
 					),
 
 					shinyDirButton("dir_collate_path_load", 
-						label = "Choose Collated output path", title = "Choose Compiled output path"),
+						label = "Choose NxtIRF FST output path", title = "Choose NxtIRF FST output path"),
 					textOutput("txt_collate_path_expr"),
 					br(),
 					
-					actionButton("run_collate_expr", "Compile Experiment"),
+					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
 					br(),					
+					actionButton("save_expr", "Save Experiment"),
 				),
 				column(8,
 					rHandsontableOutput("hot_expr")
