@@ -3,14 +3,19 @@ FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
     assertthat::assert_that(dir.exists(sample_path),
         msg = "Given path does not exist")
     
-    df = data.frame(sample = "", path = list.files(pattern = paste0("\\", suffix, "$"),
-        path = normalizePath(sample_path), full.names = TRUE, recursive = TRUE))
-    if(use_subdir) {
-        df$sample = basename(dirname(df$path))
+    files_found = list.files(pattern = paste0("\\", suffix, "$"),
+        path = normalizePath(sample_path), full.names = TRUE, recursive = TRUE)
+    if(length(files_found) > 0) {
+      df = data.frame(sample = "", path = files_found)
+      if(use_subdir) {
+          df$sample = basename(dirname(df$path))
+      } else {
+          df$sample = sub(suffix,"",basename(df$path))
+      }
+      return(df)
     } else {
-        df$sample = sub(suffix,"",basename(df$path))
+      return(NULL)
     }
-    return(df)
 }
 
 #' Processes data from IRFinder output

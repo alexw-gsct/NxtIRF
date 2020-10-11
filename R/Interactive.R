@@ -98,6 +98,7 @@ startNxtIRF <- function(offline = FALSE) {
 					br(),
 					
 					actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
+					textOutput("txt_run_irf_expr"),
 					br(),
 					
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
@@ -119,7 +120,8 @@ startNxtIRF <- function(offline = FALSE) {
 					br(),
 					
 					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
-					br(),					
+					textOutput("txt_run_col_expr"),
+					br(),
 					actionButton("save_expr", "Save Experiment"),
 				),
 				column(8,
@@ -153,17 +155,18 @@ startNxtIRF <- function(offline = FALSE) {
 			newref_bl = ""
 		)
 
-    default_volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
-    addit_volume <- reactive({
-      req(input$navSelection)
-      if(input$navSelection == "navRef_New") {
+    default_volumes <- c("Working Directory" = getwd(), "Home" = fs::path_home(), getVolumes()())
+    addit_volume = c()
+    # addit_volume <- reactive({
+      # req(input$navSelection)
+      # if(input$navSelection == "navRef_New") {
         # req(settings_newref$newref_path)
-        c(Ref = settings_newref$newref_path)    
-      } else if(input$navSelection == "navExpr") {
+        # c(Ref = settings_newref$newref_path)    
+      # } else if(input$navSelection == "navExpr") {
         # req(settings_expr$expr_path)
-        c(Ref = settings_expr$expr_path)            
-      }
-    })
+        # c(Ref = settings_expr$expr_path)            
+      # }
+    # })
 
 	# tabEvent Observer
 		observeEvent(input$navSelection, {
@@ -455,7 +458,8 @@ startNxtIRF <- function(offline = FALSE) {
 		)
 		shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volumes, addit_volume), session = session)
 		observeEvent(input$dir_reference_path_load,{  
-				settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
+      req(input$dir_reference_path_load)
+      settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
     })
 		load_ref = function() {
 			settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
@@ -464,7 +468,8 @@ startNxtIRF <- function(offline = FALSE) {
           output$loadRef_field1 <- renderText({
             paste("AnnotationHub genome:",
               settings_loadref$settings$ah_genome, "\n",
-              ah$description[which(names(ah) == settings_loadref$settings$ah_genome)]
+              ah$description[which(names(ah) == settings_loadref$settings$ah_genome)], "\n",
+              ah$sourceurl[which(names(ah) == settings_loadref$settings$ah_genome)]
             )
           })
         }
@@ -472,7 +477,8 @@ startNxtIRF <- function(offline = FALSE) {
           output$loadRef_field2 <- renderText({
             paste("AnnotationHub gene annotations:",
               settings_loadref$settings$ah_transcriptome, "\n",
-              ah$description[which(names(ah) == settings_loadref$settings$ah_transcriptome)]
+              ah$description[which(names(ah) == settings_loadref$settings$ah_transcriptome)], "\n",
+              ah$sourceurl[which(names(ah) == settings_loadref$settings$ah_transcriptome)]
             )
           })
         }
@@ -561,12 +567,11 @@ startNxtIRF <- function(offline = FALSE) {
 					settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
 			})
     })
-		observeEvent(settings_expr$bam_path,{
-      req(settings_expr$bam_path)
+    Expr_Load_BAMs = function() {
 		# First assume bams are named by subdirectory names
-			temp.DT = as.data.table(FindSamples(
-				settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE))
-			if(nrow(temp.DT) > 0) {
+			temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
+			if(!is.null(temp.DT)) {
+        temp.DT = as.data.table(temp.DT)
 				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume subdirectory names designate sample names
 				} else {
@@ -601,8 +606,13 @@ startNxtIRF <- function(offline = FALSE) {
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}		
         settings_expr$df = as.data.frame(DT)
-			}
+			}    
+    }
+		observeEvent(settings_expr$bam_path,{
+      req(settings_expr$bam_path)
+      Expr_Load_BAMs()
 		})
+    
     observe({
       shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
         session = session)
@@ -613,12 +623,12 @@ startNxtIRF <- function(offline = FALSE) {
             input$dir_irf_path_load)
       })        
     })
-		observeEvent(settings_expr$irf_path,{
-      req(settings_expr$irf_path)
+    
+    Expr_Load_IRFs = function() {
 				# merge irfinder paths
-			temp.DT = as.data.table(FindSamples(
-				settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE))
-			if(nrow(temp.DT) > 0) {
+			temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
+			if(!is.null(temp.DT)) {
+        temp.DT = as.data.table(temp.DT)
 				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume output names designate sample names
 				} else {
@@ -633,8 +643,6 @@ startNxtIRF <- function(offline = FALSE) {
 					}
 				}
 			} else {
-				output$txt_irf_path_expr <- renderText("No IRFinder files found in given path")
-				settings_expr$irf_path = ""
 				temp.DT = NULL
 			}
 			
@@ -653,7 +661,11 @@ startNxtIRF <- function(offline = FALSE) {
 					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				}
         settings_expr$df = as.data.frame(DT)        
-			}
+			}    
+    }
+		observeEvent(settings_expr$irf_path,{
+      req(settings_expr$irf_path)
+      Expr_Load_IRFs()
 		})
 
 		# Add annotation to data frame
@@ -700,12 +712,11 @@ startNxtIRF <- function(offline = FALSE) {
             input$dir_collate_path_load)
       })      
     })
-		observeEvent(settings_expr$collate_path,{
-      req(settings_expr$collate_path)
-				# merge irfinder paths
-			temp.DT = as.data.table(FindSamples(
-				settings_expr$collate_path, suffix = ".irf.fst", use_subdir = FALSE))
-			if(nrow(temp.DT) > 0) {
+    Expr_Load_FSTs = function() {
+				# merge nxtirf paths
+			temp.DT = FindSamples(settings_expr$collate_path, suffix = ".irf.fst", use_subdir = FALSE)
+			if(!is.null(temp.DT)) {
+        temp.DT = as.data.table(temp.DT)
 				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume output names designate sample names
 				} else {
@@ -720,8 +731,6 @@ startNxtIRF <- function(offline = FALSE) {
 					}
 				}
 			} else {
-				output$txt_collate_path_expr <- renderText("No NxtIRF FST files found in given path")
-				settings_expr$collate_path = ""
 				temp.DT = NULL
 			}
 			
@@ -740,7 +749,11 @@ startNxtIRF <- function(offline = FALSE) {
 					DT[temp.DT, on = "sample", fst_file := i.fst_file] # Update new fst paths
 				}
         settings_expr$df = as.data.frame(DT)        
-			}
+			}    
+    }
+		observeEvent(settings_expr$collate_path,{
+      req(settings_expr$collate_path)
+      Expr_Load_FSTs()
 		})
 	
     output$newcol_expr <- renderUI({
@@ -775,7 +788,14 @@ startNxtIRF <- function(offline = FALSE) {
 			is_valid <- function(.) !is.null(.) && . != ""
 			args <- Filter(is_valid, args)
       if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
+        output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
 				do.call(CollateData, args)
+        Expr_Load_FSTs()
+        output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
+      } else if(!("reference_path" %in% names(args))) {
+        output$txt_run_col_expr <- renderText("Please load a reference before generating NxtIRF FST files")
+      } else if(!("output_path" %in% names(args))) {
+        output$txt_run_col_expr <- renderText("Please select a path to store NxtIRF FST files")      
       }
     })
 # End of server function		
