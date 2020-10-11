@@ -448,62 +448,61 @@ startNxtIRF <- function(offline = FALSE) {
     })
 		load_ref = function() {
 			settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
-        if("reference_path" %in% names(settings_loadref$settings)) {
-          if("ah_genome" %in% names(settings_loadref$settings)) {
-            output$loadRef_field1 <- renderText({
-              paste("AnnotationHub genome:",
-								settings_loadref$settings$ah_genome
-              )
-            })
-          }
-          if("ah_transcriptome" %in% names(settings_loadref$settings)) {
-            output$loadRef_field2 <- renderText({
-              paste("AnnotationHub gene annotations:",
-								settings_loadref$settings$ah_transcriptome
-              )
-            })
-          }
-          if("fasta_file" %in% names(settings_loadref$settings)) {
-            output$loadRef_field3 <- renderText({
-              paste("Genome FASTA file (user):",
-								settings_loadref$settings$fasta_file
-              )
-            })					
-          }
-          if("gtf_file" %in% names(settings_loadref$settings)) {
-            output$loadRef_field4 <- renderText({
-              paste("Annotation GTF file (user):",
-								settings_loadref$settings$gtf_file
-              )
-            })					
-          }
-          if("MappabilityRef" %in% names(settings_loadref$settings)) {
-            output$loadRef_field5 <- renderText({
-              paste("Mappability Exclusion file:",
-								settings_loadref$settings$MappabilityRef
-              )
-            })					
-          }
-          if("nonPolyARef" %in% names(settings_loadref$settings)) {
-            output$loadRef_field6 <- renderText({
-              paste("Non-PolyA file:",
-								settings_loadref$settings$nonPolyARef
-              )
-            })					
-          }
-          if("BlacklistRef" %in% names(settings_loadref$settings)) {
-            output$loadRef_field7 <- renderText({
-              paste("Blacklist Exclusion file:",
-								settings_loadref$settings$BlacklistRef
-              )
-            })					
-          }
-        }
-			} else {
+      if("reference_path" %in% names(settings_loadref$settings)) {
+        if("ah_genome" %in% names(settings_loadref$settings)) {
           output$loadRef_field1 <- renderText({
-            paste(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"), "not found")
+            paste("AnnotationHub genome:",
+              settings_loadref$settings$ah_genome
+            )
           })
-      }		
+        }
+        if("ah_transcriptome" %in% names(settings_loadref$settings)) {
+          output$loadRef_field2 <- renderText({
+            paste("AnnotationHub gene annotations:",
+              settings_loadref$settings$ah_transcriptome
+            )
+          })
+        }
+        if("fasta_file" %in% names(settings_loadref$settings)) {
+          output$loadRef_field3 <- renderText({
+            paste("Genome FASTA file (user):",
+              settings_loadref$settings$fasta_file
+            )
+          })					
+        }
+        if("gtf_file" %in% names(settings_loadref$settings)) {
+          output$loadRef_field4 <- renderText({
+            paste("Annotation GTF file (user):",
+              settings_loadref$settings$gtf_file
+            )
+          })					
+        }
+        if("MappabilityRef" %in% names(settings_loadref$settings)) {
+          output$loadRef_field5 <- renderText({
+            paste("Mappability Exclusion file:",
+              settings_loadref$settings$MappabilityRef
+            )
+          })					
+        }
+        if("nonPolyARef" %in% names(settings_loadref$settings)) {
+          output$loadRef_field6 <- renderText({
+            paste("Non-PolyA file:",
+              settings_loadref$settings$nonPolyARef
+            )
+          })					
+        }
+        if("BlacklistRef" %in% names(settings_loadref$settings)) {
+          output$loadRef_field7 <- renderText({
+            paste("Blacklist Exclusion file:",
+              settings_loadref$settings$BlacklistRef
+            )
+          })					
+        }
+      } else {
+        output$loadRef_field1 <- renderText({
+          paste(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"), "not found")
+        })
+      }
 		}
 		observeEvent(settings_loadref$loadref_path,{ 
 		  req(settings_loadref$loadref_path)

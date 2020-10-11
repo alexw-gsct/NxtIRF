@@ -222,6 +222,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         genome = FetchAHCache(ah_genome, "2bit", reference_path)
         genome_ah = TRUE
         message("done\n")
+        fasta_file = ""
     } else {
         assertthat::assert_that(file.exists(normalizePath(fasta)),
             msg = paste("Given genome fasta file", normalizePath(fasta), "not found"))
@@ -241,12 +242,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(ah_transcriptome != "") {
         assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-            # gtf_file = FetchAnnotation(ah_transcriptome = ah_transcriptome, reference_path = reference_path)
-            # assertthat::assert_that(length(gtf_file) > 0 && nchar(gtf_file) > 4 && substr(gtf_file, nchar(gtf_file) - 3, nchar(gtf_file)) == ".gtf",
-                # msg = "Failed to source transcriptome resource from AnnotationHub")
-            # gtf.gr = rtracklayer::import(gtf_file)
-            gtf.gr = FetchAHCache(ah_transcriptome, "gtf", reference_path)
-            message("done\n")
+        gtf.gr = FetchAHCache(ah_transcriptome, "gtf", reference_path)
+        message("done\n")
+        gtf_file = ""
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
             msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
