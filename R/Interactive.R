@@ -12,8 +12,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		ns <- NS(id)
 		tagList(
 			h4(label),	# e.g. "Filter #1"
-			selectInput(ns("filterClass"), "Filter Class", choices = c("", "Annotation", "Data")),
-			selectInput(ns("filterType"), "Filter Type", choices = c("")),
+			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("", "Annotation", "Data")),
+			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("")),
 			uiOutput("filterOptions")
 		)
 	}
@@ -276,12 +276,23 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			tabPanel("Calculate PSIs", value = "navPSI",
 		# Takes experimental data frame, sets filters, then constructs SummarizedExperiment object
 				# Current Experiment
-				textOutput("current_expr_PSI"),
-				br(),
-				filterModule_UI("filter1", "Filter #1"),
-				filterModule_UI("filter2", "Filter #2"),
-				filterModule_UI("filter3", "Filter #3"),
-				filterModule_UI("filter4", "Filter #4"),
+			fluidRow(
+					column(4,	
+						textOutput("current_expr_PSI"),
+						br(),
+						filterModule_UI("filter1", "Filter #1"),
+						filterModule_UI("filter2", "Filter #2"),
+						filterModule_UI("filter3", "Filter #3"),
+						filterModule_UI("filter4", "Filter #4")
+					),
+					column(4,	
+						textOutput("current_expr_PSI"),
+						br(),
+						filterModule_UI("filter5", "Filter #5"),
+						filterModule_UI("filter6", "Filter #6"),
+						filterModule_UI("filter7", "Filter #7"),
+						filterModule_UI("filter8", "Filter #8")
+					)
 			),
 			tabPanel("Differential Analysis", value = "navAnalyse")	# DESeq2 or DSS
 
@@ -1053,12 +1064,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			filter1 = NULL,
 			filter2 = NULL,
 			filter3 = NULL,
-			filter4 = NULL
+			filter4 = NULL,
+			filter5 = NULL,
+			filter6 = NULL,
+			filter7 = NULL,
+			filter8 = NULL
 		)	
 		settings_PSI$filter1 <- filterModule_server("filter1")
 		settings_PSI$filter2 <- filterModule_server("filter2")
 		settings_PSI$filter3 <- filterModule_server("filter3")
 		settings_PSI$filter4 <- filterModule_server("filter4")
+		settings_PSI$filter5 <- filterModule_server("filter5")
+		settings_PSI$filter6 <- filterModule_server("filter6")
+		settings_PSI$filter7 <- filterModule_server("filter7")
+		settings_PSI$filter8 <- filterModule_server("filter8")		
 # End of server function		
   }
 
