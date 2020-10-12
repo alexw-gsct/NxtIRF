@@ -255,7 +255,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
     observeEvent(settings_newref$newref_mappa, {
       req(settings_newref$newref_mappa)
-			output$txt_mappa <- renderText(settings_newref$newref_mappa))    
+			output$txt_mappa <- renderText(settings_newref$newref_mappa)
     })
 		observe({  
 			shinyFileChoose(input, "file_NPA", roots = c(default_volumes, addit_volume), 
@@ -279,7 +279,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
     observeEvent(settings_newref$newref_bl, {
       req(settings_newref$newref_bl)
-			output$txt_bl <- renderText(settings_newref$newref_bl))    
+			output$txt_bl <- renderText(settings_newref$newref_bl)
     })
 		observeEvent(input$newref_genome_type, {
 			if(input$newref_genome_type == "hg38") {
