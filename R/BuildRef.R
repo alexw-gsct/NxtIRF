@@ -22,7 +22,7 @@ FetchAHCache <- function(ah_record, filetype, reference_path) {
             if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
               download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
               # GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
-              transcripts.gtf = append(transcripts.gtf, ".gz")
+              transcripts.gtf = paste0(transcripts.gtf, ".gz")
             } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
               download.file(url, destfile = transcripts.gtf)
             } else {

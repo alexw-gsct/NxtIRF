@@ -10,7 +10,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 	filterModule_UI <- function(id, label = "Counter") {
 		ns <- NS(id)
-		tagList(
+		wellPanel(
 			h4(label),	# e.g. "Filter #1"
 			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("", "Annotation", "Data")),
 			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("")),
@@ -48,7 +48,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						})			
 					} else if(input$filterType == "Depth - SpliceOverMax") {
 						output$filterOptions <- renderUI({
-            wellPanel(
+            tagList(
 							sliderInput("d1_1", "Minimum Depth", min = 1, max = 500, value = 10),
 							sliderInput("d1_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
 							sliderInput("d1_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
@@ -56,7 +56,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						})								
 					} else if(input$filterType == "Intron Coverage") {
 						output$filterOptions <- renderUI({
-            wellPanel(
+            tagList(
 							sliderInput("d2_1", "Minimum Coverage", min = 30, max = 100, value = 90),
 							sliderInput("d2_1b", "Depth to impose minimum coverage", min = 1, max = 100, value = 5),
 							sliderInput("d2_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
@@ -65,7 +65,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						})	
 					} else if(input$filterType == "Intron Overhangs") {
 						output$filterOptions <- renderUI({
-            wellPanel(
+            tagList(
 							sliderInput("d3_1", "Minimum Overhang", min = 1, max = 500, value = 10),
 							sliderInput("d3_1b", "Depth to impose minimum overhang", min = 1, max = 100, value = 5),
 							sliderInput("d3_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
@@ -74,7 +74,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						})
 					} else if(input$filterType == "Major Isoform") {
 						output$filterOptions <- renderUI({
-            wellPanel(
+            tagList(
 							sliderInput("d4_1", "Percentage events explained by binary event", min = 20, max = 100, value = 60),
 							sliderInput("d4_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
 							sliderInput("d4_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
@@ -83,7 +83,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						})
 					} else if(input$filterType == "Splice Ratio for SE / MXE") {
 						output$filterOptions <- renderUI({
-            wellPanel(
+            tagList(
 							sliderInput("d5_1", "Minimum ratio between tandem junctions", min = 0, max = 1, value = 0.7),
 							sliderInput("d5_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
 							sliderInput("d5_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
@@ -286,7 +286,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			tabPanel("Calculate PSIs", value = "navPSI",
 		# Takes experimental data frame, sets filters, then constructs SummarizedExperiment object
 				# Current Experiment
-			fluidRow(
+        fluidRow(
 					column(4,	
 						textOutput("current_expr_PSI"),
 						br(),
@@ -296,14 +296,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						filterModule_UI("filter4", "Filter #4")
 					),
 					column(4,	
-						textOutput("current_expr_PSI"),
 						br(),
 						filterModule_UI("filter5", "Filter #5"),
 						filterModule_UI("filter6", "Filter #6"),
 						filterModule_UI("filter7", "Filter #7"),
 						filterModule_UI("filter8", "Filter #8")
 					)
-			),
+        )
+      ),
 			tabPanel("Differential Analysis", value = "navAnalyse")	# DESeq2 or DSS
 
 		),
