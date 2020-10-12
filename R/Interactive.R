@@ -1,6 +1,7 @@
+is_valid <- function(.) !is.null(.) && . != ""
 
 #' @export
-startNxtIRF <- function(offline = FALSE) {
+startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 	assertthat::assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
@@ -60,6 +61,7 @@ startNxtIRF <- function(offline = FALSE) {
 					)
 				)
 			),
+		# Load reference
 			tabPanel("Load", value = "navRef_Load",
 				fluidRow(
 					column(9,
@@ -80,7 +82,7 @@ startNxtIRF <- function(offline = FALSE) {
 				)
 			)
 		),
-		
+		# Experiment
 		tabPanel("Experiment", value = "navExpr",
 			fluidRow(
 				column(4,
@@ -92,13 +94,16 @@ startNxtIRF <- function(offline = FALSE) {
 					textOutput("txt_bam_path_expr"),
 					br(),
 					
+					wellPanel(
+						selectInput('expr_Cores', 'IRFinder Cores', width = '100%',
+							choices = c(1)),					
+						actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
+						textOutput("txt_run_irf_expr")
+					),
+
 					shinyDirButton("dir_irf_path_load", 
 						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
 					textOutput("txt_irf_path_expr"),
-					br(),
-					
-					actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
-					textOutput("txt_run_irf_expr"),
 					br(),
 					
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
@@ -191,7 +196,11 @@ startNxtIRF <- function(offline = FALSE) {
             settings_loadref$loadref_path
         })
 			} else if(input$navSelection == "navExpr") {
-
+				# Determine IRFinder cores
+				n_workers = BPPARAM$workers
+				if(n_workers > parallel::detectCores() - 2) n_workers = parallel::detectCores() - 2
+				updateSelectInput(session = session, inputId = "expr_Cores", 
+					choices = seq_len(n_workers))        				
 				output$txt_reference_path <- renderText({
 					validate(
 						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
@@ -390,7 +399,6 @@ startNxtIRF <- function(offline = FALSE) {
 				genome_type = "other", nonPolyARef = settings_newref$newref_NPA, MappabilityRef = settings_newref$newref_mappa,
 				BlacklistRef = settings_newref$newref_bl)
 
-			is_valid <- function(.) !is.null(.) && . != ""
 			args <- Filter(is_valid, args)
 		
 			if(!("reference_path" %in% names(args))) {
@@ -613,6 +621,33 @@ startNxtIRF <- function(offline = FALSE) {
       Expr_Load_BAMs()
 		})
     
+		# Run IRFinder
+		observeEvent(input$run_irf_expr,{
+			req(settings_expr$df)
+			if(settings_loadref$loadref_path == "") {
+				input$txt_run_irf_expr <- renderText("Please load reference")
+			} else if(settings_expr$irf_path == "") {
+				input$txt_run_irf_expr <- renderText("Please select IRFinder output path")
+			} else if(file.exists(paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"))) {
+				input$txt_run_irf_expr <- renderText("IRFinder.ref.gz not found in given reference path")
+			} else {				
+				df = settings_expr$df
+				bam_to_run = which(is.valid(df$sample) & is.valid(df$bam_file))
+				if(class(BPPARAM)[1] == "SnowParam") {
+					BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+				} else if(class(BPPARAM)[1] == "MulticoreParam") {
+					BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+				} else {
+					BPPARAM_mod = BPPARAM
+				}
+				BiocParallel::bplapply(bam_to_run, function(i, run_IRF, df, reference_file, output_path) {
+					run_IRF(df$bam_file[i], reference_path, paste(output_path, df$sample[i], sep="/"))
+				}, df = df, run_IRF = run_IRFinder, reference_path = paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"),
+					output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
+				Expr_Load_IRFs()
+			}
+		})
+		
     observe({
       shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
         session = session)
@@ -785,7 +820,7 @@ startNxtIRF <- function(offline = FALSE) {
         reference_path = settings_loadref$loadref_path,
         output_path = settings_expr$collate_path
       )
-			is_valid <- function(.) !is.null(.) && . != ""
+
 			args <- Filter(is_valid, args)
       if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
         output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
