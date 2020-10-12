@@ -8,6 +8,132 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
   ah = AnnotationHub::AnnotationHub(localHub = offline)
 
+	filterModule_UI <- function(id, label = "Counter") {
+		ns <- NS(id)
+		tagList(
+			h4(label),	# e.g. "Filter #1"
+			selectInput(ns("filterClass"), "Filter Class", choices = c("", "Annotation", "Data")),
+			selectInput(ns("filterType"), "Filter Type", choices = c("")),
+			uiOutput("filterOptions")
+		)
+	}
+
+	filterModule_server <- function(id) {
+		moduleServer(
+			id,
+			function(input, output, session) {
+			# returns a list of filter options
+				observeEvent(input$filterClass, {
+					if(input$filterClass == "Annotation") {
+						updateSelectInput(session = session, inputId = "filterType", 
+							choices = c("Filter A", "Filter B"))
+					} else if(input$filterClass == "Data") {
+						updateSelectInput(session = session, inputId = "filterType", 
+							choices = c("Depth - SpliceOverMax", "Intron Coverage", "Intron Overhangs", 
+								"Major Isoform", "Splice Ratio for SE / MXE"))
+					} else {
+						updateSelectInput(session = session, inputId = "filterType", 
+							choices = c(""))						
+					}
+				})
+
+				observeEvent(input$filterType, {
+					if(input$filterType == "Filter A") {
+						output$filterOptions <- renderUI({
+							h4("Filter A")
+						})
+					} else if(input$filterType == "Filter B") {
+						output$filterOptions <- renderUI({
+							h4("Filter A")
+						})			
+					} else if(input$filterType == "Depth - SpliceOverMax") {
+						output$filterOptions <- renderUI({
+							sliderInput("d1_1", "Minimum Depth", min = 1, max = 500, value = 10),
+							sliderInput("d1_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							sliderInput("d1_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
+						})								
+					} else if(input$filterType == "Intron Coverage") {
+						output$filterOptions <- renderUI({
+							sliderInput("d2_1", "Minimum Coverage", min = 30, max = 100, value = 90),
+							sliderInput("d2_1b", "Depth to impose minimum coverage", min = 1, max = 100, value = 5),
+							sliderInput("d2_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							sliderInput("d2_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
+						})	
+					} else if(input$filterType == "Intron Overhangs") {
+						output$filterOptions <- renderUI({
+							sliderInput("d3_1", "Minimum Overhang", min = 1, max = 500, value = 10),
+							sliderInput("d3_1b", "Depth to impose minimum overhang", min = 1, max = 100, value = 5),
+							sliderInput("d3_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							sliderInput("d3_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
+						})
+					} else if(input$filterType == "Major Isoform") {
+						output$filterOptions <- renderUI({
+							sliderInput("d4_1", "Percentage events explained by binary event", min = 20, max = 100, value = 60),
+							sliderInput("d4_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
+							sliderInput("d4_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							sliderInput("d4_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
+						})
+					} else if(input$filterType == "Splice Ratio for SE / MXE") {
+						output$filterOptions <- renderUI({
+							sliderInput("d5_1", "Minimum ratio between tandem junctions", min = 0, max = 1, value = 0.7),
+							sliderInput("d5_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
+							sliderInput("d5_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							sliderInput("d5_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
+						})
+					} else {
+						output$filterOptions <- renderUI(NULL)
+					}
+				})
+
+				final <- reactive({
+					if(input$filterType == "Filter A") {
+						list(filterType = "Filter A")
+					} else if(input$filterType == "Filter B") {
+						list(filterType = "Filter B")		
+					} else if(input$filterType == "Depth - SpliceOverMax") {
+						list(
+							filterType = "Depth - SpliceOverMax"
+							d_1 = input$d1_1,
+							d_2 = input$d1_2,
+							d_3 = input$d1_3
+						)
+					} else if(input$filterClass == "Intron Coverage") {
+						list(
+							filterType = "Intron Coverage"
+							d_1 = input$d2_1, d_1b = input$d2_1b,
+							d_2 = input$d2_2,
+							d_3 = input$d2_3
+						)
+					} else if(input$filterClass == "Intron Overhangs") {
+						list(
+							filterType = "Intron Overhangs"
+							d_1 = input$d3_1, d_1b = input$d3_1b,
+							d_2 = input$d3_2,
+							d_3 = input$d3_3
+						)
+					} else if(input$filterClass == "Major Isoform") {
+						list(
+							filterType = "Major Isoform"
+							d_1 = input$d4_1, d_1b = input$d4_1b,
+							d_2 = input$d4_2,
+							d_3 = input$d4_3
+						)
+					} else if(input$filterClass == "Splice Ratio for SE / MXE") {
+						list(
+							filterType = "Splice Ratio"
+							d_1 = input$d5_1, d_1b = input$d5_1b,
+							d_2 = input$d5_2,
+							d_3 = input$d5_3
+						)
+					} else {
+						list(filterType = "NULL")
+					}
+				})
+				return(final)
+			}
+		)
+	}
+
 	ui <- navbarPage("NxtIRF", id = "navSelection",
 # Title Page
 		tabPanel("About", value = "navTitle",
@@ -144,8 +270,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)	# last column
 			),
 		),
-		
-		navbarMenu("Analyze"
+		# Analyze
+		navbarMenu("Analyse"
+			tabPanel("View QC", value = "navQC"),
+			tabPanel("Calculate PSIs", value = "navPSI",
+		# Takes experimental data frame, sets filters, then constructs SummarizedExperiment object
+				# Current Experiment
+				textOutput("current_expr_PSI"),
+				br(),
+				filterModule_UI("filter1", "Filter #1"),
+				filterModule_UI("filter2", "Filter #2"),
+				filterModule_UI("filter3", "Filter #3"),
+				filterModule_UI("filter4", "Filter #4"),
+			),
+			tabPanel("Differential Analysis", value = "navAnalyse")	# DESeq2 or DSS
 
 		),
 
@@ -217,6 +355,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
 					settings_loadref$loadref_path
 				})
+			} else if(input$navSelection == "navPSI") {
+				if(!is.null(settings_expr$df)) {
+					output$current_expr_PSI = renderText("Experiment loaded")
+				} else {
+					output$current_expr_PSI = renderText("Please load experiment first")
+				}
 			}
 		})
     
@@ -904,6 +1048,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       output$txt_run_save_expr <- renderText("")
     })
 
+	# Analyse - Calculate PSIs
+		settings_PSI <- shiny::reactiveValues(
+			filter1 = NULL,
+			filter2 = NULL,
+			filter3 = NULL,
+			filter4 = NULL
+		)	
+		settings_PSI$filter1 <- filterModule_server("filter1")
+		settings_PSI$filter2 <- filterModule_server("filter2")
+		settings_PSI$filter3 <- filterModule_server("filter3")
+		settings_PSI$filter4 <- filterModule_server("filter4")
 # End of server function		
   }
 

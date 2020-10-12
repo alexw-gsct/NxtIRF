@@ -595,7 +595,7 @@ BuildSE = function(output_path, reference_path) {
             on = c("EventName", "EventType"),
             c(files$sample[i]) := 1]
         filter.Cov[splice[EventType %in% c("MXE", "SE") &
-            partic_up / count_JG_up > 0.6 & partic_down / count_JG_down / 0.6],
+            partic_up / count_JG_up > 0.6 & partic_down / count_JG_down > 0.6],
             on = c("EventName", "EventType"),
             c(files$sample[i]) := 1]
         filter.Cov[splice[EventType %in% c("ALE", "A3SS") &
