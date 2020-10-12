@@ -168,31 +168,43 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
     nonPolyAFile = ""
     if(genome_type == "hg38") {
-        nonPolyAFile = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+      nonPolyAFile = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+      MappabilityFile = system.file("extra-input-files/Mappability_Regions_hg38_v94.txt.gz", package = "NxtIRF")
     } else if(genome_type == "hg19")  {
-        nonPolyAFile = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+      nonPolyAFile = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+      MappabilityFile = ""
     } else if(genome_type == "mm10")  {
-        nonPolyAFile = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+      nonPolyAFile = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+      MappabilityFile = ""
     } else if(genome_type == "mm9")  {
-        nonPolyAFile = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+      nonPolyAFile = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+      MappabilityFile = ""
     } else {
+      if(length(nonPolyAFile) > 0 && !(nonPolyAFile %in% c("", " ")) && !file.exists(nonPolyAFile)) {
+          message(paste(nonPolyARef, "not found. Reference generated without non-polyA reference"))
+          nonPolyAFile = ""
+      } else if(length(nonPolyAFile) == 0) {
+          nonPolyAFile = ""    
+      } else if (file.exists(MappabilityRef)) {
         nonPolyAFile = nonPolyARef
-    }
-    if(length(nonPolyAFile) > 0 && !(nonPolyAFile %in% c("", " ")) && !file.exists(nonPolyAFile)) {
-        message(paste(nonPolyARef, "not found. Reference generated without non-polyA reference"))
+      } else {
         nonPolyAFile = ""
-    } else if(length(nonPolyAFile) == 0) {
-        nonPolyAFile = ""    
+      }
+      if (length(MappabilityRef) == 0 || MappabilityRef %in% c("", " ")) {
+          message("Mappability table not provided. IRFinder reference will be generated without mappability exclusion")        
+        MappabilityFile = ""
+      } else if(MappabilityRef != "" & !file.exists(MappabilityRef)) {
+          message(paste(MappabilityRef, "not found. Reference generated without mappability exclusion"))
+        MappabilityFile = ""
+      } else if (file.exists(MappabilityRef)) {
+          MappabilityFile = MappabilityRef
+      } else {
+        MappabilityFile = ""
+      }
     }
+
+
     
-    MappabilityFile = ""
-    if (length(MappabilityRef) == 0 || MappabilityRef %in% c("", " ")) {
-        message("Mappability table not provided. IRFinder reference will be generated without mappability exclusion")        
-    } else if(MappabilityRef != "" & !file.exists(MappabilityRef)) {
-        message(paste(MappabilityRef, "not found. Reference generated without mappability exclusion"))
-    } else if (file.exists(MappabilityRef)) {
-        MappabilityFile = MappabilityRef
-    }
 
     BlacklistFile = ""
     if (length(BlacklistRef) == 0 || BlacklistRef %in% c("", " ")) {

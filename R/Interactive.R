@@ -112,11 +112,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					br(),						
 					
 					wellPanel(
-						h5("Add annotation column"),
 						uiOutput("newcol_expr"), # done
-						radioButtons("type_newcol_expr", "Type", c("character", "integer", "double")),
-						actionButton("addcolumn_expr", "Add"),  # done
-						actionButton("removecolumn_expr", "Remove") # done
+            div(class='row',
+              div(class= "col-sm-6",
+                radioButtons("type_newcol_expr", "Type", c("character", "integer", "double"))
+              ),
+              div(class = "col-sm-6", 
+                actionButton("addcolumn_expr", "Add"),  # done
+                actionButton("removecolumn_expr", "Remove") # done
+              )
+            )
 					),
 
 					shinyDirButton("dir_collate_path_load", 
@@ -125,14 +130,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					br(),
 					
 					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
-					textOutput("txt_run_col_expr"),
-					br(),
-					shinySaveButton("save_expr", "Save Experiment", "Save Experiment as...", 
-						filetype = list(dataframe = "csv"))
-					actionButton("save_expr", "Save Experiment"),
-					textOutput("txt_run_save_expr")
+					textOutput("txt_run_col_expr")
 				),
 				column(8,
+					shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
+						title = "Load Experiment Data Frame", multiple = FALSE), # done
+					shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
+						filetype = list(dataframe = "csv")),
+					actionButton("clear_expr", "Clear Experiment"),
+					textOutput("txt_run_save_expr"),
+          br(),
 					rHandsontableOutput("hot_expr")
 				)	# last column
 			),
@@ -244,42 +251,52 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			if(!is.null(input$file_mappa)){
 			 file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_mappa)
 			 settings_newref$newref_mappa = as.character(file_selected$datapath)
-			 output$txt_mappa <- renderText(as.character(file_selected$datapath))
 			}
 		})
+    observeEvent(settings_newref$newref_mappa, {
+      req(settings_newref$newref_mappa)
+			output$txt_mappa <- renderText(settings_newref$newref_mappa))    
+    })
 		observe({  
 			shinyFileChoose(input, "file_NPA", roots = c(default_volumes, addit_volume), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_NPA)){
 				file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_NPA)
 				settings_newref$newref_NPA = as.character(file_selected$datapath)
-				output$txt_NPA <- renderText(as.character(file_selected$datapath))
 			}
 		})
+    observeEvent(settings_newref$newref_NPA, {
+      req(settings_newref$newref_NPA)
+			output$txt_NPA <- renderText(settings_newref$newref_NPA)    
+    })
 		observe({  
 			shinyFileChoose(input, "file_bl", roots = c(default_volumes, addit_volume), 
 				session = session, filetypes = c("bed", "txt", "gz"))
 			if(!is.null(input$file_bl)){
 			 file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_bl)
 			 settings_newref$newref_bl = as.character(file_selected$datapath)
-			 output$txt_bl <- renderText(as.character(file_selected$datapath))
 			}
 		})
+    observeEvent(settings_newref$newref_bl, {
+      req(settings_newref$newref_bl)
+			output$txt_bl <- renderText(settings_newref$newref_bl))    
+    })
 		observeEvent(input$newref_genome_type, {
 			if(input$newref_genome_type == "hg38") {
 				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+        settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_hg38_v94.txt.gz", package = "NxtIRF")
 			} else if(input$newref_genome_type == "hg19")  {
 				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "mm10")  {
 				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
 			} else if(input$newref_genome_type == "mm9")  {
 				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
-			} else if(input$newref_genome_type == "") {
-				settings_newref$newref_NPA = ""
+			} else if(input$newref_genome_type == "other") {
+        # do nothing. This allows user to first select the default and then change to user-defined files
 			} else {
-
+				settings_newref$newref_NPA = ""
+        settings_newref$newref_mappa = ""
 			}
-			output$txt_NPA <- renderText(settings_newref$newref_NPA)
 		})
 
 		observeEvent(input$newrefAH_Species, {
@@ -562,7 +579,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		output$hot_expr <- renderRHandsontable({
 			if (!is.null(settings_expr$df)) {     
 				rhandsontable(settings_expr$df, useTypes = TRUE, stretchH = "all")
-			}
+			} else {
+        NULL
+      }
 		})
 		
 		observeEvent(settings_expr$expr_path, {
@@ -650,16 +669,19 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				Expr_Load_IRFs()
 			}
 		})
-		
-    observe({
-      shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
-        session = session)
+
+    shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
+      session = session)		
+    observeEvent(input$dir_irf_path_load, {
+      req(input$dir_irf_path_load)
+      settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load)
+    })
+    observeEvent(settings_expr$irf_path, {
       output$txt_irf_path_expr <- renderText({
-          validate(need(input$dir_irf_path_load, "Please select path where IRFinder output should be kept"))
-          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load))
-          settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), 
-            input$dir_irf_path_load)
-      })        
+        validate(need(settings_expr$irf_path, "Please select path where IRFinder output should be kept"))
+        settings_expr$expr_path = dirname(settings_expr$irf_path)
+        settings_expr$irf_path
+      })    
     })
     
     Expr_Load_IRFs = function() {
@@ -707,17 +729,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
 		# Add annotation to data frame
-    observe({
-      shinyFileChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
-        session = session)
-      output$txt_sample_anno_expr <- renderText({
-          validate(need(input$file_expr_path_load, "Please select file where sample annotations are kept"))
-					file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
-            input$file_expr_path_load)
-					settings_expr$anno_file = as.character(file_selected$datapath)
-      })
+    shinyFileChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
+      session = session)
+    observeEvent(input$file_expr_path_load, {
+      req(input$file_expr_path_load)
+      file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
+        input$file_expr_path_load)
+      settings_expr$anno_file = as.character(file_selected$datapath)
     })
+
 		observeEvent(settings_expr$anno_file,{
+      output$txt_sample_anno_expr <- renderText({
+        validate(need(settings_expr$anno_file, "Please select file where sample annotations are kept"))
+        settings_expr$anno_file
+      })    
       req(settings_expr$anno_file)
 			temp.df = tryCatch(as.data.frame(fread(settings_expr$anno_file)),
 				error = function(e) NULL)
@@ -795,7 +820,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 	
     output$newcol_expr <- renderUI({
-      textInput("newcolumnname_expr", "Name", sprintf("newcol%s", 1+ncol(settings_expr$df)))
+      textInput("newcolumnname_expr", "New Column Name", sprintf("newcol%s", 1+ncol(settings_expr$df)))
     })
  		# Add column
 		observeEvent(input$addcolumn_expr, {
@@ -836,12 +861,49 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         output$txt_run_col_expr <- renderText("Please select a path to store NxtIRF FST files")      
       }
     })
-		# Save Experiment
-		shinyFileSave(input, "save_expr", roots = c(default_volumes, addit_volume), session = session)
-    observeEvent(input$save_expr, {
-      req(settings_expr$df)
-			output$txt_run_save_expr <- renderText(parseSavePath(c(default_volumes, addit_volume), input$save_expr))
+		shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+      filetypes = c("csv"))
+    observeEvent(input$loadexpr_expr, {
+      selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
+      req(selectedfile$datapath)
+      df = fread(selectedfile$datapath, na.strings = c("", "NA"))
+      if(all(c("sample", "bam_file", "irf_file", "fst_file") %in% colnames(df))) {
+        if(all(is.na(df$bam_file))) df[, bam_file:=as.character(bam_file)]
+        if(all(is.na(df$irf_file))) df[, irf_file:=as.character(irf_file)]
+        if(all(is.na(df$fst_file))) df[, fst_file:=as.character(fst_file)]
+        settings_expr$df = df
+        output$txt_run_save_expr <- renderText({
+          paste(selectedfile$datapath, "loaded")
+        })
+      } else {
+        output$txt_run_save_expr <- renderText({
+          paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
+        })
+      }
 		})		
+
+		# Save Experiment
+		shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+      filetypes = c("csv"))
+    observeEvent(input$saveexpr_expr, {
+      req(settings_expr$df)
+      selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
+      req(selectedfile$datapath)
+      fwrite(settings_expr$df, selectedfile$datapath)
+			output$txt_run_save_expr <- renderText({
+        paste("Experiment saved to:", selectedfile$datapath)
+      })
+		})		
+    observeEvent(input$clear_expr, {
+			settings_expr$expr_path = ""
+			settings_expr$bam_path = ""
+			settings_expr$irf_path = ""
+			settings_expr$anno_file = ""
+			settings_expr$collate_path = ""
+			settings_expr$df = c()
+      output$txt_run_save_expr <- renderText("")
+    })
+
 # End of server function		
   }
 
