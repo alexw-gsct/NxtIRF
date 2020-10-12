@@ -127,7 +127,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
 					textOutput("txt_run_col_expr"),
 					br(),
+					shinySaveButton("save_expr", "Save Experiment", "Save Experiment as...", 
+						filetype = list(dataframe = "csv"))
 					actionButton("save_expr", "Save Experiment"),
+					textOutput("txt_run_save_expr")
 				),
 				column(8,
 					rHandsontableOutput("hot_expr")
@@ -833,6 +836,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         output$txt_run_col_expr <- renderText("Please select a path to store NxtIRF FST files")      
       }
     })
+		# Save Experiment
+		shinyFileSave(input, "save_expr", roots = c(default_volumes, addit_volume), session = session)
+    observeEvent(input$save_expr, {
+      req(settings_expr$df)
+			output$txt_run_save_expr <- renderText(parseSavePath(c(default_volumes, addit_volume), input$save_expr))
+		})		
 # End of server function		
   }
 
