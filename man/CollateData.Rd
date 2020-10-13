@@ -4,7 +4,7 @@
 \alias{CollateData}
 \title{Processes data from IRFinder output}
 \usage{
-CollateData(Experiment, reference_path, ah_genome, output_path)
+CollateData(Experiment, reference_path, output_path)
 }
 \arguments{
 \item{Experiment:}{A data frame containing the necessary information. The first column is the base name of the sample files. The second column is the sample name. All subsequent columns are assumed to be experimental conditions / annotation data (e.g. gender, age, treatment response, etc)}
