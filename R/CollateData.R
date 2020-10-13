@@ -501,6 +501,49 @@ CollateData <- function(Experiment, reference_path, ah_genome, output_path) {
 }
 
 #' @export
+BuildFilterData = function(Experiment.df) {
+	# Builds all necessary data from fst files in order to decide which events will be filtered by data filters
+	colData = Experiment.df
+	assertthat::assert_that("fst_file" %in% colnames(df),
+		msg = "'fst_file' must be a column in Experiment.df, containing NxtIRF FST main file")
+		
+	colData = colData[grepl("\\.irf.fst$", colData$fst_file),]
+	
+	df = colData
+	
+	df$base_name = grepl("\\.irf.fst$", "", df$fst_file)
+	df$splice_file = paste0(df$base_name, ".splice.fst")
+	
+	# skinny annotation
+	irf.anno.brief = as.data.table(fst::read.fst(df$fst_file[1], c("Name")))
+	setnames(irf.anno.brief, "Name", "EventName")
+	irf.anno.brief[, EventType := "IR"]
+	irf.anno.brief[, EventRegion := paste0(seqnames, ":", start, "-", end, "/", strand)]
+	splice.anno.brief = as.data.table(fst::read.fst(df$splice_file[1], c("EventName", "EventType", "EventRegion")))
+	
+	rowEvent = rbind(irf.anno.brief, splice.anno.brief)
+	
+	# data required:
+		# from IR: TotalDepth ( = SpliceOverMax + IntronDepth), Coverage, Overhang_5p, Overhang_3p
+		# from Splice: corresponding TotalDepth of IR 
+		
+	rowEvent.Depth = copy(rowEvent)
+	
+	for(i in seq_len(nrow(df))) {
+		irf = as.data.table(fst::read.fst(df$fst_file[i]))
+		setnames(irf, "Name", "EventName")
+		irf[, EventType := "IR"]
+		irf[, EventRegion := irf.anno.brief$EventRegion]
+		splice = as.data.table(fst::read.fst(df$splice_file[i]))
+		
+		rowEvent.Depth[, c(df$sample[i]) := 0]
+		rowEvent.Depth[irf, on = "EventName", c(df$sample[i]) := i.SpliceOverMax + i.IntronDepth]
+		rowEvent.Depth[!(EventType %in% c("IR", "MXE")) && Event1b %in% irf.anno.brief$EventRegion,
+			c(df$sample[i]) := ]
+	}
+}
+
+#' @export
 BuildSE = function(output_path, reference_path) {
 
     IR.df = as.data.table(FindSamples(output_path, ".irf.fst"))
