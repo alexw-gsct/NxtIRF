@@ -641,44 +641,44 @@ BuildSE = function(output_path, reference_path) {
             on = c("EventName", "EventType"),
             c(files$sample[i]) := count_Event1a + count_Event1b]
             
-        filter.Depth[, c(files$sample[i]) := 0]
-        filter.Depth[irf[IntronDepth + SpliceOverMax > 20],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Depth[splice[EventType %in% c("MXE", "SE") &
-            count_JG_down > 20 & count_JG_up > 20],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Depth[splice[EventType %in% c("ALE", "A3SS") &
-            count_JG_up > 20],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Depth[splice[EventType %in% c("AFE", "A5SS") &
-            count_JG_down > 20],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
+        # filter.Depth[, c(files$sample[i]) := 0]
+        # filter.Depth[irf[IntronDepth + SpliceOverMax > 20],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Depth[splice[EventType %in% c("MXE", "SE") &
+            # count_JG_down > 20 & count_JG_up > 20],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Depth[splice[EventType %in% c("ALE", "A3SS") &
+            # count_JG_up > 20],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Depth[splice[EventType %in% c("AFE", "A5SS") &
+            # count_JG_down > 20],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
 
-        filter.Cov[, c(files$sample[i]) := 0]
-        filter.Cov[irf[IntronDepth < 10 | Coverage > 0.9],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Cov[splice[EventType %in% c("MXE", "SE") &
-            partic_up / count_JG_up > 0.6 & partic_down / count_JG_down > 0.6],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Cov[splice[EventType %in% c("ALE", "A3SS") &
-            partic_up / count_JG_up > 0.6],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-        filter.Cov[splice[EventType %in% c("AFE", "A5SS") &
-            partic_down / count_JG_down > 0.6],
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := 1]
-                }
+        # filter.Cov[, c(files$sample[i]) := 0]
+        # filter.Cov[irf[IntronDepth < 10 | Coverage > 0.9],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Cov[splice[EventType %in% c("MXE", "SE") &
+            # partic_up / count_JG_up > 0.6 & partic_down / count_JG_down > 0.6],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Cov[splice[EventType %in% c("ALE", "A3SS") &
+            # partic_up / count_JG_up > 0.6],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+        # filter.Cov[splice[EventType %in% c("AFE", "A5SS") &
+            # partic_down / count_JG_down > 0.6],
+            # on = c("EventName", "EventType"),
+            # c(files$sample[i]) := 1]
+                # }
     
     se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
 		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2],
-        filter.Depth = filter.Depth[,-1:-2], filter.Cov = filter.Cov[,-1:-2]
+        # filter.Depth = filter.Depth[,-1:-2], filter.Cov = filter.Cov[,-1:-2]
 	), rowData = rowEvent, colData = files)
     rownames(se) = SummarizedExperiment::rowData(se)$EventName
     
