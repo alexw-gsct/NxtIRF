@@ -142,12 +142,13 @@ CollateData <- function(Experiment, reference_path, output_path) {
     # Exclude non-splice motifs (that are also not annotated - i.e. strand == "*")
     junc.common = junc.common[motif_infer_strand != "n" | strand != "*"]
 
-    # Use motif_infer_strand
-    junc.common = junc.common[motif_infer_strand == "n", motif_infer_strand := strand]
-    junc.common$strand = NULL
-    setnames(junc.common, "motif_infer_strand", "strand")
-
-
+    # Use motif_infer_strand (only for *)
+    # junc.common = junc.common[motif_infer_strand == "n", motif_infer_strand := strand]
+    # junc.common$strand = NULL
+    # setnames(junc.common, "motif_infer_strand", "strand")
+    junc.common[strand == "*", strand := motif_infer_strand]
+    junc.common$motif_infer_strand = NULL
+    
     # Should splicing across gene groups be allowed? Exclude
     Genes = GenomicRanges::makeGRangesFromDataFrame(
         fst::read.fst(paste(reference_path, "fst", "Genes.fst", sep="/"))
@@ -544,6 +545,7 @@ BuildFilterData = function(irf_fst_files, colData) {
   # TODO: Overhang_5p, Overhang_3p
 
 	for(i in seq_len(nrow(df))) {
+    message(paste("Processing sample", i))
     irf = as.data.table(fst::read.fst(df$irf_file[i]))
     setnames(irf, "Name", "EventName")
     splice = as.data.table(fst::read.fst(df$splice_file[i]))
@@ -557,16 +559,114 @@ BuildFilterData = function(irf_fst_files, colData) {
     rowEvent.Coverage[splice, on = "EventName", c(df$sample[i]) := coverage]
 	}
   
-  rownames(colData) = colData$sample
-  rownames(rowData) = rowData$EventName
-  colData$sample = NULL
-  se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
-		Depth = rowEvent.Depth[, -1:-2], Coverage = rowEvent.Coverage[,-1:-2],
-	), rowData = rowEvent, colData = colData)
+  rownames(rowEvent) = rowEvent$EventName
+  
+  se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
+		Depth = rowEvent.Depth[, -1:-3], Coverage = rowEvent.Coverage[,-1:-3]
+	), rowData = rowEvent, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
   rownames(se) = SummarizedExperiment::rowData(se)$EventName
     
   return(se)
+}
 
+
+runFilter <- function(filterClass, filterType, filterVars, filterObject) {
+# Internal function
+  # filterClass: can be one of 'Annotation', 'Data', 'Runtime'
+  # filterType:
+    # - Annotation:
+    # - Data:
+        # - Depth: 1-minimum, 2-minCond, 3-pcTRUE
+        # - Coverage: 1-minimum, 1a-minDepth, 2-minCond, 3-pcTRUE
+    # - Runtime:
+        # - UpDown: compares upstream vs downstream derived PIR/PSI
+  if(filterClass == "Data") {
+    if(filterType == "Depth") {
+      colData = SummarizedExperiment::colData(filterObject)
+      use_cond = ifelse("condition" %in% names(filterVars), TRUE, FALSE)
+      if(use_cond == TRUE) {
+        cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
+        cond_vars = unique(cond_vec)
+      }
+      depth = as.matrix(SummarizedExperiment::assay(filterObject, "Depth"))
+      
+      sum_res = rep(0, nrow(filterObject))
+      if(use_cond == TRUE) {
+        for(cond in cond_vars) {
+          depth.subset = depth[, which(cond_vec == cond)]
+          sum = rowSums(depth.subset > filterVars$minimum)
+          sum_res = sum_res + ifelse(sum * 100 / ncol(depth.subset) >= filterVars$pcTRUE, 1, 0)
+        }
+        n_TRUE = ifelse("minCond" %in% names(filterVars), filterVars$minCond, -1)
+        if(n_TRUE == -1) n_TRUE = length(cond_vars)
+        res = (sum_res >= n_TRUE)
+      } else {
+        sum = rowSums(depth > filterVars$minimum)
+        res = ifelse(sum * 100 / ncol(depth) >= filterVars$pcTRUE, TRUE, FALSE)
+      }
+      if("EventTypes" %in% names(filterVars)) {
+        res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
+      }
+      return(res)
+    } else if(filterType == "Coverage") {
+      colData = SummarizedExperiment::colData(filterObject)
+      use_cond = ifelse("condition" %in% names(filterVars), TRUE, FALSE)
+      if(use_cond == TRUE) {
+        cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
+        cond_vars = unique(cond_vec)
+      }
+      cov = as.matrix(SummarizedExperiment::assay(filterObject, "Coverage"))
+      depth = as.matrix(SummarizedExperiment::assay(filterObject, "Depth"))
+      cov[depth < filterVars$minDepth] = 1    # do not test if depth below threshold
+      
+      sum_res = rep(0, nrow(filterObject))
+      if(use_cond == TRUE) {
+        for(cond in cond_vars) {
+          cov.subset = cov[, which(cond_vec == cond)]
+          sum = rowSums(cov.subset > filterVars$minimum)
+          sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= filterVars$pcTRUE, 1, 0)
+        }
+        n_TRUE = filterVars$minCond
+        if(n_TRUE == -1) n_TRUE = length(cond_vars)
+        res = (sum_res >= n_TRUE)
+      } else {
+        sum = rowSums(cov > filterVars$minimum)
+        res = ifelse(sum * 100 / ncol(cov.subset) >= filterVars$pcTRUE, TRUE, FALSE)
+      }
+      res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
+      return(res)
+    }
+  } else if(filterClass == "Annotation") {
+  
+  } else {
+    # Do nothing for now
+  }
+}
+
+
+greplFilter = function(object, filterList) {
+  # filterList is a list of filters
+  # each filter is a list of variables
+  
+  assertthat::assert_that(is(object, "SummarizedExperiment"),
+    msg = "object must be a SummarizedExperiment object returned using BuildFilterData()")
+  
+  keepEvent = rep(TRUE, nrow(object))
+  
+  if("filterClass" %in% names(filterList)) {
+    # Treat as a single filter
+    keepEvent = keepEvent & runFilter(filterList$filterClass, filterList$filterType,
+      filterList$filterVars, object)
+  } else {  
+    # Treat as multiple filters
+    for(fil in filterList) {
+      if("filterClass" %in% names(fil)) {
+      keepEvent = keepEvent & runFilter(fil$filterClass, fil$filterType,
+        fil$filterVars, object)      
+      }
+    }
+  }
+  return(keepEvent)
 }
 
 #' @export
@@ -608,6 +708,7 @@ BuildSE = function(irf_fst_files, colData, IRMode = c("SpliceOverMax", "SpliceMa
 	rowEvent.Down_Exc = rowEvent[EventType %in% c("MXE")]
 
 	for(i in seq_len(nrow(df))) {
+    message(paste("Processing sample", i))
     irf = as.data.table(fst::read.fst(df$irf_file[i]))
     setnames(irf, "Name", "EventName")
     splice = as.data.table(fst::read.fst(df$splice_file[i]))
@@ -615,9 +716,9 @@ BuildSE = function(irf_fst_files, colData, IRMode = c("SpliceOverMax", "SpliceMa
     rowEvent.Included[, c(df$sample[i]) := 0]
     rowEvent.Included[irf, on = "EventName", c(df$sample[i]) := IntronDepth]
     rowEvent.Included[splice[EventType %in% c("SE", "MXE")], 
-			on = "EventName", c(df$sample[i]) := (Event1a + Event2a) / 2]
+			on = "EventName", c(df$sample[i]) := (count_Event1a + count_Event2a) / 2]
     rowEvent.Included[splice[!(EventType %in% c("SE", "MXE"))], 
-			on = "EventName", c(df$sample[i]) := Event1a]
+			on = "EventName", c(df$sample[i]) := count_Event1a]
 			
     rowEvent.Excluded[, c(df$sample[i]) := 0]
 		if(IRMode == "SpliceOverMax") {
@@ -626,37 +727,47 @@ BuildSE = function(irf_fst_files, colData, IRMode = c("SpliceOverMax", "SpliceMa
 			rowEvent.Excluded[irf, on = "EventName", c(df$sample[i]) := SpliceMax]				
 		}
     rowEvent.Excluded[splice[EventType %in% c("MXE")], 
-			on = "EventName", c(df$sample[i]) := (Event1b + Event2b) / 2]
+			on = "EventName", c(df$sample[i]) := (count_Event1b + count_Event2b) / 2]
     rowEvent.Excluded[splice[!(EventType %in% c("MXE"))], 
-			on = "EventName", c(df$sample[i]) := Event1b]
+			on = "EventName", c(df$sample[i]) := count_Event1b]
 		
 		# Validity checking for IR, MXE, SE
     rowEvent.Up_Inc[, c(df$sample[i]) := 0]
     rowEvent.Up_Inc[irf[strand == "+"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsLeft]
     rowEvent.Up_Inc[irf[strand == "-"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsRight]
-    rowEvent.Up_Inc[splice, on = "EventName", c(df$sample[i]) := Event1a]
+    rowEvent.Up_Inc[splice, on = "EventName", c(df$sample[i]) := count_Event1a]
 
     rowEvent.Down_Inc[, c(df$sample[i]) := 0]
     rowEvent.Down_Inc[irf[strand == "+"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsRight]
     rowEvent.Down_Inc[irf[strand == "-"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsLeft]
-    rowEvent.Down_Inc[splice, on = "EventName", c(df$sample[i]) := Event2a]
+    rowEvent.Down_Inc[splice, on = "EventName", c(df$sample[i]) := count_Event2a]
 		
-    rowEvent.Up_Exc[splice, on = "EventName", c(df$sample[i]) := Event2a]
-		rowEvent.Down_Exc[splice, on = "EventName", c(df$sample[i]) := Event2b]
+    rowEvent.Up_Exc[splice, on = "EventName", c(df$sample[i]) := count_Event2a]
+		rowEvent.Down_Exc[splice, on = "EventName", c(df$sample[i]) := count_Event2b]
 	}
   
-  rownames(colData) = colData$sample
+  # rownames(colData) = colData$sample
   rownames(rowData) = rowData$EventName
-  colData$sample = NULL
-  se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
-		Included = rowEvent.Included[, -1:-2], Excluded = rowEvent.Excluded[,-1:-2],
-	), rowData = rowEvent, colData = colData)
+  # colData$sample = NULL
+  Included = as.matrix(round(rowEvent.Included[, -1:-3]))
+  Excluded = as.matrix(round(rowEvent.Excluded[, -1:-3]))
+  mode(Included) <- "integer"
+  mode(Excluded) <- "integer"
+  
+  se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
+		Included = Included, Excluded = Excluded),
+    rowData = rowEvent, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
   rownames(se) = SummarizedExperiment::rowData(se)$EventName
   
-	SummarizedExperiment::metadata(se)$Up_Inc = rowEvent.Up_Inc
-	SummarizedExperiment::metadata(se)$Down_Inc = rowEvent.Down_Inc
-	SummarizedExperiment::metadata(se)$Up_Exc = rowEvent.Up_Exc
-	SummarizedExperiment::metadata(se)$Down_Exc = rowEvent.Down_Exc
+	S4Vectors::metadata(se)$Up_Inc = as.matrix(round(rowEvent.Up_Inc[, -1:-3]))
+	S4Vectors::metadata(se)$Down_Inc = as.matrix(round(rowEvent.Down_Inc[, -1:-3]))
+	S4Vectors::metadata(se)$Up_Exc = as.matrix(round(rowEvent.Up_Exc[, -1:-3]))
+	S4Vectors::metadata(se)$Down_Exc = as.matrix(round(rowEvent.Down_Exc[, -1:-3]))
+	
+  mode(S4Vectors::metadata(se)$Up_Inc) <- "integer"
+	mode(S4Vectors::metadata(se)$Down_Inc) <- "integer"
+	mode(S4Vectors::metadata(se)$Up_Exc) <- "integer"
+	mode(S4Vectors::metadata(se)$Down_Exc) <- "integer"
 	
   return(se)
 }
