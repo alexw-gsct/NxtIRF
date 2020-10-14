@@ -815,7 +815,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				output$txt_run_irf_expr <- renderText("Please load reference")
 			} else if(settings_expr$irf_path == "") {
 				output$txt_run_irf_expr <- renderText("Please select IRFinder output path")
-			} else if(file.exists(paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"))) {
+			} else if(!file.exists(paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"))) {
 				output$txt_run_irf_expr <- renderText("IRFinder.ref.gz not found in given reference path")
 			} else {				
 				df = settings_expr$df
