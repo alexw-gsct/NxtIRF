@@ -526,6 +526,7 @@ BuildFilterData = function(irf_fst_files, colData) {
 	
   df = data.frame(sample = colData[,1], base_name = gsub("\\.irf.fst$", "", irf_fst_files),
     irf_file = irf_fst_files, stringsAsFactors = FALSE)
+		
   df$splice_file = paste0(df$base_name, ".splice.fst")
 	
 	# skinny annotation
@@ -569,118 +570,98 @@ BuildFilterData = function(irf_fst_files, colData) {
 }
 
 #' @export
-BuildSE = function(output_path, reference_path) {
+BuildSE = function(irf_fst_files, colData, IRMode = c("SpliceOverMax", "SpliceMax")) {
+	# Builds all PSI-related data
+	# Included: matrix for EventA or IR
+	# Excluded: matrix for EventB or Splice(Over)Max
+	# Up_Inc: upstream included event (IR upstream overhang / MXE / SE)
+	# Down_Inc: downstream included event for IR/MXE/SE
+	# Up_Exc, Down_Exc: upstream excluded event (i.e. downstream casette exon) for MXE only
+		
+	assertthat::assert_that(all(grepl("\\.irf.fst$", irf_fst_files)),
+		msg = "irf_fst_files must end in '.irf.fst'")
+	assertthat::assert_that(all(file.exists(irf_fst_files)),
+		msg = "Some IRFinder fst files do not exist")
+	IRMode = match.arg(IRMode)
+	assertthat::assert_that(IRMode != "",
+		msg = "IRMode must be either 'SpliceOverMax' (default) or 'SpliceMax'")
+		
+  df = data.frame(sample = colData[,1], base_name = gsub("\\.irf.fst$", "", irf_fst_files),
+    irf_file = irf_fst_files, stringsAsFactors = FALSE)
+  df$splice_file = paste0(df$base_name, ".splice.fst")
+	# skinny annotation
+	irf.anno.brief = as.data.table(fst::read.fst(df$irf_file[1]))
+	setnames(irf.anno.brief, "Name", "EventName")
+	irf.anno.brief[, EventType := "IR"]
+	irf.anno.brief[, EventRegion := paste0(seqnames, ":", start, "-", end, "/", strand)]
+	irf.anno.brief = irf.anno.brief[, c("EventName", "EventType", "EventRegion")]
+  splice.anno.brief = as.data.table(fst::read.fst(df$splice_file[1], c("EventName", "EventType", "EventRegion")))
+	
+	rowEvent = rbind(irf.anno.brief, splice.anno.brief)
+			
+	rowEvent.Included = copy(rowEvent)
+	rowEvent.Excluded = copy(rowEvent)
+	
+	rowEvent.Up_Inc = rowEvent[EventType %in% c("IR", "MXE", "SE")]
+	rowEvent.Down_Inc = rowEvent[EventType %in% c("IR", "MXE", "SE")]
+	rowEvent.Up_Exc = rowEvent[EventType %in% c("MXE")]		# for IR and SE, this defaults to rowEvent.Excluded
+	rowEvent.Down_Exc = rowEvent[EventType %in% c("MXE")]
 
-    IR.df = as.data.table(FindSamples(output_path, ".irf.fst"))
-    setnames(IR.df, "path", "IR_path")
-    junc.df = as.data.table(FindSamples(output_path, ".junc.fst"))
-    setnames(junc.df, "path", "junc_path")
-    splice.df = as.data.table(FindSamples(output_path, ".splice.fst"))
-    setnames(splice.df, "path", "splice_path")
+	for(i in seq_len(nrow(df))) {
+    irf = as.data.table(fst::read.fst(df$irf_file[i]))
+    setnames(irf, "Name", "EventName")
+    splice = as.data.table(fst::read.fst(df$splice_file[i]))
     
-    files = IR.df[junc.df[splice.df, on = "sample"], on = "sample"]
-    
-    # Load skinny annotation
-    irf.anno = as.data.table(fst::read.fst(files$IR_path[1], 
-        c("Name")))
-    setnames(irf.anno, "Name", "EventName")
-    irf.anno[, EventType := "IR"]
-    splice.anno = as.data.table(fst::read.fst(files$splice_path[1],
-        c("EventName", "EventType")))
-    
-    # Use a common index centered around c("EventName", "EventType")
-    
-    rowEvent = rbind(irf.anno[, c("EventName", "EventType")], splice.anno[, c("EventName", "EventType")])
-    rowEvent.M = copy(rowEvent)
-    rowEvent.Cov = copy(rowEvent)
-    
-    filter.Depth = copy(rowEvent)       # filter for .Cov > 20
-    filter.Cov = copy(rowEvent)         # IR: filter for coverage > 0.9 if .Cov > 10
-                                        # AS: filter for participation > 0.6
-    
-    for(i in seq_len(nrow(files))) {
-        irf = as.data.table(fst::read.fst(files$IR_path[i], c("Name", "IntronDepth", "Coverage", "SpliceOverMax")))
-        setnames(irf, "Name", "EventName")
-        irf[, EventType := "IR"]
-        splice = as.data.table(fst::read.fst(files$splice_path[i], c("EventName", "EventType", 
-            "count_Event1a", "count_Event1b",
-            "count_Event2a", "count_Event2b",
-            "partic_up", "partic_down",
-            "count_JG_up", "count_JG_down")))
+    rowEvent.Included[, c(df$sample[i]) := 0]
+    rowEvent.Included[irf, on = "EventName", c(df$sample[i]) := IntronDepth]
+    rowEvent.Included[splice[EventType %in% c("SE", "MXE")], 
+			on = "EventName", c(df$sample[i]) := (Event1a + Event2a) / 2]
+    rowEvent.Included[splice[!(EventType %in% c("SE", "MXE"))], 
+			on = "EventName", c(df$sample[i]) := Event1a]
+			
+    rowEvent.Excluded[, c(df$sample[i]) := 0]
+		if(IRMode == "SpliceOverMax") {
+			rowEvent.Excluded[irf, on = "EventName", c(df$sample[i]) := SpliceOverMax]		
+		} else {
+			rowEvent.Excluded[irf, on = "EventName", c(df$sample[i]) := SpliceMax]				
+		}
+    rowEvent.Excluded[splice[EventType %in% c("MXE")], 
+			on = "EventName", c(df$sample[i]) := (Event1b + Event2b) / 2]
+    rowEvent.Excluded[splice[!(EventType %in% c("MXE"))], 
+			on = "EventName", c(df$sample[i]) := Event1b]
+		
+		# Validity checking for IR, MXE, SE
+    rowEvent.Up_Inc[, c(df$sample[i]) := 0]
+    rowEvent.Up_Inc[irf[strand == "+"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsLeft]
+    rowEvent.Up_Inc[irf[strand == "-"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsRight]
+    rowEvent.Up_Inc[splice, on = "EventName", c(df$sample[i]) := Event1a]
 
-        rowEvent.M[, c(files$sample[i]) := 0]
-        rowEvent.M[irf[IntronDepth > 0 & IntronDepth < 1 & (Coverage + SpliceOverMax) > 0], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := Coverage]
-        rowEvent.M[irf[IntronDepth >= 1], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := IntronDepth]
-
-        rowEvent.M[splice[EventType %in% c("MXE", "SE")], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := count_Event1a + count_Event2a]
-        rowEvent.M[splice[EventType %in% c("ALE", "AFE", "A3SS", "A5SS")], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := count_Event1a]
-
-        rowEvent.Cov[, c(files$sample[i]) := 0]
-        rowEvent.Cov[irf[IntronDepth > 0 & IntronDepth < 1 & (Coverage + SpliceOverMax) > 0], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := Coverage + SpliceOverMax]
-        rowEvent.Cov[irf[IntronDepth >= 1], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := IntronDepth + SpliceOverMax]
-
-        rowEvent.Cov[splice[EventType %in% c("MXE")], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := count_Event1a + count_Event2a + count_Event1b + count_Event2b]
-        rowEvent.Cov[splice[EventType %in% c("SE")], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := count_Event1a + count_Event2a + 2 * count_Event1b]
-        rowEvent.Cov[splice[EventType %in% c("ALE", "AFE", "A3SS", "A5SS")], 
-            on = c("EventName", "EventType"),
-            c(files$sample[i]) := count_Event1a + count_Event1b]
-            
-        # filter.Depth[, c(files$sample[i]) := 0]
-        # filter.Depth[irf[IntronDepth + SpliceOverMax > 20],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Depth[splice[EventType %in% c("MXE", "SE") &
-            # count_JG_down > 20 & count_JG_up > 20],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Depth[splice[EventType %in% c("ALE", "A3SS") &
-            # count_JG_up > 20],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Depth[splice[EventType %in% c("AFE", "A5SS") &
-            # count_JG_down > 20],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-
-        # filter.Cov[, c(files$sample[i]) := 0]
-        # filter.Cov[irf[IntronDepth < 10 | Coverage > 0.9],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Cov[splice[EventType %in% c("MXE", "SE") &
-            # partic_up / count_JG_up > 0.6 & partic_down / count_JG_down > 0.6],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Cov[splice[EventType %in% c("ALE", "A3SS") &
-            # partic_up / count_JG_up > 0.6],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-        # filter.Cov[splice[EventType %in% c("AFE", "A5SS") &
-            # partic_down / count_JG_down > 0.6],
-            # on = c("EventName", "EventType"),
-            # c(files$sample[i]) := 1]
-                # }
-    
-    se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
-		M = rowEvent.M[, -1:-2], Cov = rowEvent.Cov[,-1:-2],
-        # filter.Depth = filter.Depth[,-1:-2], filter.Cov = filter.Cov[,-1:-2]
-	), rowData = rowEvent, colData = files)
-    rownames(se) = SummarizedExperiment::rowData(se)$EventName
-    
-    se
+    rowEvent.Down_Inc[, c(df$sample[i]) := 0]
+    rowEvent.Down_Inc[irf[strand == "+"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsRight]
+    rowEvent.Down_Inc[irf[strand == "-"], on = "EventName", c(df$sample[i]) := ExonToIntronReadsLeft]
+    rowEvent.Down_Inc[splice, on = "EventName", c(df$sample[i]) := Event2a]
+		
+    rowEvent.Up_Exc[splice, on = "EventName", c(df$sample[i]) := Event2a]
+		rowEvent.Down_Exc[splice, on = "EventName", c(df$sample[i]) := Event2b]
+	}
+  
+  rownames(colData) = colData$sample
+  rownames(rowData) = rowData$EventName
+  colData$sample = NULL
+  se = SummarizedExperiment::SummarizedExperiment(assays = SimpleList(
+		Included = rowEvent.Included[, -1:-2], Excluded = rowEvent.Excluded[,-1:-2],
+	), rowData = rowEvent, colData = colData)
+  rownames(se) = SummarizedExperiment::rowData(se)$EventName
+  
+	SummarizedExperiment::metadata(se)$Up_Inc = rowEvent.Up_Inc
+	SummarizedExperiment::metadata(se)$Down_Inc = rowEvent.Down_Inc
+	SummarizedExperiment::metadata(se)$Up_Exc = rowEvent.Up_Exc
+	SummarizedExperiment::metadata(se)$Down_Exc = rowEvent.Down_Exc
+	
+  return(se)
 }
+
+
+
+
+
