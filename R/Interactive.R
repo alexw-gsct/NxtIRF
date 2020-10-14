@@ -796,7 +796,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				} else {
 			# start anew
-					DT = data.table(sample = temp.df$sample,
+					DT = data.table(sample = temp.DT$sample,
 						bam_file = "", irf_file = "", fst_file = "")
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}		
