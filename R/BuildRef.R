@@ -546,6 +546,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         # "exon_group_stranded_upstream", "exon_group_unstranded_upstream",
         # "exon_group_stranded_downstream", "exon_group_unstranded_downstream")]
     
+    # Annotate protein coding potential, NMD-inducing potential here:
+    Proteins.DT = as.data.table(Proteins)
+    candidate.introns[Proteins.DT, on = c("seqnames", "start", "end", "strand", "transcript_id"), 
+      c("protein_id", "ccds_id") := list(i.protein_id, i.ccds_id)]
+    
     fst::write.fst(candidate.introns, paste(reference_path,"fst","junctions.fst", sep="/"))
 
     message("done\n")
@@ -910,6 +915,26 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         sep="\t", eol = "\n", col.names = F)
     data.table::fwrite(ref.sj, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
+
+# Annotate IR-NMD
+    misc = as.data.table(gtf.misc)
+    start.DT = misc[type == "start_codon"]
+    Exons.tr = as.data.table(Exons)
+    Exons.tr = Exons.tr[transcript_id %in% start.DT$transcript_id]
+    
+    Exons.tr[start.DT, on = c("transcript_id"), 
+      c("sc_start", "sc_end") := list(i.start, i.end)]    
+    Exons.tr[start < sc_start & strand == "+", start := sc_start]
+    Exons.tr[end < sc_start & strand == "+", end := sc_start]
+    Exons.tr[start > sc_end & strand == "-", start := sc_end]
+    Exons.tr[end > sc_end & strand == "-", end := sc_end]
+    Exons.tr = Exons.tr[start < end]
+    
+    protein.introns = candidate.introns[transcript_id %in% Exons.tr$transcript_id]
+
+    NMD.Table = DetermineNMD(Exons.tr, protein.introns, genome, 50)
+    
+    fst::write.fst(NMD.Table, paste(reference_path, "fst", "IR.NMD.fst", sep="/"))
     
 # Annotating Alternative Splicing Events
     # Massive clean-up for memory purposes
@@ -1610,4 +1635,125 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 grlGaps<-function(grl) {
 	GenomicRanges::psetdiff(unlist(range(grl),use.names=TRUE),grl)
 }
+
+DetermineNMD <- function(exon_list, intron_list, genome, bases_to_last_exon_junction = 50) {
+  # transcript_list can be a GRanges, data.frame, or data.table coerce-able to a GRanges object
+  # All members of transcript must have the same transcript-id and must not completely overlap
+  
+  # Also it is presumed the first nucleotide is the beginning of the stop codon
+  
+  assertthat::assert_that(is(exon_list, "GRanges") | is(exon_list, "data.frame") | 
+    is(exon_list, "data.table"), 
+      msg = "exon_list must be a GRanges, data.frame, or data.table coerce-able to a GRanges object")
+
+  assertthat::assert_that(is(exon_list, "GRanges") || 
+    all(c("seqnames", "start", "end", "strand") %in% colnames(exon_list)),
+    msg = "exon_list must be a GRanges, data.frame, or data.table coerce-able to a GRanges object")
+  
+  assertthat::assert_that(is(intron_list, "GRanges") | is(intron_list, "data.frame") | 
+    is(intron_list, "data.table"), 
+      msg = "intron_list must be a GRanges, data.frame, or data.table coerce-able to a GRanges object")
+
+  assertthat::assert_that(is(intron_list, "GRanges") || 
+    all(c("seqnames", "start", "end", "strand") %in% colnames(intron_list)),
+    msg = "intron_list must be a GRanges, data.frame, or data.table coerce-able to a GRanges object")
+  
+  exon.DT = as.data.table(exon_list)
+  intron.DT = as.data.table(intron_list)
+
+  exon.DT = exon.DT[, c("seqnames", "start", "end", "strand", "transcript_id")]
+
+  exon.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(exon.DT))
+  exon.DT[, seq := as.character(BSgenome::getSeq(genome, exon.gr))]
+
+  gc()
+  
+  # Easy bit: test whether spliced transcript is NMD-inducing
+
+  exon.MLE.DT = copy(exon.DT)
+
+  setorder(exon.MLE.DT, start)
+  exon.MLE.DT[, elem_number := data.table::rowid(transcript_id)]
+  exon.MLE.DT[strand == "-", elem_number := max(elem_number) + 1 - elem_number, by = "transcript_id"]
+  exon.MLE.DT[, by = "transcript_id", is_last_elem := (elem_number == max(elem_number))]
+
+  exon.MLE.DT = exon.MLE.DT[is_last_elem == FALSE]
+  
+  # sort by order
+  setorder(exon.MLE.DT, transcript_id, elem_number)
+
+  exon.MLE.DT = exon.MLE.DT[, c("transcript_id", "seq")]
+  # construct sequences:
+  splice = exon.MLE.DT[, lapply(.SD, paste0, collapse = ""), by = "transcript_id"]
+  splice[is.na(rowSums(stringr::str_locate(seq, "N"))),
+    AA := as.character(suppressWarnings(Biostrings::translate(as(seq, "DNAStringSet"))))]
+  
+  # Find nucleotide position of first stop codon
+  splice[, stop_pos := stringr::str_locate(AA, "\\*")[,1] * 3 - 2]
+  splice[, splice_len := nchar(seq)]
+  splice[!is.na(AA), stop_to_EJ := splice_len - stop_pos]
+
+  # Hard bit: test whether IR transcript is NMD-inducing
+
+  intron.DT = intron.DT[, c("seqnames", "start", "end", "strand", "transcript_id", "intron_id")]  
+  final = intron.DT[, c("intron_id", "transcript_id")]
+
+  final[splice, on = "transcript_id", c("splice_stop_pos", "splice_start_to_last_EJ", "splice_stop_to_last_EJ") := 
+    list(i.stop_pos, i.splice_len, i.stop_to_EJ)]
+  
+  i_partition = seq(1, nrow(intron.DT), by = 10000)
+  i_partition = append(i_partition, nrow(intron.DT) + 1)
+  
+  message("Calculating IR-NMD", appendLF = F)
+  for(i in seq_len(length(i_partition) - 1)) {
+    intron.part = intron.DT[seq(i_partition[i], i_partition[i+1] - 1)]
+    intron.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(intron.part))
+    intron.part[, seq := as.character(BSgenome::getSeq(genome, intron.gr))]
+
+    intron.MLE.DT = as.data.table(
+      rbind(
+        as.data.frame(intron.part) %>% dplyr::select("transcript_id", "intron_id",
+          "seqnames", "start", "end", "strand", "seq"),
+        dplyr::left_join(as.data.frame(intron.part) %>% dplyr::select("transcript_id", "intron_id"), 
+          as.data.frame(exon.DT), by = "transcript_id")
+      )
+    )
+
+    # sort
+    setorder(intron.MLE.DT, start)
+    intron.MLE.DT[, elem_number := data.table::rowid(transcript_id)]
+    intron.MLE.DT[strand == "-", elem_number := max(elem_number) + 1 - elem_number, by = "transcript_id"]
+    intron.MLE.DT[, by = "transcript_id", is_last_elem := (elem_number == max(elem_number))]
+
+    intron.MLE.DT = intron.MLE.DT[is_last_elem == FALSE]
+    
+    # sort by order
+    setorder(intron.MLE.DT, transcript_id, elem_number)
+
+    intron.MLE.DT = intron.MLE.DT[, c("intron_id", "seq")]
+
+    IRT = intron.MLE.DT[, lapply(.SD, paste0, collapse = ""), by = "intron_id"]
+    IRT[is.na(rowSums(stringr::str_locate(seq, "N"))),
+      AA := as.character(suppressWarnings(Biostrings::translate(as(seq, "DNAStringSet"))))]
+    
+    # Find nucleotide position of first stop codon
+    IRT[, stop_pos := stringr::str_locate(AA, "\\*")[,1] * 3 - 2]
+    IRT[, IRT_len := nchar(seq)]
+    IRT[!is.na(AA), stop_to_EJ := IRT_len - stop_pos]
+    
+    final[IRT, on = "intron_id", c("IRT_stop_pos", "IRT_start_to_last_EJ", "IRT_stop_to_last_EJ") := 
+      list(i.stop_pos, i.IRT_len, i.stop_to_EJ)]
+    gc()
+  }
+  message("done\n")
+
+  final[, splice_is_NMD := FALSE]
+  final[!is.na(splice_stop_to_last_EJ), splice_is_NMD := splice_stop_to_last_EJ >= bases_to_last_exon_junction]
+  final[, IR_is_NMD := FALSE]
+  final[!is.na(IRT_stop_to_last_EJ), IR_is_NMD := IRT_stop_to_last_EJ >= bases_to_last_exon_junction]  
+  
+  return(final)
+}
+
+
 
