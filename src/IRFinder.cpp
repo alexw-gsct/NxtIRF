@@ -315,9 +315,15 @@ int main(int argc, char * argv[]) {
     } else if(std::string(argv[1]) == "process_mappability_bam") {
         std::string s_bam = argv[2];
         std::string s_output = argv[3];
-		int threshold = atoi(argv[4]);
-        IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
-        exit(0);
+        int threshold = atoi(argv[4]);
+        if(argc == 6) {
+          std::string s_cov = argv[5];
+          IRF_GenerateMappabilityRegions(s_bam, s_output, threshold, s_cov);
+          exit(0);          
+        } else {
+          IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
+          exit(0);
+        }
     } else if(std::string(argv[1]) == "main") {
         std::string s_bam = argv[2];
         std::string s_ref = argv[3];

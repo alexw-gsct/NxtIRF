@@ -28,8 +28,12 @@
                 ${__tool_directory__}/irfinder_galaxy gen_map_reads '$mode_condition.fasta_type.ref' $output3 $mode_condition.read_len $mode_condition.read_stride
             #end if
         #else if str($mode_condition.mode) == "process_mappability_bam":
-			${__tool_directory__}/irfinder_galaxy process_mappability_bam '$mode_condition.input' $output4 $mode_condition.threshold
-		#else if str($mode_condition.mode) == "shuffle_fasta":
+            #if str($mode_condition.includeCov == "yes"):
+                ${__tool_directory__}/irfinder_galaxy process_mappability_bam '$mode_condition.input' $output4 $mode_condition.threshold $output6
+            #else:
+                ${__tool_directory__}/irfinder_galaxy process_mappability_bam '$mode_condition.input' $output4 $mode_condition.threshold
+            #end if
+        #else if str($mode_condition.mode) == "shuffle_fasta":
             cat '$mode_condition.input' | awk '{OFS="\t"; getline seq; print $0,seq}' | shuf | awk '{OFS="\n"; print $1,$2}' > $output5
         #end if
     ]]></command>
@@ -73,6 +77,10 @@
             <when value="process_mappability_bam">
                 <param name="input" type="data" format="bam" label="Mapped Mappability Reads (BAM)" help="An aligned file of mapped Mappability reads" />
                 <param name="threshold" type="integer" value="4" min="0" max="20" label="Threshold read depth for mappability"/>
+                <param name="includeCov" type="select" label="Include Coverage file">
+                  <option value="yes" selected="true">Yes</option>
+                  <option value="no">No</option>
+                </param>
             </when>
 		</conditional>
     </inputs>
@@ -99,6 +107,10 @@
         </data>
         <data name="output5" format="fasta" label="Shuffled Mappability Reads"> 
 			<filter>mode_condition['mode'] == 'shuffle_fasta'</filter>
+        </data>
+        <data name="output6" format="data" label="Mappability Coverage File"> 
+			<filter>mode_condition['mode'] == 'process_mappability_bam'</filter>
+			<filter>mode_condition['includeCov'] == 'yes'</filter>
         </data>
     </outputs>    
     
