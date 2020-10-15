@@ -546,11 +546,6 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         # "exon_group_stranded_upstream", "exon_group_unstranded_upstream",
         # "exon_group_stranded_downstream", "exon_group_unstranded_downstream")]
     
-    # Annotate protein coding potential, NMD-inducing potential here:
-    Proteins.DT = as.data.table(Proteins)
-    candidate.introns[Proteins.DT, on = c("seqnames", "start", "end", "strand", "transcript_id"), 
-      c("protein_id", "ccds_id") := list(i.protein_id, i.ccds_id)]
-    
     fst::write.fst(candidate.introns, paste(reference_path,"fst","junctions.fst", sep="/"))
 
     message("done\n")
