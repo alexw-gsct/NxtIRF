@@ -74,15 +74,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // IRF_GenerateMappabilityRegions
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold);
-RcppExport SEXP _NxtIRF_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP) {
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold, int includeCov);
+RcppExport SEXP _NxtIRF_IRF_GenerateMappabilityRegions(SEXP bam_fileSEXP, SEXP output_fileSEXP, SEXP thresholdSEXP, SEXP includeCovSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type bam_file(bam_fileSEXP);
     Rcpp::traits::input_parameter< std::string >::type output_file(output_fileSEXP);
     Rcpp::traits::input_parameter< int >::type threshold(thresholdSEXP);
-    rcpp_result_gen = Rcpp::wrap(IRF_GenerateMappabilityRegions(bam_file, output_file, threshold));
+    Rcpp::traits::input_parameter< int >::type includeCov(includeCovSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_GenerateMappabilityRegions(bam_file, output_file, threshold, includeCov));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -93,7 +94,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_NxtIRF_IRF_gunzip", (DL_FUNC) &_NxtIRF_IRF_gunzip, 2},
     {"_NxtIRF_IRF_main", (DL_FUNC) &_NxtIRF_IRF_main, 3},
     {"_NxtIRF_IRF_GenerateMappabilityReads", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityReads, 5},
-    {"_NxtIRF_IRF_GenerateMappabilityRegions", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityRegions, 3},
+    {"_NxtIRF_IRF_GenerateMappabilityRegions", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityRegions, 4},
     {NULL, NULL, 0}
 };
 

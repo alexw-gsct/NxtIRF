@@ -174,10 +174,16 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   return(0);
 }
 
+#ifndef GALAXY
 // [[Rcpp::export]]
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold){
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold, int includeCov){
+  
+  std::string s_output_txt = output_file + ".txt";
+  std::string s_output_cov = output_file + ".cov";
+#else
+int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_txt, int threshold, std::string s_output_cov){	
+#endif
   std::string s_inBAM = bam_file;
-  std::string s_outFile = output_file;
   
   FragmentsMap oFragMap;
   
@@ -197,9 +203,24 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file
   BB.processAll(BBreport);
   
   std::ofstream outFragsMap;
-  outFragsMap.open(s_outFile, std::ifstream::out);
+  outFragsMap.open(s_output_txt, std::ifstream::out);
   oFragMap.WriteOutput(&outFragsMap, BB.chr_names, BB.chr_lens, threshold);
   outFragsMap.flush(); outFragsMap.close();
+
+#ifndef GALAXY
+  if(includeCov == 1) {
+#else
+  if(!s_output_cov.empty()) {
+#endif
+    std::ofstream ofCOV;
+    ofCOV.open(s_output_cov, std::ofstream::binary);
+     
+    covFile outCOV;
+    outCOV.SetOutputHandle(&ofCOV);
+    
+    oFragMap.WriteBinary(&outCOV, BB.chr_names, BB.chr_lens);
+    ofCOV.close();    
+  }
   
   return(0);
 }
