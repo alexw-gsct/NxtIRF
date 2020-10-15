@@ -542,8 +542,17 @@ BuildFilterData = function(irf_fst_files, colData) {
 			
 	rowEvent.Depth = copy(rowEvent)
 	rowEvent.Coverage = copy(rowEvent)
-  # TODO: Overhang_5p, Overhang_3p
-
+	rowEvent.minDepth = copy(rowEvent)
+	
+	# for minCov, Coverage uses IntronDepth for IR.
+		# for splicing, we test whether the sum of both EventA+EventB is dominant (e.g. over 60%)
+		#		if the sum of all transcripts mapped i.e. count_JG_(up/down) is low, then coverage is likely 
+		# 	particulate (i.e. unreliable). Hence, use count_JG_(up/down) as minDepth 
+        # splice[EventType %in% c("MXE", "SE") & cov_up < cov_down, coverage := cov_up]
+        # splice[EventType %in% c("MXE", "SE") & cov_up >= cov_down, coverage := cov_down]
+        # splice[EventType %in% c("ALE", "A3SS"), coverage := cov_up]
+        # splice[EventType %in% c("AFE", "A5SS"), coverage := cov_down]		
+				
 	for(i in seq_len(nrow(df))) {
     message(paste("Processing sample", i))
     irf = as.data.table(fst::read.fst(df$irf_file[i]))
@@ -557,13 +566,37 @@ BuildFilterData = function(irf_fst_files, colData) {
     rowEvent.Coverage[, c(df$sample[i]) := 0]
     rowEvent.Coverage[irf, on = "EventName", c(df$sample[i]) := Coverage]
     rowEvent.Coverage[splice, on = "EventName", c(df$sample[i]) := coverage]
+
+    rowEvent.minDepth[, c(df$sample[i]) := 0]
+    rowEvent.minDepth[irf, on = "EventName", c(df$sample[i]) := IntronDepth]
+    rowEvent.minDepth[splice[
+				EventType %in% c("MXE", "SE") & cov_up < cov_down
+			], on = "EventName", c(df$sample[i]) := count_JG_up]
+    rowEvent.minDepth[splice[
+				EventType %in% c("MXE", "SE") & cov_up >= cov_down
+			], on = "EventName", c(df$sample[i]) := count_JG_down]			
+    rowEvent.minDepth[splice[
+				EventType %in% c("ALE", "A3SS")
+			], on = "EventName", c(df$sample[i]) := count_JG_up]
+    rowEvent.minDepth[splice[
+				EventType %in% c("AFE", "A5SS")
+			], on = "EventName", c(df$sample[i]) := count_JG_down]					
+
 	}
   
   rownames(rowEvent) = rowEvent$EventName
+
+  Depth = as.matrix(round(rowEvent.Depth[, -1:-3]))
+  Coverage = as.matrix(round(rowEvent.Coverage[,-1:-3]))
+  minDepth = as.matrix(round(rowEvent.minDepth[, -1:-3]))
+  mode(Depth) <- "integer"
+  mode(Coverage) <- "integer"
+  mode(minDepth) <- "integer"
   
   se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
-		Depth = rowEvent.Depth[, -1:-3], Coverage = rowEvent.Coverage[,-1:-3]
-	), rowData = rowEvent, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
+			Depth = Depth, Coverage = Coverage, minDepth = minDepth
+		), rowData = rowEvent, 
+		colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
   rownames(se) = SummarizedExperiment::rowData(se)$EventName
     
   return(se)
