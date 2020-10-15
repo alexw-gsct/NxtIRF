@@ -582,11 +582,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     exclude.directional.reverse[strand == "P", strand:= "+"]
 
     # mappability = data.table::fread("c:/alex/IRFinder_data/REF/mappa.csv")
-    # TODO: check mappability and blacklist are valid Bed3 formats (chr, start, end)
+    # TODO: check mappability and blacklist are valid Bed3 formats (chr, start, end) Presume 0-based
     if(MappabilityFile != "") {
         mappability = data.table::fread(MappabilityFile)
         mappability = mappability[,1:3]
         colnames(mappability) = c("seqnames", "start", "end")
+        mappability$start = mappability$start + 1         # Presume 0-based as per bed file
         exclude.omnidirectional = GenomicRanges::makeGRangesFromDataFrame(mappability) # + merge with any blacklists
         exclude.omnidirectional = GenomicRanges::reduce(exclude.omnidirectional, min.gapwidth = 9) # merge with any gaps <= 9
         if(BlacklistFile != "") {
@@ -600,6 +601,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         blacklist = data.table::fread(BlacklistFile)
         blacklist = blacklist[,1:3]
         colnames(blacklist) = c("seqnames", "start", "end")
+        blacklist$start = blacklist$start + 1
         exclude.omnidirectional = GenomicRanges::makeGRangesFromDataFrame(blacklist)
     }
 
@@ -829,6 +831,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         nonPolyA = nonPolyA[,1:3]
         colnames(nonPolyA) = c("seqnames", "start", "end")
         nonPolyA$name = with(nonPolyA,paste("NonPolyA", seqnames, start, end, sep="/"))
+        nonPolyA$start = nonPolyA$start + 1   # 0-based conversion
     } else {
         nonPolyA = c()
     }
@@ -855,6 +858,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     }
     ref.ROI = rbind(rRNA, nonPolyA, Intergenic) %>% dplyr::arrange(seqnames, start)
     
+    ref.ROI$start = ref.ROI$start - 1   # convert back to 0-based
     data.table::fwrite(ref.ROI, paste(reference_path, "ref-ROI.bed", sep="/"), sep="\t", col.names = F)
 
     message("done\n")
