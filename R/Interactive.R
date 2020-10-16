@@ -840,7 +840,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					BPPARAM_mod = BPPARAM
 				}
-				BiocParallel::bplapply(bam_to_run, function(i) {
+				BiocParallel::bplapply(bam_to_run, function(i, run_IRF, df, reference_file, output_path) {
 					run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
 				}, df = df, run_IRF = run_IRFinder, reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
 					output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
