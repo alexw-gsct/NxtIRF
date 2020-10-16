@@ -230,23 +230,18 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					textOutput("txt_bam_path_expr"),
 					br(),
 					
+					shinyDirButton("dir_irf_path_load", 
+						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
+					textOutput("txt_irf_path_expr"),
+					br(),
+
 					wellPanel(
 						selectInput('expr_Cores', 'IRFinder Cores', width = '100%',
 							choices = c(1)),					
 						actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
 						textOutput("txt_run_irf_expr")
 					),
-
-					shinyDirButton("dir_irf_path_load", 
-						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
-					textOutput("txt_irf_path_expr"),
-					br(),
-					
-					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
-						title = "Choose Sample Annotation Table", multiple = FALSE), # done
-					textOutput("txt_sample_anno_expr"), # done
-					br(),						
-					
+										
 					wellPanel(
 						uiOutput("newcol_expr"), # done
             div(class='row',
@@ -254,7 +249,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 radioButtons("type_newcol_expr", "Type", c("character", "integer", "double"))
               ),
               div(class = "col-sm-6", 
-                actionButton("addcolumn_expr", "Add"),  # done
+                actionButton("addcolumn_expr", "Add"), br(),  # done
                 actionButton("removecolumn_expr", "Remove") # done
               )
             )
@@ -276,7 +271,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					actionButton("clear_expr", "Clear Experiment"),
 					textOutput("txt_run_save_expr"),
           br(),
-					rHandsontableOutput("hot_expr")
+					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
+						title = "Choose Sample Annotation Table", multiple = FALSE), # done
+					textOutput("txt_sample_anno_expr"), # done
+          br(),						
+          rHandsontableOutput("hot_expr")
 				)	# last column
 			),
 		),
@@ -721,8 +720,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
 		}
 		observeEvent(settings_loadref$loadref_path,{ 
-			if(settings_loadref$loadref_path != "" && 
-				file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
+      req(settings_loadref$loadref_path)
+			if(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
 				load_ref()
 			}
 			output$txt_reference_path_load <- renderText({

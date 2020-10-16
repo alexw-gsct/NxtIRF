@@ -6,6 +6,8 @@
 #' @import shinyFiles
 #' @import shinyFiles
 #' @import rhandsontable
+#' @import ggplot2
+#' @importFrom plotly subplot layout ggplotly plotlyOutput
 #' @importFrom dplyr %>%
 #' @importFrom rtracklayer import
 #' @importFrom IRanges IRanges
