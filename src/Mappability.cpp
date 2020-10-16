@@ -210,7 +210,7 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_tx
 #ifndef GALAXY
   if(includeCov == 1) {
 #else
-  if(s_output_cov.empty()) {
+  if(!s_output_cov.empty()) {
 #endif
     std::ofstream ofCOV;
     ofCOV.open(s_output_cov, std::ofstream::binary);

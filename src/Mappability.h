@@ -15,5 +15,5 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
 #ifndef GALAXY
   int IRF_GenerateMappabilityRegions(std::string bam_file, std::string output_file, int threshold, int includeCov = 0);
 #else
-int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_txt, int threshold, std::string s_output_cov = "");	
+  int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_txt, int threshold, std::string s_output_cov = "");	
 #endif
