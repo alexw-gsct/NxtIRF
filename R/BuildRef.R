@@ -220,11 +220,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 				 error = function(e) FALSE),
                  msg = paste("Base path of ", reference_path, " does not exist"))
     base_output_path = normalizePath(dirname(reference_path))
-    if(!dir.exists(paste(base_output_path, basename(reference_path), sep="/"))) {
-        dir.create(paste(base_output_path, basename(reference_path), sep="/"))
+    if(!dir.exists(file.path(base_output_path, basename(reference_path)))) {
+        dir.create(file.path(base_output_path, basename(reference_path)))
     }
-    if(!dir.exists(paste(base_output_path, basename(reference_path), "fst", sep="/"))) {
-        dir.create(paste(base_output_path, basename(reference_path), "fst", sep="/"))
+    if(!dir.exists(file.path(base_output_path, basename(reference_path), "fst"))) {
+        dir.create(file.path(base_output_path, basename(reference_path), "fst"))
     }
 
     if(ah_genome != "") {
@@ -240,10 +240,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         assertthat::assert_that(file.exists(normalizePath(fasta)),
             msg = paste("Given genome fasta file", normalizePath(fasta), "not found"))
 				# make copy of fasta file into reference directory if this is not the same file
-				if(normalizePath(paste(reference_path, basename(fasta), sep="/")) !=
+				if(normalizePath(file.path(reference_path, basename(fasta))) !=
 					normalizePath(fasta)) {
 					file.copy(from = normalizePath(fasta), 
-						to = normalizePath(paste(reference_path, basename(fasta), sep="/")))
+						to = normalizePath(file.path(reference_path, basename(fasta))))
 				}
 				fasta_file = basename(fasta)
 				
@@ -261,10 +261,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     } else {
         assertthat::assert_that(file.exists(normalizePath(gtf)),
             msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
-				if(normalizePath(paste(reference_path, basename(gtf), sep="/")) !=
+				if(normalizePath(file.path(reference_path, basename(gtf))) !=
 					normalizePath(gtf)) {
 					file.copy(from = normalizePath(gtf), 
-						to = normalizePath(paste(reference_path, basename(gtf), sep="/")))
+						to = normalizePath(file.path(reference_path, basename(gtf))))
 				}
 				gtf_file = basename(gtf)
 				
@@ -311,7 +311,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         ignore.strand = TRUE))
     Genes$gene_group_unstranded[OL@from] = Genes.Group.unstranded$gene_group_unstranded[OL@to]
     
-        fst::write.fst(as.data.frame(Genes), paste(reference_path,"fst","Genes.fst", sep="/"))
+        fst::write.fst(as.data.frame(Genes), file.path(reference_path,"fst","Genes.fst"))
 
     Transcripts = gtf.gr[gtf.gr$type == "transcript"]
     Transcripts <- GenomeInfoDb::sortSeqlevels(Transcripts)
@@ -325,7 +325,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         mcols(Transcripts)$transcript_biotype = "protein_coding"
     }
    
-        fst::write.fst(as.data.frame(Transcripts), paste(reference_path,"fst","Transcripts.fst", sep="/"))
+        fst::write.fst(as.data.frame(Transcripts), file.path(reference_path,"fst","Transcripts.fst"))
 
     Exons = gtf.gr[gtf.gr$type == "exon"]
     Exons <- GenomeInfoDb::sortSeqlevels(Exons)
@@ -408,30 +408,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     }
     
     # Finally write to disk
-        fst::write.fst(as.data.frame(Exons), paste(reference_path,"fst","Exons.fst", sep="/"))
+        fst::write.fst(as.data.frame(Exons), file.path(reference_path,"fst","Exons.fst"))
     # Also write tmp.Exon groups
     
         fst::write.fst(rbind(tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded), 
-            paste(reference_path,"fst","Exons.groups.fst", sep="/"))
+            file.path(reference_path,"fst","Exons.groups.fst"))
 
-    # Now setdiff using gene and exon grouped elements
-    # obligate.introns.stranded = grlGaps(
-        # GenomicRanges::split(
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
-            # tmp.Exons.Group.stranded$gene_group_stranded)
-    # )
-    # obligate.introns.stranded = as.data.table(obligate.introns.stranded)
-    # obligate.introns.stranded = obligate.introns.stranded[, c("seqnames", "start", "end", "strand", "width")]
-        # fst::write.fst(obligate.introns.stranded, paste(reference_path,"fst","obligate.introns.stranded.fst", sep="/"))
-
-    # obligate.introns.unstranded = grlGaps(
-        # GenomicRanges::split(
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)), 
-            # tmp.Exons.Group.unstranded$gene_group_unstranded)
-    # )
-    # obligate.introns.unstranded = as.data.table(obligate.introns.unstranded)
-    # obligate.introns.unstranded = obligate.introns.unstranded[, c("seqnames", "start", "end", "strand", "width")]
-        # fst::write.fst(obligate.introns.unstranded, paste(reference_path,"fst","obligate.introns.unstranded.fst", sep="/"))
 
     # Cleanup
     rm(OL, Genes.Group.stranded, Genes.Group.unstranded,
@@ -441,12 +423,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Proteins = gtf.gr[gtf.gr$type == "CDS"]
     Proteins <- GenomeInfoDb::sortSeqlevels(Proteins)
     Proteins <- sort(Proteins)
-        fst::write.fst(as.data.frame(Proteins), paste(reference_path,"fst","Proteins.fst", sep="/"))
+        fst::write.fst(as.data.frame(Proteins), file.path(reference_path,"fst","Proteins.fst"))
     
     gtf.misc = gtf.gr[!gtf.gr$type %in% c("gene", "transcript", "exon", "CDS")]
     gtf.misc <- GenomeInfoDb::sortSeqlevels(gtf.misc)
     gtf.misc <- sort(gtf.misc)
-        fst::write.fst(as.data.frame(gtf.misc), paste(reference_path,"fst","Misc.fst", sep="/"))
+        fst::write.fst(as.data.frame(gtf.misc), file.path(reference_path,"fst","Misc.fst"))
     
     # To save memory, remove original gtf
     rm(gtf.gr)
@@ -546,7 +528,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         # "exon_group_stranded_upstream", "exon_group_unstranded_upstream",
         # "exon_group_stranded_downstream", "exon_group_unstranded_downstream")]
     
-    fst::write.fst(candidate.introns, paste(reference_path,"fst","junctions.fst", sep="/"))
+    fst::write.fst(candidate.introns, file.path(reference_path,"fst","junctions.fst"))
 
     message("done\n")
 
@@ -783,14 +765,14 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 	data.table::setorder(tmpdir.IntronCover.summa, seqnames, intron_start, intron_end, strand)
     tmpdir.IntronCover = tmpdir.IntronCover[tmpdir.IntronCover.summa$IRFname]
 
-    rtracklayer::export(tmpdir.IntronCover, paste(reference_path, "tmpdir.IntronCover.bed", sep="/"))
-    rtracklayer::export(tmpnd.IntronCover, paste(reference_path, "tmpnd.IntronCover.bed", sep="/"))
+    rtracklayer::export(tmpdir.IntronCover, file.path(reference_path, "tmpdir.IntronCover.bed"))
+    rtracklayer::export(tmpnd.IntronCover, file.path(reference_path, "tmpnd.IntronCover.bed"))
 
 # Generate final ref-cover.bed
 
-    tmpdir.IntronCover = data.table::fread(paste(reference_path, "tmpdir.IntronCover.bed", sep="/"), sep="\t")
+    tmpdir.IntronCover = data.table::fread(file.path(reference_path, "tmpdir.IntronCover.bed"), sep="\t")
     tmpdir.IntronCover[,cat := "dir"]
-    tmpnd.IntronCover = data.table::fread(paste(reference_path, "tmpnd.IntronCover.bed", sep="/"), sep="\t")
+    tmpnd.IntronCover = data.table::fread(file.path(reference_path, "tmpnd.IntronCover.bed"), sep="\t")
     tmpnd.IntronCover[,cat := "nd"]
 
     ref.cover = rbind(tmpdir.IntronCover, tmpnd.IntronCover)
@@ -799,11 +781,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.cover[, V9 := as.character(V9)]
     ref.cover[, V9 := "255,0,0"]
 
-    data.table::fwrite(ref.cover, paste(reference_path, "ref-cover.bed", sep="/"), sep="\t", col.names = F)
+    data.table::fwrite(ref.cover, file.path(reference_path, "ref-cover.bed"), sep="\t", col.names = F)
 
 # Now compile list of IRFinder introns here
-    fst::write.fst(tmpnd.IntronCover.summa, paste(reference_path, "fst", "Introns.ND.fst", sep="/"))
-    fst::write.fst(tmpdir.IntronCover.summa, paste(reference_path, "fst", "Introns.Dir.fst", sep="/"))
+    fst::write.fst(tmpnd.IntronCover.summa, file.path(reference_path, "fst", "Introns.ND.fst"))
+    fst::write.fst(tmpdir.IntronCover.summa, file.path(reference_path, "fst", "Introns.Dir.fst"))
 
     message("done\n")
 
@@ -859,7 +841,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.ROI = rbind(rRNA, nonPolyA, Intergenic) %>% dplyr::arrange(seqnames, start)
     
     ref.ROI$start = ref.ROI$start - 1   # convert back to 0-based
-    data.table::fwrite(ref.ROI, paste(reference_path, "ref-ROI.bed", sep="/"), sep="\t", col.names = F)
+    data.table::fwrite(ref.ROI, file.path(reference_path, "ref-ROI.bed"), sep="\t", col.names = F)
 
     message("done\n")
 
@@ -875,7 +857,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     readcons = rbind(readcons.left, readcons.right) %>% dplyr::arrange(V1, V2, V3) %>% 
         dplyr::filter(!duplicated(.))
     
-    data.table::fwrite(readcons, paste(reference_path, "ref-read-continues.ref", sep="/"), sep="\t", col.names = F)
+    data.table::fwrite(readcons, file.path(reference_path, "ref-read-continues.ref"), sep="\t", col.names = F)
 
     message("done\n")
 
@@ -884,31 +866,31 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 # ref-sj.ref
     # Reload candidate introns here, as we've filtered this before
     rm(candidate.introns)
-    candidate.introns = as.data.table(fst::read.fst(paste(reference_path,"fst","junctions.fst", sep="/")))
+    candidate.introns = as.data.table(fst::read.fst(file.path(reference_path,"fst","junctions.fst")))
 
     ref.sj = candidate.introns[,c("seqnames", "start", "end", "strand")]
     ref.sj = unique(ref.sj)
     ref.sj[,start := start - 1]
-    data.table::fwrite(ref.sj, paste(reference_path, "ref-sj.ref", sep="/"), sep="\t", col.names = F)
+    data.table::fwrite(ref.sj, file.path(reference_path, "ref-sj.ref"), sep="\t", col.names = F)
 
     message("done\n")
     
 # Concatenate all 4 reference files into one file
-    data.table::fwrite(list(">ref-cover.bed"), paste(reference_path, "IRFinder.ref.gz", sep="/"), 
+    data.table::fwrite(list(">ref-cover.bed"), file.path(reference_path, "IRFinder.ref.gz"), 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.cover, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.cover, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-read-continues.ref"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-read-continues.ref"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(readcons, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(readcons, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-ROI.bed"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-ROI.bed"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.ROI, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.ROI, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(list(">ref-sj.ref"), paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(list(">ref-sj.ref"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
-    data.table::fwrite(ref.sj, paste(reference_path, "IRFinder.ref.gz", sep="/"), append = TRUE, 
+    data.table::fwrite(ref.sj, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F)
 
 # Annotate IR-NMD
@@ -929,7 +911,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     NMD.Table = DetermineNMD(Exons.tr, protein.introns, genome, 50)
     
-    fst::write.fst(NMD.Table, paste(reference_path, "fst", "IR.NMD.fst", sep="/"))
+    fst::write.fst(NMD.Table, file.path(reference_path, "fst", "IR.NMD.fst"))
     
 # Annotating Alternative Splicing Events
     # Massive clean-up for memory purposes
@@ -1428,7 +1410,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
                 as.character(as.numeric(intron_number_a + 1)), ";", transcript_name_b,"-exon",
                 as.character(as.numeric(intron_number_b + 1)))]
         }
-        fst::write.fst(as.data.frame(AS_Table), paste(reference_path,"fst","Splice.fst", sep="/"))
+        fst::write.fst(as.data.frame(AS_Table), file.path(reference_path,"fst","Splice.fst"))
         message("done\n")
     } else {
         message("no splice events found\n")
@@ -1609,7 +1591,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         AS_Table.Extended[!is.na(AA_casette.B), AA_full.B := paste0(AA_full.B, AA_casette.B)]
         AS_Table.Extended[!is.na(AA_downstr.B), AA_full.B := paste0(AA_full.B, AA_downstr.B)]
         
-        fst::write.fst(as.data.frame(AS_Table.Extended), paste(reference_path,"fst","Splice.Extended.fst", sep="/"))
+        fst::write.fst(as.data.frame(AS_Table.Extended), file.path(reference_path,"fst","Splice.Extended.fst"))
 
         message("done\n")
 
@@ -1623,7 +1605,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 		reference_path = reference_path, genome_type = genome_type, 
     nonPolyARef = nonPolyARef, MappabilityRef = MappabilityRef, BlacklistRef = BlacklistRef,
 		FilterIRByProcessedTranscript = FilterIRByProcessedTranscript)
-	saveRDS(settings.list, paste(reference_path, "settings.Rds", sep="/"))
+	saveRDS(settings.list, file.path(reference_path, "settings.Rds"))
 	
 }
 

@@ -11,7 +11,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	filterModule_UI <- function(id, label = "Counter") {
 		ns <- NS(id)
 		wellPanel(
-			h4(label),	# e.g. "Filter #1"
+			h5(label),	# e.g. "Filter #1"
 			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("", "Annotation", "Data")),
 			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("")),
 			uiOutput(ns("filterOptions"))
@@ -288,19 +288,27 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# Current Experiment
         fluidRow(
 					column(4,	
-						textOutput("current_expr_PSI"),
-						br(),
-						filterModule_UI("filter1", "Filter #1"),
-						filterModule_UI("filter2", "Filter #2"),
-						filterModule_UI("filter3", "Filter #3"),
-						filterModule_UI("filter4", "Filter #4")
+						wellPanel(style = "overflow-y:scroll; max-height: 600px",
+							filterModule_UI("filter1", "Filter #1"),
+							filterModule_UI("filter2", "Filter #2"),
+							filterModule_UI("filter3", "Filter #3"),
+							filterModule_UI("filter4", "Filter #4")
+						)
 					),
 					column(4,	
-						br(),
-						filterModule_UI("filter5", "Filter #5"),
-						filterModule_UI("filter6", "Filter #6"),
-						filterModule_UI("filter7", "Filter #7"),
-						filterModule_UI("filter8", "Filter #8")
+						wellPanel(style = "overflow-y:scroll; max-height: 600px",
+							filterModule_UI("filter5", "Filter #5"),
+							filterModule_UI("filter6", "Filter #6"),
+							filterModule_UI("filter7", "Filter #7"),
+							filterModule_UI("filter8", "Filter #8")
+						)
+					),
+					column(4,	
+						textOutput("current_expr_PSI"), br(),
+						textOutput("current_ref_PSI"), br(),
+						plotlyOutput("plot_filtered_Events"),
+						shinySaveButton("saveAnalysis_PSI", "Save Analysis", "Save Analysis as...", 
+							filetype = list(dataframe = "Rds")),
 					)
         )
       ),
@@ -356,8 +364,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						choices = c("", sort(unique(ah.filtered$species))))				
 				}
 			} else if(input$navSelection == "navRef_Load") {
-        if(settings_loadref$loadref_path != "" && 
-          file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+        if(settings_loadref$loadref_path != "") {
           load_ref()
         }
         output$txt_reference_path_load <- renderText({
@@ -595,7 +602,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {        
 				args.df = as.data.frame(t(as.data.frame(args)))
 				colnames(args.df) = "value"
-				data.table::fwrite(args.df, paste(args$reference_path, "settings_newref.csv", sep="/"), row.names = TRUE)
+				data.table::fwrite(args.df, file.path(args$reference_path, "settings_newref.csv"), row.names = TRUE)
 				if("ah_genome_tmp" %in% names(args)) {
 					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_genome_tmp = NULL
@@ -606,7 +613,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				}
 				do.call(BuildReference, args)
 				# If successfully created, load this reference automatically
-				if(file.exists(paste(settings_newref$newref_path, "settings.Rds"))) {
+				if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
 					settings_loadref$loadref_path = settings_newref$newref_path
 					load_ref()
 				}
@@ -655,7 +662,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
     })
 		load_ref = function() {
-			settings_loadref$settings = readRDS(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))
+			settings_loadref$settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
       if("reference_path" %in% names(settings_loadref$settings)) {
         if("ah_genome" %in% names(settings_loadref$settings)) {
           output$loadRef_field1 <- renderText({
@@ -716,7 +723,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		}
 		observeEvent(settings_loadref$loadref_path,{ 
 			if(settings_loadref$loadref_path != "" && 
-				file.exists(paste(settings_loadref$loadref_path, "settings.Rds", sep="/"))) {
+				file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
 				load_ref()
 			}
 			output$txt_reference_path_load <- renderText({
@@ -815,7 +822,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				output$txt_run_irf_expr <- renderText("Please load reference")
 			} else if(settings_expr$irf_path == "") {
 				output$txt_run_irf_expr <- renderText("Please select IRFinder output path")
-			} else if(!file.exists(paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"))) {
+			} else if(!file.exists(file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"))) {
 				output$txt_run_irf_expr <- renderText("IRFinder.ref.gz not found in given reference path")
 			} else {				
 				df = settings_expr$df
@@ -828,8 +835,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					BPPARAM_mod = BPPARAM
 				}
 				BiocParallel::bplapply(bam_to_run, function(i, run_IRF, df, reference_file, output_path) {
-					run_IRF(df$bam_file[i], reference_file, paste(output_path, df$sample[i], sep="/"))
-				}, df = df, run_IRF = run_IRFinder, reference_file = paste(settings_loadref$loadref_path, "IRFinder.ref.gz", sep="/"),
+					run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
+				}, df = df, run_IRF = run_IRFinder, reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
 					output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
 				Expr_Load_IRFs()
 			}

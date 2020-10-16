@@ -30,17 +30,17 @@ CollateData <- function(Experiment, reference_path, output_path) {
     assertthat::assert_that(ncol(Experiment) >= 2,
         msg = "Experiment needs to contain two columns containing (1) sample name and (2) IRFinder output")
 
-    assertthat::assert_that(file.exists(paste(reference_path, "settings.Rds", sep="/")),
-        msg = paste(paste(reference_path, "settings.Rds", sep="/"), "does not exist"))
+    assertthat::assert_that(file.exists(file.path(reference_path, "settings.Rds")),
+        msg = paste(file.path(reference_path, "settings.Rds"), "does not exist"))
 
 
-		settings = readRDS(paste(reference_path, "settings.Rds", sep="/"))
+		settings = readRDS(file.path(reference_path, "settings.Rds"))
 		if(settings$ah_genome != "") {
 			ah = AnnotationHub::AnnotationHub()
 			genome = ah[[settings$ah_genome]]			
 		} else {
 			genome = Biostrings::readDNAStringSet(
-				normalizePath(paste(reference_path, basename(settings$fasta_file), sep="/"))
+				normalizePath(file.path(reference_path, basename(settings$fasta_file)))
 			)
 		}
     
@@ -49,7 +49,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
     
     # Create a subdirectory for each sample within output_path
     base_output_path = normalizePath(dirname(output_path))      # TODO check if this fails
-    norm_output_path = paste(base_output_path, basename(output_path), sep="/")
+    norm_output_path = file.path(base_output_path, basename(output_path))
     if(!dir.exists(norm_output_path)) {
         dir.create(norm_output_path)
     }
@@ -97,7 +97,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
         }
 		# Write temp file
         fst::write.fst(as.data.frame(junc), 
-            paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
+            file.path(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep=".")))
 
         
 		# Compile IRFinder based on strand
@@ -119,7 +119,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
             }
 		}
         fst::write.fst(as.data.frame(irf), 
-            paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
+            file.path(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep=".")))
     }
 
     irf.common[, start := start + 1]
@@ -151,7 +151,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
     
     # Should splicing across gene groups be allowed? Exclude
     Genes = GenomicRanges::makeGRangesFromDataFrame(
-        fst::read.fst(paste(reference_path, "fst", "Genes.fst", sep="/"))
+        fst::read.fst(file.path(reference_path, "fst", "Genes.fst"))
     )
 
     # Exclude distant splice events:
@@ -194,7 +194,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
     junc.common[, Event := paste0(seqnames, ":", start, "-", end, "/", strand)]
     
     # Annotate junctions
-    candidate.introns = as.data.table(fst::read.fst(paste(reference_path, "fst", "junctions.fst", sep="/")))
+    candidate.introns = as.data.table(fst::read.fst(file.path(reference_path, "fst", "junctions.fst")))
     candidate.introns[, transcript_biotype_2 := transcript_biotype]
     candidate.introns[!(transcript_biotype %in% c("protein_coding", "processed_transcript",
         "lincRNA", "antisense", "nonsense_mediated_decay")), transcript_biotype_2 := "other"]
@@ -216,7 +216,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
     
     # Use Exon Groups file to designate exon groups to all junctions
     Exon.Groups = GenomicRanges::makeGRangesFromDataFrame(
-        fst::read.fst(paste(reference_path, "fst", "Exons.groups.fst", sep="/")),
+        fst::read.fst(file.path(reference_path, "fst", "Exons.groups.fst")),
         keep.extra.columns = TRUE)
     
     # Always calculate stranded for junctions
@@ -353,7 +353,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
 
     irf.common[, EventRegion := paste0(seqnames, ":", start, "-", end, "/", strand)]
 
-    Splice.Anno = as.data.table(fst::read.fst(paste(reference_path, "fst", "Splice.fst", sep="/")))
+    Splice.Anno = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Splice.fst")))
     candidate.introns[, Event1a := Event]
     candidate.introns[, Event2a := Event]
     Splice.Anno[candidate.introns, on = "Event1a", up_1a := paste(i.gene_group_stranded, 
@@ -381,7 +381,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
     for(i in seq_len(nrow(df.internal))) {
         message(paste("Processing data for sample: ", i))
         junc = as.data.table(
-            fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
+            fst::read.fst(file.path(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep=".")))
         )
         # setnames(junc, "JC_seqname", "seqnames")
         junc[, start := start + 1]
@@ -413,7 +413,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
         junc[JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
         
         fst::write.fst(as.data.frame(junc), 
-            paste(norm_output_path, paste(Experiment$sample[i], "junc.fst", sep="."), sep="/"))
+            file.path(norm_output_path, paste(Experiment$sample[i], "junc.fst", sep=".")))
         
         splice = copy(Splice.Anno)
         
@@ -460,7 +460,7 @@ CollateData <- function(Experiment, reference_path, output_path) {
         splice[EventType %in% c("AFE", "A5SS"), coverage := cov_down]
         
         irf = as.data.table(
-            fst::read.fst(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
+            fst::read.fst(file.path(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep=".")))
         )
         irf[, start := start + 1]
         irf = irf[irf.common, on = colnames(irf.common)[1:6], EventRegion := i.EventRegion]
@@ -505,13 +505,13 @@ CollateData <- function(Experiment, reference_path, output_path) {
         splice[splice.no_region, on = "EventName", TotalDepth := i.Depth]
 
         fst::write.fst(as.data.frame(splice), 
-            paste(norm_output_path, paste(Experiment$sample[i], "splice.fst", sep="."), sep="/"))
+            file.path(norm_output_path, paste(Experiment$sample[i], "splice.fst", sep=".")))
         
         fst::write.fst(as.data.frame(irf),
-            paste(norm_output_path, paste(Experiment$sample[i], "irf.fst", sep="."), sep="/"))
+            file.path(norm_output_path, paste(Experiment$sample[i], "irf.fst", sep=".")))
             
-        file.remove(paste(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep="."), sep="/"))
-        file.remove(paste(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep="."), sep="/"))
+        file.remove(file.path(norm_output_path, paste(Experiment$sample[i], "junc.fst.tmp", sep=".")))
+        file.remove(file.path(norm_output_path, paste(Experiment$sample[i], "irf.fst.tmp", sep=".")))
     }
     message("NxtIRF FST files generated")
 }

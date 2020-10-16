@@ -23,7 +23,7 @@ run_IRFinder_mappability = function(bamfile = "Unsorted.bam", ref_path = "./REF"
 run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
   return(
     IRF_GenerateMappabilityReads(normalizePath(genome.fa), 
-        paste(normalizePath(dirname(out.fa)), out.fa, sep="/"),
+        file.path(normalizePath(dirname(out.fa)), out.fa),
         read_len = read_len, 
         read_stride = read_stride, 
         error_pos = error_pos)
