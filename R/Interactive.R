@@ -287,7 +287,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# Current Experiment
         fluidRow(
 					column(4,	
-						wellPanel(style = "overflow-y:scroll; max-height: 600px",
+						wellPanel(style = "overflow-y:scroll; max-height: 800px",
 							filterModule_UI("filter1", "Filter #1"),
 							filterModule_UI("filter2", "Filter #2"),
 							filterModule_UI("filter3", "Filter #3"),
@@ -295,7 +295,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						)
 					),
 					column(4,	
-						wellPanel(style = "overflow-y:scroll; max-height: 600px",
+						wellPanel(style = "overflow-y:scroll; max-height: 800px",
 							filterModule_UI("filter5", "Filter #5"),
 							filterModule_UI("filter6", "Filter #6"),
 							filterModule_UI("filter7", "Filter #7"),
@@ -387,6 +387,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					output$current_expr_PSI = renderText("Experiment loaded")
 				} else {
 					output$current_expr_PSI = renderText("Please load experiment first")
+				}
+				if(settings_loadref$loadref_path != "")) {
+					output$current_ref_PSI = renderText("Reference loaded")
+				} else {
+					output$current_ref_PSI = renderText("Please load reference first")
+				}
+				if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
+					# Load filter object and perform event counts
 				}
 			}
 		})
