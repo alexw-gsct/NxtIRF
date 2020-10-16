@@ -18,7 +18,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		)
 	}
 
-	filterModule_server <- function(id) {
+	filterModule_server <- function(id, conditionList) {
 		moduleServer(
 			id,
 			function(input, output, session) {
@@ -29,8 +29,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("Filter A", "Filter B"))
 					} else if(input$filterClass == "Data") {
 						updateSelectInput(session = session, inputId = "filterType", 
-							choices = c("Depth - SpliceOverMax", "Intron Coverage", "Intron Overhangs", 
-								"Major Isoform", "Splice Ratio for SE / MXE"))
+							choices = c("Depth", "Coverage"))
 					} else {
 						updateSelectInput(session = session, inputId = "filterType", 
 							choices = c(""))						
@@ -46,50 +45,27 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						output$filterOptions <- renderUI({
 							h4("Filter A")
 						})			
-					} else if(input$filterType == "Depth - SpliceOverMax") {
+					} else if(input$filterType == "Depth") {
 						output$filterOptions <- renderUI({
             tagList(
 							sliderInput("d1_1", "Minimum Depth", min = 1, max = 500, value = 10),
 							sliderInput("d1_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							selectInput("cond1", "Condition", width = '100%',
+								choices = conditionList),
 							sliderInput("d1_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
             )
 						})								
-					} else if(input$filterType == "Intron Coverage") {
+					} else if(input$filterType == "Coverage") {
 						output$filterOptions <- renderUI({
             tagList(
 							sliderInput("d2_1", "Minimum Coverage", min = 30, max = 100, value = 90),
 							sliderInput("d2_1b", "Depth to impose minimum coverage", min = 1, max = 100, value = 5),
 							sliderInput("d2_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
+							selectInput("cond2", "Condition", width = '100%',
+								choices = conditionList),
 							sliderInput("d2_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
             )
 						})	
-					} else if(input$filterType == "Intron Overhangs") {
-						output$filterOptions <- renderUI({
-            tagList(
-							sliderInput("d3_1", "Minimum Overhang", min = 1, max = 500, value = 10),
-							sliderInput("d3_1b", "Depth to impose minimum overhang", min = 1, max = 100, value = 5),
-							sliderInput("d3_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
-							sliderInput("d3_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
-            )
-						})
-					} else if(input$filterType == "Major Isoform") {
-						output$filterOptions <- renderUI({
-            tagList(
-							sliderInput("d4_1", "Percentage events explained by binary event", min = 20, max = 100, value = 60),
-							sliderInput("d4_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
-							sliderInput("d4_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
-							sliderInput("d4_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
-            )
-						})
-					} else if(input$filterType == "Splice Ratio for SE / MXE") {
-						output$filterOptions <- renderUI({
-            tagList(
-							sliderInput("d5_1", "Minimum ratio between tandem junctions", min = 0, max = 1, value = 0.7),
-							sliderInput("d5_1b", "Depth to impose condition", min = 1, max = 100, value = 20),
-							sliderInput("d5_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
-							sliderInput("d5_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
-            )
-						})
 					} else {
 						output$filterOptions <- renderUI(NULL)
 					}
@@ -97,48 +73,36 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 				final <- reactive({
 					if(input$filterType == "Filter A") {
-						list(filterType = "Filter A")
+						list(filterClass = "Annotation", filterType = "Filter A", filterVars = list())
 					} else if(input$filterType == "Filter B") {
-						list(filterType = "Filter B")		
-					} else if(input$filterType == "Depth - SpliceOverMax") {
+						list(filterClass = "Annotation", filterType = "Filter B", filterVars = list())
+					} else if(input$filterType == "Depth") {
 						list(
-							filterType = "Depth - SpliceOverMax",
-							d_1 = input$d1_1,
-							d_2 = input$d1_2,
-							d_3 = input$d1_3
+							filterClass = "Annotation",
+							filterType = "Depth",
+							filterVars = list(
+								minimum = input$d1_1,
+								minCond = input$d1_2,
+								condition = input$cond1,
+								pcTRUE = input$d1_3							
+							)
 						)
-					} else if(input$filterClass == "Intron Coverage") {
+					} else if(input$filterClass == "Coverage") {
 						list(
-							filterType = "Intron Coverage",
-							d_1 = input$d2_1, d_1b = input$d2_1b,
-							d_2 = input$d2_2,
-							d_3 = input$d2_3
-						)
-					} else if(input$filterClass == "Intron Overhangs") {
-						list(
-							filterType = "Intron Overhangs",
-							d_1 = input$d3_1, d_1b = input$d3_1b,
-							d_2 = input$d3_2,
-							d_3 = input$d3_3
-						)
-					} else if(input$filterClass == "Major Isoform") {
-						list(
-							filterType = "Major Isoform",
-							d_1 = input$d4_1, d_1b = input$d4_1b,
-							d_2 = input$d4_2,
-							d_3 = input$d4_3
-						)
-					} else if(input$filterClass == "Splice Ratio for SE / MXE") {
-						list(
-							filterType = "Splice Ratio",
-							d_1 = input$d5_1, d_1b = input$d5_1b,
-							d_2 = input$d5_2,
-							d_3 = input$d5_3
+							filterClass = "Annotation",
+							filterType = "Coverage",
+							filterVars = list(
+								minimum = input$d2_1, minDepth = input$d2_1b
+								minCond = input$d2_2,
+								condition = input$cond2,
+								pcTRUE = input$d2_3							
+							)
 						)
 					} else {
-						list(filterType = "NULL")
+						list(filterClass = "", filterType = "NULL")
 					}
 				})
+				# Returns filter list from module
 				return(final)
 			}
 		)
@@ -305,8 +269,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					column(4,	
 						textOutput("current_expr_PSI"), br(),
 						textOutput("current_ref_PSI"), br(),
+						actionButton("load_filterdata_PSI", "Load Data"),
 						plotlyOutput("plot_filtered_Events"),
-						shinySaveButton("saveAnalysis_PSI", "Save Analysis", "Save Analysis as...", 
+						shinySaveButton("saveAnalysis_PSI", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
 							filetype = list(dataframe = "Rds")),
 					)
         )
@@ -393,9 +358,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					output$current_ref_PSI = renderText("Please load reference first")
 				}
-				if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
-					# Load filter object and perform event counts
-				}
+
 			}
 		})
     
@@ -1084,23 +1047,62 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 	# Analyse - Calculate PSIs
 		settings_PSI <- shiny::reactiveValues(
-			filter1 = NULL,
-			filter2 = NULL,
-			filter3 = NULL,
-			filter4 = NULL,
-			filter5 = NULL,
-			filter6 = NULL,
-			filter7 = NULL,
-			filter8 = NULL
+			se.filter = NULL,
+			se = NULL,
+			
+			filterSummary = NULL,
+			filters = list(),
+			conditionList = c("")
 		)	
-		settings_PSI$filter1 <- filterModule_server("filter1")
-		settings_PSI$filter2 <- filterModule_server("filter2")
-		settings_PSI$filter3 <- filterModule_server("filter3")
-		settings_PSI$filter4 <- filterModule_server("filter4")
-		settings_PSI$filter5 <- filterModule_server("filter5")
-		settings_PSI$filter6 <- filterModule_server("filter6")
-		settings_PSI$filter7 <- filterModule_server("filter7")
-		settings_PSI$filter8 <- filterModule_server("filter8")		
+		settings_PSI$filters[[1]] <- reactive({filterModule_server("filter1", settings_PSI$conditionList)})
+		settings_PSI$filters[[2]] <- reactive({filterModule_server("filter2", settings_PSI$conditionList)})
+		settings_PSI$filters[[3]] <- reactive({filterModule_server("filter3", settings_PSI$conditionList)})
+		settings_PSI$filters[[4]] <- reactive({filterModule_server("filter4", settings_PSI$conditionList)})
+		settings_PSI$filters[[5]] <- reactive({filterModule_server("filter5", settings_PSI$conditionList)})
+		settings_PSI$filters[[6]] <- reactive({filterModule_server("filter6", settings_PSI$conditionList)})
+		settings_PSI$filters[[7]] <- reactive({filterModule_server("filter7", settings_PSI$conditionList)})
+		settings_PSI$filters[[8]] <- reactive({filterModule_server("filter8", settings_PSI$conditionList)})
+
+		observeEvent(input$load_filterdata_PSI, {
+			if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
+				irf_fst_files = settings_expr$fst_file
+				colData = settings_expr$df[, -c("bam_file", "irf_file", "fst_file")]
+				if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
+					# Load filter object and perform event counts
+					settings_PSI$se.filter = BuildFilterData(irf_fst_files, colData)
+					
+					settings_PSI$conditionList = colnames(SummarizedExperiment::colData(se.filter))
+					filterSummary = rep(TRUE, nrow(settings_PSI$se.filter))
+					for(i in 1:8) {
+						if(settings_PSI$filters[[i]]$filterType != "NULL") {
+							filterSummary = filterSummary & runFilter(
+								settings_PSI$filters[[i]]$filterClass,
+								settings_PSI$filters[[i]]$filterType,
+								settings_PSI$filters[[i]]$filterVars,
+								settings_PSI$se.filter)
+						}
+					}
+					filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(se.filter)$EventType,
+						keep = filterSummary)
+					filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
+					filteredEvents.DT[, Excluded := sum(keep == FALSE) , by = "EventType"]
+					incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
+						dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
+					excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%
+						dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
+					# ggplot summary as bar plot
+					
+					p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
+						geom_bar(position="stack", stat="identity")
+						
+					output$plot_filtered_Events <- renderPlotly({
+						print(
+							ggplotly(p)
+						)
+					})
+				}
+			}
+		})
 # End of server function		
   }
 

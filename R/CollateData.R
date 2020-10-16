@@ -613,6 +613,9 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
         # - Coverage: 1-minimum, 1a-minDepth, 2-minCond, 3-pcTRUE
     # - Runtime:
         # - UpDown: compares upstream vs downstream derived PIR/PSI
+	
+	filterResult = rep(TRUE, nrow(filterObject))
+				
   if(filterClass == "Data") {
     if(filterType == "Depth") {
       colData = SummarizedExperiment::colData(filterObject)
@@ -670,9 +673,9 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       return(res)
     }
   } else if(filterClass == "Annotation") {
-  
+		return(filterResult)
   } else {
-    # Do nothing for now
+    return(filterResult)
   }
 }
 
