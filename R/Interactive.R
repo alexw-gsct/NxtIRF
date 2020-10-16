@@ -825,14 +825,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {				
 				df = settings_expr$df
 				bam_to_run = which(is_valid(df$sample) & is_valid(df$bam_file))
-				if(class(BPPARAM)[1] == "SnowParam") {
+				if("SnowParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
-				} else if(class(BPPARAM)[1] == "MulticoreParam") {
+				} else if("MulticoreParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
 				} else {
 					BPPARAM_mod = BPPARAM
 				}
-				BiocParallel::bplapply(bam_to_run, function(i, run_IRF, df, reference_file, output_path) {
+				BiocParallel::bplapply(bam_to_run, function(i) {
 					run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
 				}, df = df, run_IRF = run_IRFinder, reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
 					output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
