@@ -51,7 +51,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							sliderInput("d1_1", "Minimum Depth", min = 1, max = 500, value = 10),
 							sliderInput("d1_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
 							selectInput("cond1", "Condition", width = '100%',
-								choices = conditionList),
+								choices = conditionList()),
 							sliderInput("d1_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
             )
 						})								
@@ -62,7 +62,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							sliderInput("d2_1b", "Depth to impose minimum coverage", min = 1, max = 100, value = 5),
 							sliderInput("d2_2", "Minimum Conditions (-1 = ALL)", min = -1, max = 8, value = -1),
 							selectInput("cond2", "Condition", width = '100%',
-								choices = conditionList),
+								choices = conditionList()),
 							sliderInput("d2_3", "Percent satisfying criteria", min = 0, max = 100, value = 80)
             )
 						})	
@@ -71,37 +71,39 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					}
 				})
 
-				final <- reactive({
-					if(input$filterType == "Filter A") {
-						list(filterClass = "Annotation", filterType = "Filter A", filterVars = list())
-					} else if(input$filterType == "Filter B") {
-						list(filterClass = "Annotation", filterType = "Filter B", filterVars = list())
-					} else if(input$filterType == "Depth") {
-						list(
-							filterClass = "Annotation",
-							filterType = "Depth",
-							filterVars = list(
-								minimum = input$d1_1,
-								minCond = input$d1_2,
-								condition = input$cond1,
-								pcTRUE = input$d1_3							
-							)
-						)
-					} else if(input$filterClass == "Coverage") {
-						list(
-							filterClass = "Annotation",
-							filterType = "Coverage",
-							filterVars = list(
-								minimum = input$d2_1, minDepth = input$d2_1b
-								minCond = input$d2_2,
-								condition = input$cond2,
-								pcTRUE = input$d2_3							
-							)
-						)
-					} else {
-						list(filterClass = "", filterType = "NULL")
-					}
-				})
+				final <- reactiveValues()
+        observe({
+          if(input$filterType == "Filter A") {
+            final$filterClass = "Annotation"
+            final$filterType = "Filter A"
+            final$filterVars = list()
+          } else if(input$filterType == "Filter B") {
+            final$filterClass = "Annotation"
+            final$filterType = "Filter B"
+            final$filterVars = list()
+          } else if(input$filterType == "Depth") {
+              final$filterClass = "Annotation"
+              final$filterType = "Depth"
+              final$filterVars = list(
+                minimum = input$d1_1,
+                minCond = input$d1_2,
+                condition = input$cond1,
+                pcTRUE = input$d1_3							
+              )
+          } else if(input$filterClass == "Coverage") {
+              final$filterClass = "Annotation"
+              final$filterType = "Coverage"
+              final$filterVars = list(
+                minimum = input$d2_1, minDepth = input$d2_1b,
+                minCond = input$d2_2,
+                condition = input$cond2,
+                pcTRUE = input$d2_3
+            )
+          } else {
+            final$filterClass = ""
+            final$filterType = "NULL"
+          }
+        })
 				# Returns filter list from module
 				return(final)
 			}
@@ -1051,58 +1053,97 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			se = NULL,
 			
 			filterSummary = NULL,
-			filters = list(),
-			conditionList = c("")
-		)	
-		settings_PSI$filters[[1]] <- reactive({filterModule_server("filter1", settings_PSI$conditionList)})
-		settings_PSI$filters[[2]] <- reactive({filterModule_server("filter2", settings_PSI$conditionList)})
-		settings_PSI$filters[[3]] <- reactive({filterModule_server("filter3", settings_PSI$conditionList)})
-		settings_PSI$filters[[4]] <- reactive({filterModule_server("filter4", settings_PSI$conditionList)})
-		settings_PSI$filters[[5]] <- reactive({filterModule_server("filter5", settings_PSI$conditionList)})
-		settings_PSI$filters[[6]] <- reactive({filterModule_server("filter6", settings_PSI$conditionList)})
-		settings_PSI$filters[[7]] <- reactive({filterModule_server("filter7", settings_PSI$conditionList)})
-		settings_PSI$filters[[8]] <- reactive({filterModule_server("filter8", settings_PSI$conditionList)})
+      filters = list()
+		)
+    filter1 <- filterModule_server("filter1", conditionList)
+    filter2 <- filterModule_server("filter2", conditionList)
+    filter3 <- filterModule_server("filter3", conditionList)
+    filter4 <- filterModule_server("filter4", conditionList)
+    filter5 <- filterModule_server("filter5", conditionList)
+    filter6 <- filterModule_server("filter6", conditionList)
+    filter7 <- filterModule_server("filter7", conditionList)
+    filter8 <- filterModule_server("filter8", conditionList)
+
+    observe({
+      settings_PSI$filters[[1]] = isolate(reactiveValuesToList(filter1))
+      settings_PSI$filters[[2]] = isolate(reactiveValuesToList(filter2))
+      settings_PSI$filters[[3]] = isolate(reactiveValuesToList(filter3))
+      settings_PSI$filters[[4]] = isolate(reactiveValuesToList(filter4))
+      settings_PSI$filters[[5]] = isolate(reactiveValuesToList(filter5))
+      settings_PSI$filters[[6]] = isolate(reactiveValuesToList(filter6))
+      settings_PSI$filters[[7]] = isolate(reactiveValuesToList(filter7))
+      settings_PSI$filters[[8]] = isolate(reactiveValuesToList(filter8))
+    })
+    
+    conditionList = reactive({
+      if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
+        colnames(SummarizedExperiment::colData(settings_PSI$se.filter))
+      } else {
+        c("")
+      }
+    })
 
 		observeEvent(input$load_filterdata_PSI, {
 			if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
-				irf_fst_files = settings_expr$fst_file
+				irf_fst_files = settings_expr$df$fst_file
 				colData = settings_expr$df[, -c("bam_file", "irf_file", "fst_file")]
 				if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
 					# Load filter object and perform event counts
 					settings_PSI$se.filter = BuildFilterData(irf_fst_files, colData)
-					
-					settings_PSI$conditionList = colnames(SummarizedExperiment::colData(se.filter))
-					filterSummary = rep(TRUE, nrow(settings_PSI$se.filter))
-					for(i in 1:8) {
-						if(settings_PSI$filters[[i]]$filterType != "NULL") {
-							filterSummary = filterSummary & runFilter(
-								settings_PSI$filters[[i]]$filterClass,
-								settings_PSI$filters[[i]]$filterType,
-								settings_PSI$filters[[i]]$filterVars,
-								settings_PSI$se.filter)
-						}
-					}
-					filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(se.filter)$EventType,
-						keep = filterSummary)
-					filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
-					filteredEvents.DT[, Excluded := sum(keep == FALSE) , by = "EventType"]
-					incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
-						dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
-					excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%
-						dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
-					# ggplot summary as bar plot
-					
-					p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
-						geom_bar(position="stack", stat="identity")
-						
-					output$plot_filtered_Events <- renderPlotly({
-						print(
-							ggplotly(p)
-						)
-					})
 				}
 			}
 		})
+    
+    processFilters <- function() {
+      filterSummary = rep(TRUE, nrow(settings_PSI$se.filter))
+      for(i in 1:8) {
+        if(settings_PSI$filters[[i]]$filterType != "NULL") {
+          filterSummary = filterSummary & runFilter(
+            settings_PSI$filters[[i]]$filterClass,
+            settings_PSI$filters[[i]]$filterType,
+            settings_PSI$filters[[i]]$filterVars,
+            settings_PSI$se.filter)
+        }
+      }
+      settings_PSI$filterSummary = filterSummary    
+    }
+    
+    observeEvent(settings_PSI$se.filter, {
+      req(settings_PSI$filters)
+      req(settings_PSI$se.filter)
+      processFilters()
+    })
+
+    observeEvent(settings_PSI$filters, {
+      req(settings_PSI$filters)
+      req(settings_PSI$se.filter)
+      processFilters()
+    })
+    
+    observeEvent(settings_PSI$filterSummary, {
+      req(settings_PSI$filterSummary)
+      req(settings_PSI$se.filter)
+      
+      filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_PSI$se.filter)$EventType,
+        keep = settings_PSI$filterSummary)
+      filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
+      filteredEvents.DT[, Excluded := sum(keep == FALSE) , by = "EventType"]
+      filteredEvents.DT = unique(filteredEvents.DT)
+      incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
+        dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
+      excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%
+        dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
+      # ggplot summary as bar plot
+      
+      p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
+        geom_bar(position="stack", stat="identity") + scale_y_log10()
+        
+      output$plot_filtered_Events <- renderPlotly({
+        print(
+          ggplotly(p)
+        )
+      })
+    })
 # End of server function		
   }
 
