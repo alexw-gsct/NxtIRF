@@ -649,7 +649,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
         cond_vars = unique(cond_vec)
       }
       cov = as.matrix(SummarizedExperiment::assay(filterObject, "Coverage"))
-      depth = as.matrix(SummarizedExperiment::assay(filterObject, "Depth"))
+      depth = as.matrix(SummarizedExperiment::assay(filterObject, "minDepth"))
       cov[depth < filterVars$minDepth] = 1    # do not test if depth below threshold
       
       sum_res = rep(0, nrow(filterObject))
