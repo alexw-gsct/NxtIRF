@@ -615,7 +615,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# If successfully created, load this reference automatically
 				if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
 					settings_loadref$loadref_path = settings_newref$newref_path
-					load_ref()
 				}
 			}
 		})
