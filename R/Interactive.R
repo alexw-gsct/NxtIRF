@@ -832,7 +832,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				output$txt_run_irf_expr <- renderText("IRFinder.ref.gz not found in given reference path")
 			} else {				
 				df = settings_expr$df
-				bam_to_run = which(is_valid(df$sample) & is_valid(df$bam_file))
+				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
 				if("SnowParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
 				} else if("MulticoreParam" %in% class(BPPARAM)) {
