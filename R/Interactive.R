@@ -388,7 +388,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					output$current_expr_PSI = renderText("Please load experiment first")
 				}
-				if(settings_loadref$loadref_path != "")) {
+				if(settings_loadref$loadref_path != "") {
 					output$current_ref_PSI = renderText("Reference loaded")
 				} else {
 					output$current_ref_PSI = renderText("Please load reference first")
