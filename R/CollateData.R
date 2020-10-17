@@ -125,7 +125,17 @@ CollateData <- function(Experiment, reference_path, output_path) {
     irf.common[, start := start + 1]
     junc.common[, start := start + 1]
 
-    junc.common[strand == ".", strand := "*"]
+# Reassign +/- based on junctions.fst annotation
+    # Annotate junctions
+    candidate.introns = as.data.table(fst::read.fst(file.path(reference_path, "fst", "junctions.fst")))
+
+    junc.strand = unique(candidate.introns[, c("seqnames", "start", "end", "strand")])
+
+    junc.common[, strand := NULL]
+    junc.common = unique(junc.common)
+    junc.common = merge(junc.common, junc.strand, all = TRUE, by = c("seqnames", "start", "end"))
+    junc.common[is.na(strand), strand := "*"]
+
     left.gr = GRanges(seqnames = junc.common$seqnames, 
         ranges = IRanges(start = junc.common$start, end = junc.common$start + 1), strand = "+")
     right.gr = GRanges(seqnames = junc.common$seqnames, 
@@ -193,8 +203,6 @@ CollateData <- function(Experiment, reference_path, output_path) {
     # Assign region names to junctions:
     junc.common[, Event := paste0(seqnames, ":", start, "-", end, "/", strand)]
     
-    # Annotate junctions
-    candidate.introns = as.data.table(fst::read.fst(file.path(reference_path, "fst", "junctions.fst")))
     candidate.introns[, transcript_biotype_2 := transcript_biotype]
     candidate.introns[!(transcript_biotype %in% c("protein_coding", "processed_transcript",
         "lincRNA", "antisense", "nonsense_mediated_decay")), transcript_biotype_2 := "other"]
@@ -618,6 +626,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 				
   if(filterClass == "Data") {
     if(filterType == "Depth") {
+      message("Running Depth filter")
       colData = SummarizedExperiment::colData(filterObject)
       use_cond = ifelse("condition" %in% names(filterVars), TRUE, FALSE)
       if(use_cond == TRUE) {
@@ -633,7 +642,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
           sum = rowSums(depth.subset > filterVars$minimum)
           sum_res = sum_res + ifelse(sum * 100 / ncol(depth.subset) >= filterVars$pcTRUE, 1, 0)
         }
-        n_TRUE = ifelse("minCond" %in% names(filterVars), filterVars$minCond, -1)
+        n_TRUE = ifelse(!is.null(names(filterVars)) && "minCond" %in% names(filterVars), filterVars$minCond, -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
@@ -645,8 +654,9 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       }
       return(res)
     } else if(filterType == "Coverage") {
+      message("Running Coverage filter")
       colData = SummarizedExperiment::colData(filterObject)
-      use_cond = ifelse("condition" %in% names(filterVars), TRUE, FALSE)
+      use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars), TRUE, FALSE)
       if(use_cond == TRUE) {
         cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
         cond_vars = unique(cond_vec)
@@ -662,7 +672,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
           sum = rowSums(cov.subset > filterVars$minimum)
           sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= filterVars$pcTRUE, 1, 0)
         }
-        n_TRUE = filterVars$minCond
+        n_TRUE = ifelse(!is.null(names(filterVars)) && "minCond" %in% names(filterVars), filterVars$minCond, -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {

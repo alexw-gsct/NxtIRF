@@ -694,7 +694,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     tmpdir.IntronCover = semi_join.DT(tmpdir.IntronCover, tmpdir.IntronCover.summa, by = "intron_id")
  
     tmpdir.IntronCover.summa[, IRFname := paste("dir", gene_name, intron_id, strand, num_blocks, 
-        intron_start, intron_end, inclbases, exclbases,
+        sprintf("%.f", intron_start), sprintf("%.f", intron_end), inclbases, exclbases,
         ifelse(known_exon_dir, "known-exon","clean"), sep="/")]
 
     tmpdir.IntronCover = GenomicRanges::makeGRangesFromDataFrame(tmpdir.IntronCover, keep.extra.columns=TRUE)
@@ -733,7 +733,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     tmpnd.IntronCover = semi_join.DT(tmpnd.IntronCover, tmpnd.IntronCover.summa, by = "intron_id")
  
     tmpnd.IntronCover.summa[, IRFname := paste("nd", gene_name, intron_id, strand, num_blocks, 
-        intron_start, intron_end, inclbases, exclbases, sep="/")]
+        sprintf("%.f", intron_start), sprintf("%.f", intron_end), inclbases, exclbases, sep="/")]
     # casewise naming of last condition
     tmpnd.IntronCover.summa[known_exon_nd & antiover & antinear, IRFname := 
         paste(IRFname, "known-exon+anti-over+anti-near",sep="/")]
