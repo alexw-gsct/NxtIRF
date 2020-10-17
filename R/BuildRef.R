@@ -172,13 +172,13 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
       MappabilityFile = system.file("extra-input-files/Mappability_Regions_hg38_v94.txt.gz", package = "NxtIRF")
     } else if(genome_type == "hg19")  {
       nonPolyAFile = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
-      MappabilityFile = ""
+      MappabilityFile = system.file("extra-input-files/Mappability_Regions_hg19_v75.txt.gz", package = "NxtIRF")
     } else if(genome_type == "mm10")  {
       nonPolyAFile = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
-      MappabilityFile = ""
+      MappabilityFile = system.file("extra-input-files/Mappability_Regions_mm10_v94.txt.gz", package = "NxtIRF")
     } else if(genome_type == "mm9")  {
       nonPolyAFile = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
-      MappabilityFile = ""
+      MappabilityFile = system.file("extra-input-files/Mappability_Regions_mm9_v67.txt.gz", package = "NxtIRF")
     } else {
       if(length(nonPolyAFile) > 0 && !(nonPolyAFile %in% c("", " ")) && !file.exists(nonPolyAFile)) {
           message(paste(nonPolyARef, "not found. Reference generated without non-polyA reference"))
