@@ -841,7 +841,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.ROI = rbind(rRNA, nonPolyA, Intergenic) %>% dplyr::arrange(seqnames, start)
     
     ref.ROI$start = ref.ROI$start - 1   # convert back to 0-based
-    data.table::fwrite(ref.ROI, file.path(reference_path, "ref-ROI.bed"), sep="\t", col.names = F)
+    data.table::fwrite(ref.ROI, file.path(reference_path, "ref-ROI.bed"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
 
@@ -857,7 +857,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     readcons = rbind(readcons.left, readcons.right) %>% dplyr::arrange(V1, V2, V3) %>% 
         dplyr::filter(!duplicated(.))
     
-    data.table::fwrite(readcons, file.path(reference_path, "ref-read-continues.ref"), sep="\t", col.names = F)
+    data.table::fwrite(readcons, file.path(reference_path, "ref-read-continues.ref"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
 
@@ -871,27 +871,27 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.sj = candidate.introns[,c("seqnames", "start", "end", "strand")]
     ref.sj = unique(ref.sj)
     ref.sj[,start := start - 1]
-    data.table::fwrite(ref.sj, file.path(reference_path, "ref-sj.ref"), sep="\t", col.names = F)
+    data.table::fwrite(ref.sj, file.path(reference_path, "ref-sj.ref"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
     
 # Concatenate all 4 reference files into one file
     data.table::fwrite(list(">ref-cover.bed"), file.path(reference_path, "IRFinder.ref.gz"), 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(ref.cover, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(list(">ref-read-continues.ref"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(readcons, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(list(">ref-ROI.bed"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(ref.ROI, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(list(">ref-sj.ref"), file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(ref.sj, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
-        sep="\t", eol = "\n", col.names = F)
+        sep="\t", eol = "\n", col.names = F, scipen = 50)
 
 # Annotate IR-NMD
     misc = as.data.table(gtf.misc)
