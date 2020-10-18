@@ -1731,8 +1731,8 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
     IRT[!is.na(AA), stop_to_EJ := IRT_len - stop_pos]
     IRT[, use_short := TRUE]
     
-    IRT[, IRT_is_NMD := ifelse(IRT_len - stop_to_EJ >= threshold, TRUE, FALSE)]
-    IRT[is.na(stop_to_EJ), IRT_is_NMD := FALSE]
+    IRT[, IRT_is_NMD := ifelse(stop_to_EJ >= threshold, TRUE, FALSE)]
+    IRT[is.na(stop_pos), IRT_is_NMD := FALSE]
     IRT[is.na(IRT_len), IRT_is_NMD := NA]
     
     # Annotate into final
@@ -1782,8 +1782,8 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
     IRT[!is.na(AA), stop_to_EJ := IRT_len - stop_pos]
     IRT[, use_short := FALSE]
     
-    IRT[, IRT_is_NMD := ifelse(IRT_len - stop_to_EJ >= threshold, TRUE, FALSE)]
-    IRT[is.na(stop_to_EJ), IRT_is_NMD := FALSE]
+    IRT[, IRT_is_NMD := ifelse(stop_to_EJ >= threshold, TRUE, FALSE)]
+    IRT[is.na(stop_pos), IRT_is_NMD := FALSE]
     IRT[is.na(IRT_len), IRT_is_NMD := NA]
     
     final[IRT, on = "intron_id", c("IRT_stop_pos", "IRT_start_to_last_EJ", "IRT_stop_to_last_EJ", 
