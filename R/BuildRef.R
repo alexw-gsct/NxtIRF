@@ -32,6 +32,8 @@ FetchAH_FTP <- function(ah_record, reference_path) {
   ah.record = ah[names(ah) == ah_record]
   
   # Best to fetch from URL
+  if(!dir.exists(file.path(reference_path, "resource"))) dir.create(file.path(reference_path, "resource"))
+
   transcripts.gtf = file.path(normalizePath(reference_path), "resource", "transcripts.gtf")       
   if(!file.exists(transcripts.gtf)) {
       url = ah.record$sourceurl
@@ -1623,6 +1625,8 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
     all(c("seqnames", "start", "end", "strand") %in% colnames(intron_list)),
     msg = "intron_list must be a GRanges, data.frame, or data.table coerce-able to a GRanges object")
   
+  message("Calculating IR-NMD")
+  
   exon.DT = as.data.table(exon_list)
   intron.DT = as.data.table(intron_list)
 
@@ -1672,9 +1676,7 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
   
   i_partition = seq(1, nrow(intron.DT), by = 10000)
   i_partition = append(i_partition, nrow(intron.DT) + 1)
-  
-  message("Calculating IR-NMD", appendLF = F)
-  
+    
   pb = txtProgressBar(max = length(i_partition) - 1, style = 3)	
   for(i in seq_len(length(i_partition) - 1)) {
     setTxtProgressBar(pb, i)
@@ -1742,6 +1744,9 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
     
     intron.part = intron.part[!(intron_id %in% IRT$intron_id[IRT$IRT_is_NMD == TRUE])]
     
+    # Exclude introns preceding any ORF exons:
+    intron.part = intron.part[intron_id %in% IRT$intron_id]
+    
     intron.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(intron.part))
     intron.part[, seq := as.character(BSgenome::getSeq(genome, intron.gr))]
 
@@ -1789,11 +1794,6 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
 	setTxtProgressBar(pb,i)
 	close(pb)
   message("done\n")
-
-  final[, splice_is_NMD := FALSE]
-  final[!is.na(splice_stop_to_last_EJ), splice_is_NMD := splice_stop_to_last_EJ >= bases_to_last_exon_junction]
-  final[, IR_is_NMD := FALSE]
-  final[!is.na(IRT_stop_to_last_EJ), IR_is_NMD := IRT_stop_to_last_EJ >= bases_to_last_exon_junction]  
   
   return(final)
 }
