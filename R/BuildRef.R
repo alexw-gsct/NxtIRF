@@ -1,15 +1,38 @@
+FetchAH <- function(ah_record, localHub = FALSE) {
+  # NxtIRF implementation of fetching AnnotationHub resource
+  # Avoids hanging during tidyGRanges which is not necessary for use
+  ah = AnnotationHub::AnnotationHub(localHub = localHub)
+
+  assertthat::assert_that(substr(ah_record, 1, 2) == "AH",
+    msg = paste(ah_record, "does not appear to be a valid AnnotationHub record name"))
+
+  
+  assertthat::assert_that(ah_record %in% names(ah),
+    msg = paste(ah_record, "is not found in AnnotationHub index. Perhaps check online connection or record name"))
+  
+  ah.record = ah[names(ah) == ah_record]
+  
+  cache_loc = AnnotationHub::cache(ah.record)
+  
+  assertthat::assert_that(file.exists(cache_loc),
+    msg = "AnnotationHub cache error - file not found")
+  
+  if(ah.record$rdataclass == "GRanges") {
+    gtf = rtracklayer::import(cache_loc, "gtf", genome = ah.record$genome)
+    return(gtf)
+  } else if(ah.record$rdataclass == "TwoBitFile") {
+    twobit = rtracklayer::TwoBitFile(cache_loc)
+    return(twobit)
+  }
+  
+}
+
 FetchAHCache <- function(ah_record, filetype, reference_path) {
     ah = AnnotationHub::AnnotationHub()
     ah.record = ah[names(ah) == ah_record]
     
     # If 2bitfile, download cache and open 2bit file from cache
     if(filetype == "2bit") {
-        # if(is.na(fileName(ah.sample))) {
-            # file = AnnotationHub::cache(ah.sample)
-        # } else {
-            # file = AnnotationHub::fileName(ah.sample)    
-        # }
-        # rtracklayer::TwoBitFile(file)
         ah[[ah_record]]
     } else if(filetype == "gtf") {
         # Best to fetch from URL
@@ -33,118 +56,77 @@ FetchAHCache <- function(ah_record, filetype, reference_path) {
     }
 }
 
-#' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
-#'
-#' E.g. hg38 release-94: genome = "AH65745", transcriptome = "AH64631"
-#'
-#' @export
-FetchAnnotation <- function(ah_genome = "", ah_transcriptome = "", reference_path = "./Reference", 
-    verbose = FALSE) {
-    NxtIRF.CheckPackageInstalled("AnnotationHub", "2.20.0")
-    NxtIRF.CheckPackageInstalled("GEOquery", "2.56.0")
-    returnval = c()
-    
-    if (verbose) message("Initializing AnnotationHub")
-    
-    ah = AnnotationHub::AnnotationHub()
-    if(ah_genome != "" && substr(ah_genome,1,2) == "AH") {
-        genome.fasta.tmp = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa.tmp")
-        genome.fasta = paste0(normalizePath(reference_path), "/", ah_genome, ".genome.fa")
 
-        if (file.exists(genome.fasta)) {
-            if (verbose) message("Genome file already exists, skipping...")
-            returnval = append(returnval, genome.fasta)
-        } else {
-            if (verbose) message("Fetching genome from AnnotationHub")
-            
-            genome = ah[[ah_genome]]
-            chrOrder = names(seqinfo(genome))
-            gr.df = data.frame(seqnames = chrOrder,
-                start = 1, end = seqinfo(genome)[chrOrder]@seqlengths)
-            genome.seq = getSeq(genome, GenomicRanges::makeGRangesFromDataFrame(gr.df))
-            names(genome.seq) = chrOrder
-            rtracklayer::export(genome.seq, genome.fasta, "fasta")
-
-            message(paste("Genome fasta file written to ",genome.fasta))
-            returnval = append(returnval, genome.fasta)
-        }
-    } else {
-        if (verbose) message("Genome AnnotationHub code not provided, skipping")
-    }
-
-    if(ah_transcriptome != "" && substr(ah_transcriptome,1,2) == "AH") {
-        transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_transcriptome, ".transcripts.gtf")
-        if(file.exists(transcripts.gtf)) {
-            if (verbose) message("Transcriptome file already exists, skipping...")    
-            returnval = append(returnval, transcripts.gtf)
-        } else {
-            if (verbose) message("Fetching transcript gtf file from AnnotationHub")
-            # Best to fetch from URL
-            url = ah$sourceurl[[which(names(ah) == ah_transcriptome)]]
-            assertthat::assert_that(substr(url,1,3) == "ftp",
-              msg = paste("ftp site not found for", ah_transcriptome))
-            urlfile = basename(url)
-            if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
-              download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
-              GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
-            } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
-              download.file(url, destfile = transcripts.gtf)
-            } else {
-              warning(paste(ah_transcriptome, "does not provide a valid gtf or gtf.gz file"))
-            }
-            
-            message(paste("Transcriptome gtf file written to ", transcripts.gtf))
-            returnval = append(returnval, transcripts.gtf)
-        }
-    } else {
-        if (verbose) message("Transcriptome AnnotationHub code not provided, skipping")
-    }
-    return(returnval)
-}
-#' Fetch genome / transcriptome reference from AnnotationHub and writes to reference
+#' Fetch genome / transcriptome reference from AnnotationHub and writes to reference_path
 #'
 #' @export
-GenerateMappability <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_transcriptome = "",
-    reference_path = "./Reference", read_len = 70, read_stride = 10, error_pos = 35,
-    verbose = FALSE) {
+GenerateMappabilityReads <- function(fasta = "genome.fa", gtf = "transcripts.gtf", 
+  ah_genome = "", ah_transcriptome = "",
+  reference_path = "./Reference", read_len = 70, read_stride = 10, error_pos = 35,
+  verbose = FALSE, localHub = FALSE) {
 
-    if(ah_transcriptome != "") {
-        assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
-            msg = "Given transcriptome AnnotationHub reference is incorrect")
-            if(!exists("ah")) {
-                message("Loading AnnotationHub")            
-                ah = AnnotationHub::AnnotationHub()
-            }
-            message("Reading AnnotationHub GTF file...", appendLF = F)
-            gtf.gr = ah[[ah_transcriptome]]
-            message("done\n")
-    } else {
-        assertthat::assert_that(file.exists(normalizePath(gtf)),
-            msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
-        message("Reading source GTF file...", appendLF = F)
-        gtf.gr = rtracklayer::import(gtf)
-        message("done\n")
-    }
+  if(ah_transcriptome != "") {
+      assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
+          msg = "Given transcriptome AnnotationHub reference is incorrect")
+
+          message("Reading AnnotationHub GTF file...", appendLF = F)
+          gtf.gr = FetchAH(ah_transcriptome, localHub = localHub)
+          message("done\n")
+  } else {
+      assertthat::assert_that(file.exists(normalizePath(gtf)),
+          msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
+      message("Reading source GTF file...", appendLF = F)
+      gtf.gr = rtracklayer::import(gtf)
+      message("done\n")
+  }
+
+  if(ah_genome != "") {
+    assertthat::assert_that(substr(ah_genome,1,2) == "AH",
+        msg = "Given transcriptome AnnotationHub reference is incorrect")
+
+    message("Reading AnnotationHub genome file file...", appendLF = F)
+    genome = FetchAH(ah_genome, localHub = localHub)
+
+    # Write fasta to file
+    genome.DNA = rtracklayer::import(genome)
+    gc()
+    genome = Biostrings::replaceAmbiguities(genome)
+    gc()
     
-# Build regions of overlapping genes
-    Genes = gtf.gr[gtf.gr$type == "gene"]
-    Genes <- GenomeInfoDb::sortSeqlevels(Genes)
-    Genes <- sort(Genes)
- 
-    Genes.Regions = as.data.frame(GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 10000), 
-        GenomicRanges::flank(Genes, 10000, start = F)), ignore.strand=TRUE))
-    Regions.df = data.frame(seqnames = Genes.Regions$seqnames, start = Genes.Regions$start,
-        end = Genes.Regions$end)
-    Regions.df$start = ifelse(Regions.df$start < 1, 1, Regions.df)
-    Regions.df$start = Regions.df$start - 1
-    fwrite(Regions.df, sep = "\t", eol = "\n", col.names=F, 
-        file = paste0(normalizePath(reference_path), "/", "regions.to.map.txt"))
-        
+    if(!dir.exists(file.path(reference_path, "resource"))) dir.create(file.path(reference_path, "resource"))
+    fasta_file = file.path(reference_path, "resource", paste(ah_genome, "fa", sep="."))
+    rtracklayer::export(genome, fasta_file, "fasta")
+    
+    message(paste("Successful export of", fasta_file))
+    
+  } else {
+    assertthat::assert_that(file.exists(normalizePath(fasta)),
+        msg = paste("Given genome file", normalizePath(fasta), "not found"))
+    fasta_file = fasta
+  }
+
+    
 # Run map read generator:
-    run_IRFinder_GenerateMapRegionReads(fasta, paste0(normalizePath(reference_path), "/", "region.reads.fa.gz"), 
-        paste0(normalizePath(reference_path), "/", "regions.to.map.txt"), read_len, read_stride, error_pos)
+    run_IRFinder_GenerateMapReads(normalizePath(fasta_file), 
+      file.path(normalizePath(reference_path), paste("MappabilityReads", 
+        ifelse(ah_genome == "", "genome", ah_genome),"fa", sep=".")), read_len, read_stride, error_pos)
  
 }
+
+#' @export
+GenerateMappabilityBED = function(BAM = "", out.bed, threshold = 4) {
+  assertthat::assert_that(file.exists(BAM),
+    msg = paste(BAM, "BAM file does not exist"))
+  assertthat::assert_that(dir.exists(dirname(out.bed)),
+    msg = paste(dirname(out.bed), "directory does not exist"))
+    
+  return(
+    IRF_GenerateMappabilityRegions(normalizePath(BAM), 
+        file.path(normalizePath(dirname(out.bed)), out.bed),
+        threshold = threshold)
+  )
+}
+
 
 #' Builds IRFinder Reference
 #'
@@ -158,7 +140,8 @@ GenerateMappability <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah
 BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_genome = "", ah_transcriptome = "",
     reference_path = "./Reference",
     genome_type = "", nonPolyARef = "", MappabilityRef = "", BlacklistRef = "",
-    FilterIRByProcessedTranscript = FALSE) {
+    FilterIRByProcessedTranscript = FALSE,
+    localHub = FALSE) {
 
     # genome_type = match.arg(genome_type)
     # if(genome_type != "") message(paste(genome_type, "specified as genome type. Using corresponding nonPolyA reference"))
@@ -203,9 +186,6 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
       }
     }
 
-
-    
-
     BlacklistFile = ""
     if (length(BlacklistRef) == 0 || BlacklistRef %in% c("", " ")) {
         message("Blacklist table not provided. IRFinder reference will be generated without Blacklist exclusion")        
@@ -232,30 +212,34 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
             msg = "Given genome AnnotationHub reference is incorrect")
         # fasta_file = FetchAnnotation(ah_genome = ah_genome, reference_path = reference_path)
         # genome = Biostrings::readDNAStringSet(fasta_file)
-        genome = FetchAHCache(ah_genome, "2bit", reference_path)
+        genome = FetchAH(ah_genome, localHub = localHub)
         genome_ah = TRUE
         message("done\n")
         fasta_file = ""
     } else {
         assertthat::assert_that(file.exists(normalizePath(fasta)),
             msg = paste("Given genome fasta file", normalizePath(fasta), "not found"))
-				# make copy of fasta file into reference directory if this is not the same file
-				if(normalizePath(file.path(reference_path, basename(fasta))) !=
-					normalizePath(fasta)) {
-					file.copy(from = normalizePath(fasta), 
-						to = normalizePath(file.path(reference_path, basename(fasta))))
-				}
-				fasta_file = basename(fasta)
-				
-        message("Connecting to genome file...", appendLF = F)
+
+        # Convert genome to TwoBitFile for easy access:
         genome = Biostrings::readDNAStringSet(fasta)
         genome_ah = FALSE
+        # convert to local 2bit for better memory management
+        if(!dir.exists(file.path(reference_path, "resource"))) dir.create(file.path(reference_path, "resource"))
+        
+        rtracklayer::export(genome, file.path(reference_path, "resource", "genome.2bit"), "2bit")
+        message("Genome converted to Twobit file\n")
+    
+        message("Connecting to genome file...", appendLF = F)
+        genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+        gc()
+        
         message("done\n")
+        fasta_file = fasta
     }
     if(ah_transcriptome != "") {
         assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-        gtf.gr = FetchAHCache(ah_transcriptome, "gtf", reference_path)
+        gtf.gr = FetchAH(ah_transcriptome, localHub = localHub)
         message("done\n")
         gtf_file = ""
     } else {
@@ -781,7 +765,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.cover[, V9 := as.character(V9)]
     ref.cover[, V9 := "255,0,0"]
 
-    data.table::fwrite(ref.cover, file.path(reference_path, "ref-cover.bed"), sep="\t", col.names = F)
+    # data.table::fwrite(ref.cover, file.path(reference_path, "ref-cover.bed"), sep="\t", col.names = F, scipen = 50)
+
+    # cleanup
+    if(file.exists(file.path(reference_path, "tmpdir.IntronCover.bed"))) file.remove(file.path(reference_path, "tmpdir.IntronCover.bed"))
+    if(file.exists(file.path(reference_path, "tmpnd.IntronCover.bed"))) file.remove(file.path(reference_path, "tmpnd.IntronCover.bed"))
 
 # Now compile list of IRFinder introns here
     fst::write.fst(tmpnd.IntronCover.summa, file.path(reference_path, "fst", "Introns.ND.fst"))
@@ -841,7 +829,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.ROI = rbind(rRNA, nonPolyA, Intergenic) %>% dplyr::arrange(seqnames, start)
     
     ref.ROI$start = ref.ROI$start - 1   # convert back to 0-based
-    data.table::fwrite(ref.ROI, file.path(reference_path, "ref-ROI.bed"), sep="\t", col.names = F, scipen = 50)
+    # data.table::fwrite(ref.ROI, file.path(reference_path, "ref-ROI.bed"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
 
@@ -857,7 +845,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     readcons = rbind(readcons.left, readcons.right) %>% dplyr::arrange(V1, V2, V3) %>% 
         dplyr::filter(!duplicated(.))
     
-    data.table::fwrite(readcons, file.path(reference_path, "ref-read-continues.ref"), sep="\t", col.names = F, scipen = 50)
+    # data.table::fwrite(readcons, file.path(reference_path, "ref-read-continues.ref"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
 
@@ -871,7 +859,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     ref.sj = candidate.introns[,c("seqnames", "start", "end", "strand")]
     ref.sj = unique(ref.sj)
     ref.sj[,start := start - 1]
-    data.table::fwrite(ref.sj, file.path(reference_path, "ref-sj.ref"), sep="\t", col.names = F, scipen = 50)
+    # data.table::fwrite(ref.sj, file.path(reference_path, "ref-sj.ref"), sep="\t", col.names = F, scipen = 50)
 
     message("done\n")
     
@@ -892,6 +880,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         sep="\t", eol = "\n", col.names = F, scipen = 50)
     data.table::fwrite(ref.sj, file.path(reference_path, "IRFinder.ref.gz"), append = TRUE, 
         sep="\t", eol = "\n", col.names = F, scipen = 50)
+
 
 # Annotate IR-NMD
     misc = as.data.table(gtf.misc)

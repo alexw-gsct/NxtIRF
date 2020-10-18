@@ -10,16 +10,6 @@ run_IRFinder = function(bamfile = "Unsorted.bam", ref_file = "./IRFinder.ref", o
   })
 }
 
-#' @export
-run_IRFinder_mappability = function(bamfile = "Unsorted.bam", ref_path = "./REF") {
-  s_bam = normalizePath(bamfile)
-  s_ref = normalizePath(ref_path)
-  system.time({
-    IRF_genmap(s_bam, s_ref)
-  })
-}
-
-#' @export
 run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
   return(
     IRF_GenerateMappabilityReads(normalizePath(genome.fa), 
@@ -28,13 +18,6 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
         read_stride = read_stride, 
         error_pos = error_pos)
   )
-}
-
-
-
-#' @export
-run_IRFinder_gunzip = function(infile, outfile) {
-  IRF_gunzip(normalizePath(infile), outfile)
 }
 
 #' @export
@@ -61,9 +44,4 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
                                round(as.numeric(start)), round(as.numeric(end)), as.numeric(strand))
   }
   final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
-}
-
-#' @export
-DebugGetCoverage = function(file) {
-  raw_list = IRF_RLEList_From_Cov(normalizePath(file), 2)
 }

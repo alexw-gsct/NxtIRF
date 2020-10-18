@@ -14,7 +14,8 @@ BuildReference(
   nonPolyARef = "",
   MappabilityRef = "",
   BlacklistRef = "",
-  FilterIRByProcessedTranscript = FALSE
+  FilterIRByProcessedTranscript = FALSE,
+  localHub = FALSE
 )
 }
 \arguments{

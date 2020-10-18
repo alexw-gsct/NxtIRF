@@ -140,7 +140,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					),
 					column(5,
 						selectInput('newref_genome_type', 'Select Genome Type to set Mappability and non-PolyA files (leave empty to reset)', 
-							c("", "hg38", "mm10", "hg19", "mm9", "other")),
+							c("hg38", "mm10", "hg19", "mm9", "other", "custom")),
 						shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion file", 
 							title = "Choose Mappability Exclusion file", multiple = FALSE),
 						verbatimTextOutput("txt_mappa"),
@@ -556,7 +556,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			args <- list(reference_path = settings_newref$newref_path,
 				ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
 				fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
-				genome_type = "other", nonPolyARef = settings_newref$newref_NPA, MappabilityRef = settings_newref$newref_mappa,
+				genome_type = "Interactive", nonPolyARef = settings_newref$newref_NPA, MappabilityRef = settings_newref$newref_mappa,
 				BlacklistRef = settings_newref$newref_bl)
 
 			args <- Filter(is_valid, args)
@@ -570,7 +570,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {        
 				args.df = as.data.frame(t(as.data.frame(args)))
 				colnames(args.df) = "value"
-				data.table::fwrite(args.df, file.path(args$reference_path, "settings_newref.csv"), row.names = TRUE)
+				# data.table::fwrite(args.df, file.path(args$reference_path, "settings_newref.csv"), row.names = TRUE)
 				if("ah_genome_tmp" %in% names(args)) {
 					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_genome_tmp = NULL
