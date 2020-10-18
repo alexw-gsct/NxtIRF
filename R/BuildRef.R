@@ -27,33 +27,28 @@ FetchAH <- function(ah_record, localHub = FALSE) {
   
 }
 
-FetchAHCache <- function(ah_record, filetype, reference_path) {
-    ah = AnnotationHub::AnnotationHub()
-    ah.record = ah[names(ah) == ah_record]
-    
-    # If 2bitfile, download cache and open 2bit file from cache
-    if(filetype == "2bit") {
-        ah[[ah_record]]
-    } else if(filetype == "gtf") {
-        # Best to fetch from URL
-        transcripts.gtf = paste0(normalizePath(reference_path), "/", ah_record, ".transcripts.gtf")        
-        if(!file.exists(transcripts.gtf)) {
-            url = ah.record$sourceurl
-            assertthat::assert_that(substr(url,1,3) == "ftp",
-              msg = paste("ftp site not found for", ah_record))
-            urlfile = basename(url)
-            if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
-              download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
-              # GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
-              transcripts.gtf = paste0(transcripts.gtf, ".gz")
-            } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
-              download.file(url, destfile = transcripts.gtf)
-            } else {
-              warning("sourceurl entry for AnnotationHub resource is not a valid gtf.gz or gtf file")
-            }
-        }
-        rtracklayer::import(transcripts.gtf, "gtf")
-    }
+FetchAH_FTP <- function(ah_record, reference_path) {
+  ah = AnnotationHub::AnnotationHub()
+  ah.record = ah[names(ah) == ah_record]
+  
+  # Best to fetch from URL
+  transcripts.gtf = file.path(normalizePath(reference_path), "resource", "transcripts.gtf")       
+  if(!file.exists(transcripts.gtf)) {
+      url = ah.record$sourceurl
+      assertthat::assert_that(substr(url,1,3) == "ftp",
+        msg = paste("ftp site not found for", ah_record))
+      urlfile = basename(url)
+      if(substr(urlfile, nchar(urlfile) -6, nchar(urlfile)) == ".gtf.gz") {
+        download.file(url, destfile = paste(transcripts.gtf, "gz", sep="."))
+        # GEOquery::gunzip(paste(transcripts.gtf, "gz", sep="."))
+        transcripts.gtf = paste0(transcripts.gtf, ".gz")
+      } else if(substr(urlfile, nchar(urlfile) - 3, nchar(urlfile)) == ".gtf") {
+        download.file(url, destfile = transcripts.gtf)
+      } else {
+        warning("sourceurl entry for AnnotationHub resource is not a valid gtf.gz or gtf file")
+      }
+  }
+  rtracklayer::import(transcripts.gtf, "gtf")
 }
 
 
@@ -141,7 +136,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     reference_path = "./Reference",
     genome_type = "", nonPolyARef = "", MappabilityRef = "", BlacklistRef = "",
     FilterIRByProcessedTranscript = FALSE,
-    localHub = FALSE) {
+    localHub = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
     # genome_type = match.arg(genome_type)
     # if(genome_type != "") message(paste(genome_type, "specified as genome type. Using corresponding nonPolyA reference"))
@@ -239,7 +234,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(ah_transcriptome != "") {
         assertthat::assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-        gtf.gr = FetchAH(ah_transcriptome, localHub = localHub)
+        if(localHub == FALSE) {
+          gtf.gr = FetchAH_FTP(ah_transcriptome, reference_path)
+        } else {
+          gtf.gr = FetchAHCache(ah_transcriptome, localHub = localHub)
+        }
         message("done\n")
         gtf_file = ""
     } else {
@@ -1602,7 +1601,7 @@ grlGaps<-function(grl) {
 	GenomicRanges::psetdiff(unlist(range(grl),use.names=TRUE),grl)
 }
 
-DetermineNMD <- function(exon_list, intron_list, genome, bases_to_last_exon_junction = 50) {
+DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
   # transcript_list can be a GRanges, data.frame, or data.table coerce-able to a GRanges object
   # All members of transcript must have the same transcript-id and must not completely overlap
   
@@ -1667,12 +1666,82 @@ DetermineNMD <- function(exon_list, intron_list, genome, bases_to_last_exon_junc
   final[splice, on = "transcript_id", c("splice_stop_pos", "splice_start_to_last_EJ", "splice_stop_to_last_EJ") := 
     list(i.stop_pos, i.splice_len, i.stop_to_EJ)]
   
+  final[, splice_is_NMD := ifelse(splice_start_to_last_EJ - splice_stop_to_last_EJ >= threshold, TRUE, FALSE)]
+  final[is.na(splice_stop_to_last_EJ), splice_is_NMD := FALSE]
+  final[is.na(splice_start_to_last_EJ), splice_is_NMD := NA]
+  
   i_partition = seq(1, nrow(intron.DT), by = 10000)
   i_partition = append(i_partition, nrow(intron.DT) + 1)
   
   message("Calculating IR-NMD", appendLF = F)
+  
+  pb = txtProgressBar(max = length(i_partition) - 1, style = 3)	
   for(i in seq_len(length(i_partition) - 1)) {
+    setTxtProgressBar(pb, i)
     intron.part = intron.DT[seq(i_partition[i], i_partition[i+1] - 1)]
+    intron.part$type = "intron"
+# join exons with introns to determine phase of intron    
+    exon.DT.skinny = exon.DT[, -("seq")]
+    intron.part.upstream = as.data.table(rbind(
+      as.data.frame(intron.part) %>% dplyr::select("transcript_id", "intron_id",
+          "seqnames", "start", "end", "strand", "type"),
+      dplyr::left_join(as.data.frame(intron.part) %>% dplyr::select("transcript_id", "intron_id"), 
+          as.data.frame(exon.DT.skinny), by = "transcript_id") %>% dplyr::mutate(type = "exon")
+    ))
+
+    setorder(intron.part.upstream, start)
+    intron.part.upstream[, elem_number := data.table::rowid(intron_id)]
+    intron.part.upstream[strand == "-", elem_number := max(elem_number) + 1 - elem_number, by = "intron_id"]
+    
+    # remove introns upstream to first available exon
+    intron.part.upstream[intron.part.upstream[type == "exon", first_exon_id := min(elem_number), by = "intron_id"], 
+      on = "intron_id", first_exon_id := i.first_exon_id]    
+    intron.part.upstream = intron.part.upstream[type == "exon" | elem_number > first_exon_id]
+    # trim exons downstream of intron
+    intron.part.upstream[intron.part.upstream[type == "intron"], 
+      on = "intron_id", intron_pos := i.elem_number]    
+
+    intron.part.upstream = intron.part.upstream[!is.na(intron_pos)]
+    intron.part.upstream = intron.part.upstream[elem_number < intron_pos | type == "intron" ]
+    
+    # Retrieve first 1000 bases of intron sequence. Most introns may be screened using this method. Save overhead
+    
+    intron.part.short = intron.part.upstream[type == "intron"]
+    intron.part.short[ strand == "+" & end - start > 1000, end := start + 1000 ]
+    intron.part.short[ strand == "-" & end - start > 1000, start := end - 1000 ]
+    
+    intron.short.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(intron.part.short))
+    intron.part.short[, seq := as.character(BSgenome::getSeq(genome, intron.short.gr))]    
+    intron.part.upstream[exon.DT, on = c("transcript_id", "seqnames", "start", "end", "strand"), seq := i.seq]
+    intron.part.upstream[intron.part.short, on = c("intron_id", "type"), seq := i.seq]
+
+    # Test introns by translation
+    setorder(intron.part.upstream, transcript_id, elem_number)
+    intron.part.upstream = intron.part.upstream[, c("intron_id", "seq")]
+
+    IRT = intron.part.upstream[, lapply(.SD, paste0, collapse = ""), by = "intron_id"]
+    IRT[is.na(rowSums(stringr::str_locate(seq, "N"))),
+      AA := as.character(suppressWarnings(Biostrings::translate(as(seq, "DNAStringSet"))))]
+    
+    # Find nucleotide position of first stop codon
+    IRT[, stop_pos := stringr::str_locate(AA, "\\*")[,1] * 3 - 2]
+    IRT[, IRT_len := nchar(seq)]
+    IRT[!is.na(AA), stop_to_EJ := IRT_len - stop_pos]
+    IRT[, use_short := TRUE]
+    
+    IRT[, IRT_is_NMD := ifelse(IRT_len - stop_to_EJ >= threshold, TRUE, FALSE)]
+    IRT[is.na(stop_to_EJ), IRT_is_NMD := FALSE]
+    IRT[is.na(IRT_len), IRT_is_NMD := NA]
+    
+    # Annotate into final
+    final[IRT, on = "intron_id", c("IRT_stop_pos", "IRT_start_to_last_EJ", "IRT_stop_to_last_EJ", 
+      "IRT_use_short", "IRT_is_NMD") := 
+      list(i.stop_pos, i.IRT_len, i.stop_to_EJ, i.use_short, i.IRT_is_NMD)]
+    
+    # Now exclude NMD-TRUE introns from full analysis
+    
+    intron.part = intron.part[!(intron_id %in% IRT$intron_id[IRT$IRT_is_NMD == TRUE])]
+    
     intron.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(intron.part))
     intron.part[, seq := as.character(BSgenome::getSeq(genome, intron.gr))]
 
@@ -1706,11 +1775,19 @@ DetermineNMD <- function(exon_list, intron_list, genome, bases_to_last_exon_junc
     IRT[, stop_pos := stringr::str_locate(AA, "\\*")[,1] * 3 - 2]
     IRT[, IRT_len := nchar(seq)]
     IRT[!is.na(AA), stop_to_EJ := IRT_len - stop_pos]
+    IRT[, use_short := FALSE]
     
-    final[IRT, on = "intron_id", c("IRT_stop_pos", "IRT_start_to_last_EJ", "IRT_stop_to_last_EJ") := 
-      list(i.stop_pos, i.IRT_len, i.stop_to_EJ)]
+    IRT[, IRT_is_NMD := ifelse(IRT_len - stop_to_EJ >= threshold, TRUE, FALSE)]
+    IRT[is.na(stop_to_EJ), IRT_is_NMD := FALSE]
+    IRT[is.na(IRT_len), IRT_is_NMD := NA]
+    
+    final[IRT, on = "intron_id", c("IRT_stop_pos", "IRT_start_to_last_EJ", "IRT_stop_to_last_EJ", 
+      "IRT_use_short", "IRT_is_NMD") := 
+      list(i.stop_pos, i.IRT_len, i.stop_to_EJ, i.use_short, i.IRT_is_NMD)]
     gc()
   }
+	setTxtProgressBar(pb,i)
+	close(pb)
   message("done\n")
 
   final[, splice_is_NMD := FALSE]

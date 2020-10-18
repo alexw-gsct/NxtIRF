@@ -15,7 +15,8 @@ BuildReference(
   MappabilityRef = "",
   BlacklistRef = "",
   FilterIRByProcessedTranscript = FALSE,
-  localHub = FALSE
+  localHub = FALSE,
+  BPPARAM = BiocParallel::bpparam()
 )
 }
 \arguments{
