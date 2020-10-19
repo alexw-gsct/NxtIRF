@@ -118,11 +118,15 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   std::ifstream inGenome;
   inGenome.open(genome_file, std::ifstream::in);
   
+  // Allows writing to standard output if filename is '-'
+  int stdout = 0;
   std::ofstream outFA;
-  outFA.open(out_fa, std::ios::binary);
-  // GZWriter outGZ;
-  // outGZ.SetOutputHandle(&outFA);
-    
+  if(out_fa == "-") {
+    stdout = 1;
+  } else {
+    outFA.open(out_fa, std::ios::binary);    
+  }
+      
   unsigned int direction = 0;
   char * read = new char[read_len + 1];
   unsigned int seed = 0;
@@ -150,17 +154,21 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
         write_name.append("!");
         write_name.append(std::to_string(bufferPos));
 
-        // outGZ.writeline(write_name);
-        outFA << write_name << '\n';
+        
         std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
         // outGZ.writeline(write_seq);
-        outFA << write_seq << '\n';
-        
+        if(stdout == 1) {
+          Rcout << write_name << '\n' << write_seq << '\n';
+        } else {
+          outFA << write_name << '\n' << write_seq << '\n';          
+        }
         seed += 1;
         direction = (direction == 0 ? 1 : 0);
       }
       if((seed % 100000 == 0) & (seed > 0)) {
-        Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
+        if(stdout == 0) {
+          Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
+        }
       }
     }
     delete[] buffer;
@@ -168,9 +176,10 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   delete[] read;
   
   inGenome.close();
-  // outGZ.flush(true);
-  outFA.flush();
-  outFA.close();
+  if(stdout == 0) {
+    outFA.flush();
+    outFA.close();
+  }
   return(0);
 }
 
@@ -197,7 +206,11 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_tx
   inbam_stream.open(s_inBAM, std::ifstream::binary);
   inbam.SetInputHandle(&inbam_stream);
   
-  BB.openFile(&inbam);
+  if(bam_file == "-") {
+    BB.openFile(&std::cin);
+  } else {
+    BB.openFile(&inbam);
+  }
   
   std::string BBreport;
   BB.processAll(BBreport);

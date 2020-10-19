@@ -304,33 +304,39 @@ int main(int argc, char * argv[]) {
     // irfinder_galaxy gen_map_reads genome.fa reads_to_map.fa 70 10
     // irfinder_galaxy process_mappability_bam mappedreads.bam mappability.bed
 
-    if(std::string(argv[1]) == "gen_map_reads") {
-        std::string s_genome = argv[2];
-        std::string s_output = argv[3];
-        int read_len = atoi(argv[4]);
-        int read_stride = atoi(argv[5]);
-        int read_error = atoi(argv[4]) / 2;
-        IRF_GenerateMappabilityReads(s_genome, s_output, read_len, read_stride, read_error);
+  if(std::string(argv[1]) == "gen_map_reads") {
+      std::string s_genome = argv[2];
+      std::string s_output = argv[3];
+      int read_len = atoi(argv[4]);
+      int read_stride = atoi(argv[5]);
+      int read_error = atoi(argv[4]) / 2;
+      IRF_GenerateMappabilityReads(s_genome, s_output, read_len, read_stride, read_error);
+      exit(0);
+  } else if(std::string(argv[1]) == "process_mappability_bam") {
+      std::string s_bam = argv[2];
+      std::string s_output = argv[3];
+      int threshold = atoi(argv[4]);
+      if(argc == 6) {
+        std::string s_cov = argv[5];
+        IRF_GenerateMappabilityRegions(s_bam, s_output, threshold, s_cov);
+        exit(0);          
+      } else {
+        IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
         exit(0);
-    } else if(std::string(argv[1]) == "process_mappability_bam") {
-        std::string s_bam = argv[2];
-        std::string s_output = argv[3];
-        int threshold = atoi(argv[4]);
-        if(argc == 6) {
-          std::string s_cov = argv[5];
-          IRF_GenerateMappabilityRegions(s_bam, s_output, threshold, s_cov);
-          exit(0);          
-        } else {
-          IRF_GenerateMappabilityRegions(s_bam, s_output, threshold);
-          exit(0);
-        }
-    } else if(std::string(argv[1]) == "main") {
-        std::string s_bam = argv[2];
-        std::string s_ref = argv[3];
-        std::string s_output_txt = argv[4];		
-        std::string s_output_cov = argv[5];		
-		IRF_main(s_bam, s_ref, s_output_txt, s_output_cov);
-	}
+      }
+  } else if(std::string(argv[1]) == "main") {
+      std::string s_bam = argv[2];
+      std::string s_ref = argv[3];
+      std::string s_output_txt = argv[4];		
+      std::string s_output_cov = argv[5];		
+  IRF_main(s_bam, s_ref, s_output_txt, s_output_cov);
+  } else {
+    Rcout << "Usage:\n\t"
+      << argv[0] <<  " main samplename.bam IRFinder.ref.gz samplename.txt.gz samplename.cov\n"
+      << argv[0] <<  " main samplename.bam IRFinder.ref.gz samplename.txt.gz samplename.cov\n"
+      << argv[0] <<  " irfinder_galaxy gen_map_reads genome.fa reads_to_map.fa 70 10\n"
+      << argv[0] <<  " irfinder_galaxy process_mappability_bam mappedreads.bam mappability.bed {mappability.cov}";   
+  }
 }
 	
 #endif
