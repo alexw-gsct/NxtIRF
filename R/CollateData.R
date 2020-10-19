@@ -69,21 +69,35 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
           })
           block = df.internal[work]
           for(i in seq_len(length(work))) {
-            stats = suppressWarnings(fread(block$path[i], skip = "BAM"))
-            stats$Value = as.numeric(stats$Value)
+            stats = suppressWarnings(fread(block$path[i], skip = "BAM", 
+							colClasses = c("character", "numeric")))
+            direct = suppressWarnings(fread(block$path[i], skip = "Directionality", 
+							colClasses = c("character", "numeric")))
+            ROI = suppressWarnings(fread(block$path[i], skip = "ROIname"))
+            ChrCov = suppressWarnings(fread(block$path[i], skip = "ChrCoverage"))
+		
             if(stats$Value[3] == 0 & stats$Value[4] > 0) {
                 block$paired[i] = TRUE
                 block$depth[i] = stats$Value[4]
+								block$mean_frag_size[i] = stats$Value[2] / stats$Value[4]
             } else if(stats$Value[3] > 0 && stats$Value[4] / stats$Value[3] / 1000) {
                 block$paired[i] = TRUE
                 block$depth[i] = stats$Value[4]
+								block$mean_frag_size[i] = stats$Value[2] / stats$Value[4]
             } else {
                 block$paired[i] = FALSE
                 block$depth[i] = stats$Value[3]
+								block$mean_frag_size[i] = stats$Value[2] / stats$Value[3]
             }
-            direct = suppressWarnings(fread(block$path[i], skip = "Directionality"))
-            direct$Value = as.numeric(direct$Value)
             block$strand[i] = direct$Value[9]
+
+						# QC
+						block$directionality_strength = direct$Value[8]
+						ROI$type = tstrsplit(ROI$ROIname, split="/")[[1]]
+						block$Intergenic_Fraction = sum(ROI$total_hits[ROI$type == "Intergenic"]) / block$depth[i]
+						block$rRNA_Fraction = sum(ROI$total_hits[ROI$type == "rRNA"]) / block$depth[i]
+						block$NonPolyA_Fraction = sum(ROI$total_hits[ROI$type == "NonPolyA"]) / block$depth[i]
+						block$Mitochondrial_Fraction = sum(ChrCov$total[ChrCov$ChrCoverage_seqname %in% c("M", "MT")]) / block$depth[i]
           }
           return(block)
         }, df.internal = df.internal, BPPARAM = BPPARAM
