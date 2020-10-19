@@ -203,14 +203,14 @@ int IRF_GenerateMappabilityRegions(std::string bam_file, std::string s_output_tx
   
   BAMReader inbam;
   std::ifstream inbam_stream;
-  inbam_stream.open(s_inBAM, std::ifstream::binary);
-  inbam.SetInputHandle(&inbam_stream);
-  
   if(bam_file == "-") {
-    BB.openFile(&std::cin);
+    inbam.SetInputHandle(&std::cin);        
   } else {
-    BB.openFile(&inbam);
+    inbam_stream.open(s_inBAM, std::ifstream::binary);
+    inbam.SetInputHandle(&inbam_stream);    
   }
+  
+  BB.openFile(&inbam);
   
   std::string BBreport;
   BB.processAll(BBreport);
