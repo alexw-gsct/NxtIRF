@@ -34,7 +34,7 @@ std::string GenerateReadError(char * input_read, unsigned int read_len, unsigned
     }
   }
 
-  char error_nuc;
+  char error_nuc = '\0';  // set this as something to avoid warning at compile
   switch(error_seed % 2) {
   case 0:
     switch(new_read[error_pos - 1]) {

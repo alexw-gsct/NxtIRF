@@ -620,8 +620,6 @@ int FragmentsMap::WriteOutput(std::ostream *os,
   for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;
     bool covered = false;
-    int32_t cur_chrLen = 0;
-    
     
     if (itChr->second.begin()->first == 0 && itChr->second.begin()->second > threshold) {
       covered = true;
