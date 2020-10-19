@@ -1146,8 +1146,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
         filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_PSI$se.filter)$EventType,
           keep = settings_PSI$filterSummary)
-        filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
-        filteredEvents.DT[, Excluded := sum(keep == FALSE) , by = "EventType"]
+        filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
+        filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
         filteredEvents.DT = unique(filteredEvents.DT)
         incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
           dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
@@ -1156,7 +1156,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         # ggplot summary as bar plot
         
         p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
-          geom_bar(position="stack", stat="identity")  + scale_y_log10()
+          geom_bar(position="stack", stat="identity") +
+          labs(y = "log10 Events")
           
         output$plot_filtered_Events <- renderPlotly({
           print(
