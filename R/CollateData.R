@@ -631,6 +631,56 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 }
 
 #' @export
+MakeSE = function(colData, fst_path) {
+
+  item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
+    "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
+  files.todo = file.path(normalizePath(fst_path), paste(item.todo, "fst", sep="."))
+  assertthat::assert_that(all(file.exists(files.todo)),
+    msg = "FST File generation appears incomplete. Suggest run CollateData() again")
+
+  colnames(colData)[1] = "sample"
+  
+  rowData = fst::read.fst(files.todo[1])
+  Included = as.matrix(fst::read.fst(files.todo[2], columns = colData$sample))
+  Excluded = as.matrix(fst::read.fst(files.todo[3], columns = colData$sample))
+  Depth = as.matrix(fst::read.fst(files.todo[4], columns = colData$sample))
+  Coverage = as.matrix(fst::read.fst(files.todo[5], columns = colData$sample))
+  minDepth = as.matrix(fst::read.fst(files.todo[6], columns = colData$sample))
+  Up_Inc = as.matrix(fst::read.fst(files.todo[7], columns = colData$sample))
+  Down_Inc = as.matrix(fst::read.fst(files.todo[8], columns = colData$sample))
+  Up_Exc = as.matrix(fst::read.fst(files.todo[9], columns = colData$sample))
+  Down_Exc = as.matrix(fst::read.fst(files.todo[10], columns = colData$sample))
+
+  mode(Included) <- "integer"
+  mode(Excluded) <- "integer"
+  mode(Up_Inc) <- "integer"
+  mode(Down_Inc) <- "integer"
+  mode(Up_Exc) <- "integer"
+  mode(Down_Exc) <- "integer"
+  
+  se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
+		Included = Included, Excluded = Excluded),
+    rowData = rowData, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
+  rownames(se) = SummarizedExperiment::rowData(se)$EventName
+
+  S4Vectors::metadata(se)$Up_Inc = Up_Inc
+	S4Vectors::metadata(se)$Down_Inc = Down_Inc
+	S4Vectors::metadata(se)$Up_Exc = Up_Exc
+	S4Vectors::metadata(se)$Down_Exc = Down_Exc
+
+  se.filter = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
+			Depth = Depth, Coverage = Coverage, minDepth = minDepth
+		), rowData = rowData, 
+		colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
+  rownames(se.filter) = SummarizedExperiment::rowData(se.filter)$EventName
+  
+  final = list(se = se, se.filter = se.filter)
+  return(final)
+}
+
+
+#' @export
 BuildSE = function(irf_fst_files, colData, fst_path = file.path(dirname(irf_fst_files[1]), "Collated"),
   IRMode = c("SpliceOverMax", "SpliceMax"), samples_per_block = 16) {
 	
