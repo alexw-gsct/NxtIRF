@@ -59,6 +59,15 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     df.internal$paired = FALSE
     df.internal$strand = 0
     df.internal$depth = 0
+    df.internal$mean_frag_size = 0
+    df.internal$directionality_strength = 0
+    df.internal$Intergenic_Fraction = 0
+    df.internal$rRNA_Fraction = 0
+    df.internal$NonPolyA_Fraction = 0
+    df.internal$Mitochondrial_Fraction = 0
+    df.internal$Unanno_Jn_Fraction = 0
+    df.internal$Fraction_Splice_Reads = 0
+    df.internal$Fraction_Span_Reads = 0
 
     df.internal = suppressWarnings(rbindlist(
       BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
@@ -75,6 +84,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 							colClasses = c("character", "numeric")))
             ROI = suppressWarnings(fread(block$path[i], skip = "ROIname"))
             ChrCov = suppressWarnings(fread(block$path[i], skip = "ChrCoverage"))
+            junc = suppressWarnings(fread(block$path[i], skip = "JC_seqname"))
 		
             if(stats$Value[3] == 0 & stats$Value[4] > 0) {
                 block$paired[i] = TRUE
@@ -90,14 +100,19 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 								block$mean_frag_size[i] = stats$Value[2] / stats$Value[3]
             }
             block$strand[i] = direct$Value[9]
-
+            
 						# QC
-						block$directionality_strength = direct$Value[8]
+						block$directionality_strength[i] = direct$Value[8]
 						ROI$type = tstrsplit(ROI$ROIname, split="/")[[1]]
-						block$Intergenic_Fraction = sum(ROI$total_hits[ROI$type == "Intergenic"]) / block$depth[i]
-						block$rRNA_Fraction = sum(ROI$total_hits[ROI$type == "rRNA"]) / block$depth[i]
-						block$NonPolyA_Fraction = sum(ROI$total_hits[ROI$type == "NonPolyA"]) / block$depth[i]
-						block$Mitochondrial_Fraction = sum(ChrCov$total[ChrCov$ChrCoverage_seqname %in% c("M", "MT")]) / block$depth[i]
+						block$Intergenic_Fraction[i] = sum(ROI$total_hits[ROI$type == "Intergenic"]) / block$depth[i]
+						block$rRNA_Fraction[i] = sum(ROI$total_hits[ROI$type == "rRNA"]) / block$depth[i]
+						block$NonPolyA_Fraction[i] = sum(ROI$total_hits[ROI$type == "NonPolyA"]) / block$depth[i]
+						block$Mitochondrial_Fraction[i] = sum(ChrCov$total[ChrCov$ChrCoverage_seqname %in% c("M", "MT")]) / block$depth[i]
+						block$Unanno_Jn_Fraction[i] = sum(junc$total[junc$strand == "."]) / sum(junc$total)
+						block$Fraction_Splice_Reads[i] = sum(junc$total) / block$depth[i]
+
+            spans = suppressWarnings(fread(block$path[i], skip = "SP_seqname"))        
+						block$Fraction_Span_Reads[i] = sum(spans$total) / block$depth[i]
           }
           return(block)
         }, df.internal = df.internal, BPPARAM = BPPARAM
