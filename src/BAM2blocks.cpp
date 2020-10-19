@@ -250,10 +250,10 @@ int BAM2blocks::processAll(std::string& output) {
 	// int pair = 0;
 	//int bytesread = 0;
     std::ostringstream oss;
+#ifndef GALAXY
   uint64_t prev_bam_pos = IN->tellg();	// For progress bar
-  #ifndef GALAXY
   Progress p(IN->IS_LENGTH, true);
-  #endif
+#endif
 	while(1) {
 		j++;
 		if (IN->eof() && !(IN->fail()) ) {
@@ -323,10 +323,10 @@ int BAM2blocks::processAll(std::string& output) {
                 spare_reads[read_name] = reads[0];
             }
 		}
-		#ifndef GALAXY
-		p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
-		#endif
-        prev_bam_pos = IN->tellg();
+#ifndef GALAXY
+    p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
+    prev_bam_pos = IN->tellg();
+#endif
 	}
 	return(0);
 }
