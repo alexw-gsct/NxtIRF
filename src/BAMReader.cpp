@@ -76,7 +76,7 @@ int BAMReader::LoadBuffer() {
   if(strncmp(check_eof_buffer, bamEOF, bamGzipHeadLength + 2) == 0) {
     // possible EOF, check next 10 bytes
     char * rest_of_EOF = new char[bamEOFlength - bamGzipHeadLength - 2];
-    IN->read(rest_of_EOF, bamEOFlength - bamGzipHeadLength - 2)
+    IN->read(rest_of_EOF, bamEOFlength - bamGzipHeadLength - 2);
     memcpy(check_eof_buffer + bamGzipHeadLength + 2, rest_of_EOF, bamEOFlength - bamGzipHeadLength - 2);
     if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
       IS_EOF = 1;
