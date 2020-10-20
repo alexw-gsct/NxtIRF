@@ -759,11 +759,11 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 		file.df$index = as.numeric(tstrsplit(file.df, split=".", fixed = TRUE)[[2]])
 		file.df = file.df %>% dplyr::arrange(index)
 		mat = NULL
-		for(x in seq_len(nrow(file.df))) {
-			temp = t(fread(file.df$file[x], data.table = FALSE))
-			colnames(temp) = df.internal$sample[jobs[[x]]]
+		for(x in seq_len(n_jobs)) {
+			temp = t(fread(file.path(temp_output_path, file.df$file[x]), data.table = FALSE))
+			colnames(temp) = df.internal$sample[x]
 			mat = cbind(mat, temp)
-			file.remove(file.df$file[x])
+			file.remove(file.path(temp_output_path, file.df$file[x]))
 		}
 
     outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
