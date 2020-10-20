@@ -21,41 +21,52 @@ BAMReader::BAMReader() {
 void BAMReader::SetInputHandle(std::istream *in_stream) {
 	IN = in_stream;
     // get length of file:
-    IN->seekg (0, std::ios_base::end);
-    IS_LENGTH = IN->tellg();
-    
-    // Check EOF bit
-    IN->seekg (-bamEOFlength, std::ios_base::end);
-    
-    char check_eof_buffer[BAMReader::bamEOFlength+1];
-    IN->read(check_eof_buffer, bamEOFlength);
-         
-    if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
-        EOF_POS = IS_LENGTH - bamEOFlength;
-        // Rcout << "EOF detected at position: " << EOF_POS << "\n";
-    } else {
-        Rcout << "EOF bit not detected\n";
-        EOF_POS = 0;
-    }
-    IN->seekg (0, std::ios_base::beg);    
+  // IN->seekg (0, std::ios_base::end);
+  // IS_LENGTH = IN->tellg();
+  
+  // IN->seekg (-bamEOFlength, std::ios_base::end);
+  
+  // char check_eof_buffer[BAMReader::bamEOFlength+1];
+  // IN->read(check_eof_buffer, bamEOFlength);
+       
+  // if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
+      // EOF_POS = IS_LENGTH - bamEOFlength;
+  // } else {
+      // Rcout << "EOF bit not detected\n";
+      // EOF_POS = 0;
+  // }
+  // IN->seekg (0, std::ios_base::beg);    
 }
 
 int BAMReader::LoadBuffer() {
+  stream_uint16 u16;
+  stream_uint32 u32;
     
-    // read compressed buffer
-    if((size_t)IN->tellg() >= EOF_POS) {
-        IS_EOF = 1;
-        return(0);
-    } else if(IN->fail()) {
-        IS_FAIL = 1;
-        return(0);
-    }
+  // check EOF before proceeding further  
+  char check_eof_buffer[BAMReader::bamEOFlength+1];
+  IN->read(check_eof_buffer, BAMReader::bamEOFlength);
+  
+  if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
+    IS_EOF = 1;
+    return(0);
+  } else if(IN->fail()) {
+    IS_FAIL = 1;
+    return(0);
+  }
+  // read compressed buffer
+  // if((size_t)IN->tellg() >= EOF_POS) {
+      // IS_EOF = 1;
+      // return(0);
+  // } else if(IN->fail()) {
+      // IS_FAIL = 1;
+      // return(0);
+  // }
 
-    stream_uint16 u16;
-    stream_uint32 u32;
-
+  // If not EOF, then read the 28 bytes off check_eof_buffer
     char GzipCheck[bamGzipHeadLength];
-    IN->read(GzipCheck, bamGzipHeadLength);
+    // IN->read(GzipCheck, bamGzipHeadLength);
+    memcpy(GzipCheck, check_eof_buffer, bamGzipHeadLength);
+    
 /*
 // Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
      if(strncmp(bamGzipHead, GzipCheck, bamGzipHeadLength) != 0) {
@@ -64,9 +75,13 @@ int BAMReader::LoadBuffer() {
         throw(std::runtime_error(oss.str()));
     }
  */
-    IN->read(u16.c, 2);
-    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
-
+//    IN->read(u16.c, 2);
+      memcpy(u16.c, check_eof_buffer + bamGzipHeadLength, 2)
+//    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
+      memcpy(compressed_buffer, check_eof_buffer + bamGzipHeadLength + 2, bamEOFlength - bamGzipHeadLength - 2);
+      IN->read(compressed_buffer + bamEOFlength - bamGzipHeadLength - 2, 
+        u16.u + 1 - bamEOFlength);
+      
     bufferMax = 65536;
     z_stream zs;
     zs.zalloc = NULL;
