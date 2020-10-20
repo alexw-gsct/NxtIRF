@@ -45,9 +45,7 @@ int BAMReader::LoadBuffer() {
   // check EOF before proceeding further  
   char check_eof_buffer[bamEOFlength];
   IN->read(check_eof_buffer, bamEOFlength);
-  
-  Rcout << (void *)check_eof_buffer << '\n';
-  
+    
   if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
     IS_EOF = 1;
     return(0);
@@ -67,8 +65,7 @@ int BAMReader::LoadBuffer() {
   // If not EOF, then read the 28 bytes off check_eof_buffer
     char GzipCheck[bamGzipHeadLength];
     // IN->read(GzipCheck, bamGzipHeadLength);
-    memcpy(GzipCheck, check_eof_buffer, bamGzipHeadLength);
-    Rcout << (void *)GzipCheck << '\n';
+    memcpy(&GzipCheck[0], &check_eof_buffer[0], bamGzipHeadLength);
     
 /*
 // Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
@@ -79,11 +76,10 @@ int BAMReader::LoadBuffer() {
     }
  */
 //    IN->read(u16.c, 2);
-      memcpy(u16.c, &check_eof_buffer[bamGzipHeadLength], 2);
-    Rcout << u16.u << '\n';
+      memcpy(&u16.c[0], &check_eof_buffer[bamGzipHeadLength], 2);
 
 //    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
-      memcpy(compressed_buffer, &check_eof_buffer[bamGzipHeadLength + 2], bamEOFlength - bamGzipHeadLength - 2);
+      memcpy(&compressed_buffer[0], &check_eof_buffer[bamGzipHeadLength + 2], bamEOFlength - bamGzipHeadLength - 2);
       IN->read(&compressed_buffer[bamEOFlength - bamGzipHeadLength - 2], 
         u16.u + 1 - bamEOFlength);
       
