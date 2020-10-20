@@ -46,6 +46,8 @@ int BAMReader::LoadBuffer() {
   char check_eof_buffer[bamEOFlength];
   IN->read(check_eof_buffer, bamEOFlength);
   
+  Rcout << str(check_eof_buffer) << '\n';
+  
   if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
     IS_EOF = 1;
     return(0);
