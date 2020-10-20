@@ -68,6 +68,7 @@ int BAMReader::LoadBuffer() {
     char GzipCheck[bamGzipHeadLength];
     // IN->read(GzipCheck, bamGzipHeadLength);
     memcpy(GzipCheck, check_eof_buffer, bamGzipHeadLength);
+    Rcout << (void *)GzipCheck << '\n';
     
 /*
 // Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
@@ -79,6 +80,8 @@ int BAMReader::LoadBuffer() {
  */
 //    IN->read(u16.c, 2);
       memcpy(u16.c, &check_eof_buffer[bamGzipHeadLength], 2);
+    Rcout << u16.u << '\n';
+
 //    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
       memcpy(compressed_buffer, &check_eof_buffer[bamGzipHeadLength + 2], bamEOFlength - bamGzipHeadLength - 2);
       IN->read(&compressed_buffer[bamEOFlength - bamGzipHeadLength - 2], 
