@@ -42,21 +42,8 @@ int BAMReader::LoadBuffer() {
   stream_uint16 u16;
   stream_uint32 u32;
     
-  // check EOF before proceeding further  
-
-  // read compressed buffer
-  // if((size_t)IN->tellg() >= EOF_POS) {
-      // IS_EOF = 1;
-      // return(0);
-  // } else if(IN->fail()) {
-      // IS_FAIL = 1;
-      // return(0);
-  // }
-
-  // If not EOF, then read the 28 bytes off check_eof_buffer
     char GzipCheck[bamGzipHeadLength];
     IN->read(GzipCheck, bamGzipHeadLength);
-    // memcpy(&GzipCheck[0], &check_eof_buffer[0], bamGzipHeadLength);
     
 /*
 // Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
@@ -67,7 +54,6 @@ int BAMReader::LoadBuffer() {
     }
  */
    IN->read(u16.c, 2);
-      // memcpy(&u16.c[0], &check_eof_buffer[bamGzipHeadLength], 2);
 
   char check_eof_buffer[bamEOFlength];
   memcpy(check_eof_buffer, GzipCheck, bamGzipHeadLength);
@@ -94,12 +80,6 @@ int BAMReader::LoadBuffer() {
     IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
   }
 
-
-//    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
-      // memcpy(&compressed_buffer[0], &check_eof_buffer[bamGzipHeadLength + 2], bamEOFlength - bamGzipHeadLength - 2);
-      // IN->read(&compressed_buffer[bamEOFlength - bamGzipHeadLength - 2], 
-        // u16.u + 1 - bamEOFlength);
-      
     bufferMax = 65536;
     z_stream zs;
     zs.zalloc = NULL;
@@ -120,6 +100,7 @@ int BAMReader::LoadBuffer() {
     }
     ret = inflate(&zs, Z_FINISH);
     if(ret != Z_OK && ret != Z_STREAM_END) {
+        Rcout << IN->tellg() << '\n';
         std::ostringstream oss;
         oss << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
         throw(std::runtime_error(oss.str()));
