@@ -247,6 +247,7 @@ int BAM2blocks::processAll(std::string& output) {
 	unsigned long long totalNucleotides = 0;
 	unsigned long j = 0;
 	int idx = 0;
+  int ret = 0;
 	// int pair = 0;
 	//int bytesread = 0;
     std::ostringstream oss;
@@ -256,7 +257,7 @@ int BAM2blocks::processAll(std::string& output) {
 #endif
 	while(1) {
 		j++;
-		int ret = IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
+		ret |= IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
 		if (ret == 1) {
       cErrorReads = spare_reads.size();
 			oss << "Total reads processed\t" << j-1 << '\n';
@@ -290,9 +291,9 @@ int BAM2blocks::processAll(std::string& output) {
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.
 		}
-		IN->read(reads[idx].read_name, reads[idx].l_read_name);
-		IN->read(reads[idx].cigar_buffer, reads[idx].n_cigar_op*4);    
-		IN->ignore(reads[idx].block_size - BAM_READ_CORE_BYTES + 4 - reads[idx].l_read_name - (reads[idx].n_cigar_op*4));
+		ret |= IN->read(reads[idx].read_name, reads[idx].l_read_name);
+		ret |= IN->read(reads[idx].cigar_buffer, reads[idx].n_cigar_op*4);    
+		ret |= IN->ignore(reads[idx].block_size - BAM_READ_CORE_BYTES + 4 - reads[idx].l_read_name - (reads[idx].n_cigar_op*4));
 
 		if (reads[idx].flag & 0x904) {
 			/* If is an unmapped / secondary / supplementary alignment -- discard/overwrite */

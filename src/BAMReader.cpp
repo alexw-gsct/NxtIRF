@@ -41,8 +41,10 @@ void BAMReader::SetInputHandle(std::istream *in_stream) {
 int BAMReader::LoadBuffer() {
   stream_uint16 u16;
   stream_uint32 u32;
-    
-  if(IN->eof()) {
+  
+  if(IN->fail()) {
+    return(-1);
+  } else if(IN->eof()) {
     IS_EOF = 1;
     return(1);
   }
@@ -59,14 +61,14 @@ int BAMReader::LoadBuffer() {
     }
  */
   IN->read(u16.c, 2);
-
-  IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
-  
   // check true EOF
   if(u16.u == 27) {
     IS_EOF = 1;
     return(1);
   }
+
+  IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
+  
     bufferMax = 65536;
     z_stream zs;
     zs.zalloc = NULL;
