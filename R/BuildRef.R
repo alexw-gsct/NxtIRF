@@ -426,9 +426,6 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
 
     # Cleanup
-    rm(OL, Genes.Group.stranded, Genes.Group.unstranded,
-        tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded)
-    gc()
     
     Proteins = gtf.gr[gtf.gr$type == "CDS"]
     Proteins <- GenomeInfoDb::sortSeqlevels(Proteins)
@@ -674,6 +671,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         # "exon_group_stranded_downstream", "exon_group_unstranded_downstream")]
     
     fst::write.fst(candidate.introns, file.path(reference_path,"fst","junctions.fst"))
+
+    rm(OL, Genes.Group.stranded, Genes.Group.unstranded,
+        tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded)
+    gc()
 
     message("done\n")
 
