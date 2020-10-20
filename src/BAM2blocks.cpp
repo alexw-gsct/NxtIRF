@@ -271,8 +271,8 @@ int BAM2blocks::processAll(std::string& output) {
             output = oss.str();
 			return(0);   
 		}
-		IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
-		if (IN->fail()) {
+		int ret = IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
+		if (IN->fail() || ret == -1) {
             cErrorReads = spare_reads.size();
 			cerr << "Input error at line:" << j << '\n';
 			// cerr << "Characters read on last read call:" << IN->gcount() << '\n';
