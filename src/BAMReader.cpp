@@ -42,6 +42,11 @@ int BAMReader::LoadBuffer() {
   stream_uint16 u16;
   stream_uint32 u32;
     
+  if(IN->eof()) {
+    IS_EOF = 1;
+    return(1);
+  }
+    
   char GzipCheck[bamGzipHeadLength];
   IN->read(GzipCheck, bamGzipHeadLength);
     
