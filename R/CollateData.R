@@ -765,16 +765,13 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 			mat = cbind(mat, temp)
 			file.remove(file.path(temp_output_path, file.df$file[x]))
 		}
-
     outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
     fst::write.fst(as.data.frame(mat), outfile)
-    
   }
   
   fst::threads_fst(parallel::detectCores())
 
   message("NxtIRF Collation Finished")
-
 }
 
 #' @export

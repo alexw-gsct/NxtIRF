@@ -107,6 +107,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		tabPanel("About", value = "navTitle",
 			img(src="https://pbs.twimg.com/profile_images/1310789966293655553/7HawCItY_400x400.jpg")
 		),
+		tabPanel("Multithreading", value = "navThreads",
+			wellPanel(
+				selectInput('expr_Cores', 'Number of Processors to Use', width = '100%',
+					choices = c(1)),					
+			),
+		),		
 # Reference
 		navbarMenu("Reference",
 		# New reference
@@ -192,13 +198,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
 					textOutput("txt_irf_path_expr"),
 					br(),
-
-					wellPanel(
-						selectInput('expr_Cores', 'IRFinder Cores', width = '100%',
-							choices = c(1)),					
-						actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
-						textOutput("txt_run_irf_expr")
-					),
 										
 					wellPanel(
 						uiOutput("newcol_expr"), # done
@@ -232,7 +231,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
 						title = "Choose Sample Annotation Table", multiple = FALSE), # done
 					textOutput("txt_sample_anno_expr"), # done
-          br(),						
+          br(),
+					actionButton("build_expr", "Build SummarizedExperiment"),
           rHandsontableOutput("hot_expr")
 				)	# last column
 			),
@@ -240,7 +240,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# Analyze
 		navbarMenu("Analyse",
 			tabPanel("View QC", value = "navQC"),
-			tabPanel("Calculate PSIs", value = "navPSI",
+			tabPanel("Filters", value = "navFilter",
 		# Takes experimental data frame, sets filters, then constructs SummarizedExperiment object
 				# Current Experiment
         fluidRow(
@@ -261,12 +261,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						)
 					),
 					column(4,	
-						textOutput("current_expr_PSI"), br(),
-						textOutput("current_ref_PSI"), br(),
-						actionButton("load_filterdata_PSI", "Load Data"),
-						actionButton("refresh_filters_PSI", "Refresh Filters"),
+						textOutput("current_expr_Filters"), br(),
+						textOutput("current_ref_Filters"), br(),
+						# actionButton("load_filterdata_Filters", "Load Data"),
+						actionButton("refresh_filters_Filters", "Refresh Filters"),
 						plotlyOutput("plot_filtered_Events"),
-						shinySaveButton("saveAnalysis_PSI", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
+						shinySaveButton("saveAnalysis_Filters", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
 							filetype = list(dataframe = "Rds")),
 					)
         )
@@ -330,28 +330,29 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             validate(need(settings_loadref$loadref_path, "Please select reference path"))
             settings_loadref$loadref_path
         })
+			} else if(input$navSelection == "navThreads") {	
+				max_cores = parallel::detectCores() - 2
+				updateSelectInput(session = session, inputId = "expr_Cores", 
+					choices = seq(max_cores, 1))        								
 			} else if(input$navSelection == "navExpr") {
 				# Determine IRFinder cores
-				n_workers = BPPARAM$workers
-				if(n_workers > parallel::detectCores() - 2) n_workers = parallel::detectCores() - 2
-				updateSelectInput(session = session, inputId = "expr_Cores", 
-					choices = seq_len(n_workers))        				
+
 				output$txt_reference_path <- renderText({
 					validate(
 						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
 					)
 					settings_loadref$loadref_path
 				})
-			} else if(input$navSelection == "navPSI") {
-				if(!is.null(settings_expr$df)) {
-					output$current_expr_PSI = renderText("Experiment loaded")
+			} else if(input$navSelection == "navFilter") {
+				if(!is.null(settings_SE$se.filter)) {
+					output$current_expr_Filters = renderText("SummarizedExperimentloaded")
 				} else {
-					output$current_expr_PSI = renderText("Please load experiment first")
+					output$current_expr_Filters = renderText("Please load SummarizedExperimentloaded first")
 				}
 				if(settings_loadref$loadref_path != "") {
-					output$current_ref_PSI = renderText("Reference loaded")
+					output$current_ref_Filters = renderText("Reference loaded")
 				} else {
-					output$current_ref_PSI = renderText("Please load reference first")
+					output$current_ref_Filters = renderText("Please load reference first")
 				}
 
 			}
@@ -771,7 +772,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 			# start anew
 					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", fst_file = "")
+						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				}		
         settings_expr$df = as.data.frame(DT)
@@ -856,12 +857,44 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 			# start anew
 					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", fst_file = "")
+						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
 					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				}
         settings_expr$df = as.data.frame(DT)        
-			}    
+			}
+			
+			# Attempt to find Coverage files
+			temp.DT = FindSamples(settings_expr$irf_path, suffix = ".cov", use_subdir = FALSE)
+			if(!is.null(temp.DT)) {
+        temp.DT = as.data.table(temp.DT)
+				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+					# Assume output names designate sample names
+				} else {
+					temp.DT = as.data.table(FindSamples(
+						settings_expr$irf_path, suffix = ".cov", use_subdir = TRUE))
+					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+				# Else assume subdirectory names designate sample names					
+					} else {
+						temp.DT = NULL
+					}
+				}
+			} else {
+				temp.DT = NULL
+			}
+			
+		# compile experiment df with irfinder paths
+			if(!is.null(temp.DT)) {
+				colnames(temp.DT)[2] = "cov_file"
+
+			# merge with existing dataframe	
+				DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
+						fill = TRUE) # Add samples not in original DT
+				DT[temp.DT, on = "sample", cov_file := i.cov_file] # Update new cov paths
+
+        settings_expr$df = as.data.frame(DT)        
+			}			
     }
+		
 		observeEvent(settings_expr$irf_path,{
       req(settings_expr$irf_path)
       Expr_Load_IRFs()
@@ -916,14 +949,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
     Expr_Load_FSTs = function() {
 				# merge nxtirf paths
-			temp.DT = FindSamples(settings_expr$collate_path, suffix = ".irf.fst", use_subdir = FALSE)
+			temp.DT = FindSamples(settings_expr$collate_path, suffix = ".junc.fst", use_subdir = FALSE)
 			if(!is.null(temp.DT)) {
         temp.DT = as.data.table(temp.DT)
 				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 					# Assume output names designate sample names
 				} else {
 					temp.DT = as.data.table(FindSamples(
-						settings_expr$collate_path, suffix = ".irf.fst", use_subdir = TRUE))
+						settings_expr$collate_path, suffix = ".junc.fst", use_subdir = TRUE))
 					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
 				# Else assume subdirectory names designate sample names					
 					} else {
@@ -938,17 +971,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 		# compile experiment df with fst paths
 			if(!is.null(temp.DT)) {
-					colnames(temp.DT)[2] = "fst_file"
+					colnames(temp.DT)[2] = "junc_file"
 				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
 					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
-					DT[temp.DT, on = "sample", fst_file := i.fst_file] # Update new fst paths
+					DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
 				} else {
 			# start anew
 					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", fst_file = "")
-					DT[temp.DT, on = "sample", fst_file := i.fst_file] # Update new fst paths
+						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+					DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
 				}
         settings_expr$df = as.data.frame(DT)        
 			}    
@@ -981,13 +1014,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     # Run CollateData()
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df)
-      
+
+			if("SnowParam" %in% class(BPPARAM)) {
+				BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+			} else if("MulticoreParam" %in% class(BPPARAM)) {
+				BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+			} else {
+				BPPARAM_mod = BPPARAM
+			}
 			args <- list(
         Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")])),
         reference_path = settings_loadref$loadref_path,
-        output_path = settings_expr$collate_path
+        output_path = settings_expr$collate_path,
+				BPPARAM = BPPARAM_mod
       )
-
 			args <- Filter(is_valid, args)
       if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
         output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
@@ -1042,15 +1082,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			settings_expr$df = c()
       output$txt_run_save_expr <- renderText("")
     })
-
+		observeEvent(input$build_expr, {
+			output$txt_run_save_expr <- renderText({
+				validate(need(settings_expr$collate_path, "Please set path to FST main files first")
+				se.list = MakeSE(colData, settings_expr$collate_path)
+				settings_SE$se = se.list[["se"]]
+				settings_SE$filter = se.list[["se.filter"]]
+				"SummarizedExperiment Loaded"
+			})
+		})
+		
 	# Analyse - Calculate PSIs
-		settings_PSI <- shiny::reactiveValues(
+		settings_SE <- shiny::reactiveValues(
 			se.filter = NULL,
 			se = NULL,
 			
 			filterSummary = NULL,
       filters = list()
 		)
+		
     filter1 <- filterModule_server("filter1", conditionList)
     filter2 <- filterModule_server("filter2", conditionList)
     filter3 <- filterModule_server("filter3", conditionList)
@@ -1061,40 +1111,40 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     filter8 <- filterModule_server("filter8", conditionList)
 
     observe({
-      settings_PSI$filters[[1]] = (reactiveValuesToList(filter1))
-      settings_PSI$filters[[2]] = (reactiveValuesToList(filter2))
-      settings_PSI$filters[[3]] = (reactiveValuesToList(filter3))
-      settings_PSI$filters[[4]] = (reactiveValuesToList(filter4))
-      settings_PSI$filters[[5]] = (reactiveValuesToList(filter5))
-      settings_PSI$filters[[6]] = (reactiveValuesToList(filter6))
-      settings_PSI$filters[[7]] = (reactiveValuesToList(filter7))
-      settings_PSI$filters[[8]] = (reactiveValuesToList(filter8))
+      settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
+      settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
+      settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
+      settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
+      settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
+      settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
+      settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
+      settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
     })
     
     conditionList = reactive({
-      if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
-        colnames(SummarizedExperiment::colData(settings_PSI$se.filter))
+      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
+        colnames(SummarizedExperiment::colData(settings_SE$se.filter))
       } else {
         c("")
       }
     })
     
     se.filterModule <- reactive({
-      if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
-        settings_PSI$se.filter
+      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
+        settings_SE$se.filter
       } else {
         NULL
       }
     })
 
-		observeEvent(input$load_filterdata_PSI, {
+		observeEvent(input$load_filterdata_Filters, {
 			if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
         DT = as.data.table(settings_expr$df)
 				irf_fst_files = DT$fst_file
 				colData = as.data.frame(DT[, -c("bam_file", "irf_file", "fst_file")])
 				if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
 					# Load filter object and perform event counts
-					settings_PSI$se.filter = BuildFilterData(irf_fst_files, colData)
+					settings_SE$se.filter = BuildFilterData(irf_fst_files, colData)
           processFilters()
 				}
 			}
@@ -1102,50 +1152,50 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     
     processFilters <- function() {
       message("Refreshing filters")
-      if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
-        filterSummary = rep(TRUE, nrow(settings_PSI$se.filter))
+      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
+        filterSummary = rep(TRUE, nrow(settings_SE$se.filter))
         for(i in 1:8) {
-          print(settings_PSI$filters[[i]]$filterVars)
-          print(settings_PSI$filters[[i]]$trigger)
-            if(!is.null(settings_PSI$filters[[i]]$trigger)) {
+          print(settings_SE$filters[[i]]$filterVars)
+          print(settings_SE$filters[[i]]$trigger)
+            if(!is.null(settings_SE$filters[[i]]$trigger)) {
               filterSummary = filterSummary & runFilter(
-                settings_PSI$filters[[i]]$filterClass,
-                settings_PSI$filters[[i]]$filterType,
-                settings_PSI$filters[[i]]$filterVars,
-                settings_PSI$se.filter)
+                settings_SE$filters[[i]]$filterClass,
+                settings_SE$filters[[i]]$filterType,
+                settings_SE$filters[[i]]$filterVars,
+                settings_SE$se.filter)
             } else {
               message(paste("Trigger", i, "is NULL"))
             }
         }
-        settings_PSI$filterSummary = filterSummary    
+        settings_SE$filterSummary = filterSummary    
       }
     }
     
     observeEvent({
-      settings_PSI$se.filter
-      settings_PSI$filters[[1]]$trigger
-      settings_PSI$filters[[2]]$trigger
-      settings_PSI$filters[[3]]$trigger
-      settings_PSI$filters[[4]]$trigger
-      settings_PSI$filters[[5]]$trigger
-      settings_PSI$filters[[6]]$trigger
-      settings_PSI$filters[[7]]$trigger
-      settings_PSI$filters[[8]]$trigger
+      settings_SE$se.filter
+      settings_SE$filters[[1]]$trigger
+      settings_SE$filters[[2]]$trigger
+      settings_SE$filters[[3]]$trigger
+      settings_SE$filters[[4]]$trigger
+      settings_SE$filters[[5]]$trigger
+      settings_SE$filters[[6]]$trigger
+      settings_SE$filters[[7]]$trigger
+      settings_SE$filters[[8]]$trigger
     }, {
       processFilters()
     })
     
-    observeEvent(input$refresh_filters_PSI, {
-      req(input$refresh_filters_PSI)
+    observeEvent(input$refresh_filters_Filters, {
+      req(input$refresh_filters_Filters)
       processFilters()
     })
     
-    observeEvent(settings_PSI$filterSummary, {
-      req(settings_PSI$filterSummary)
+    observeEvent(settings_SE$filterSummary, {
+      req(settings_SE$filterSummary)
 
-      if(is(settings_PSI$se.filter, "SummarizedExperiment")) {
-        filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_PSI$se.filter)$EventType,
-          keep = settings_PSI$filterSummary)
+      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
+        filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se.filter)$EventType,
+          keep = settings_SE$filterSummary)
         filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
         filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
         filteredEvents.DT = unique(filteredEvents.DT)
