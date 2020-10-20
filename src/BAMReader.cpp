@@ -76,7 +76,7 @@ int BAMReader::LoadBuffer() {
     }
  */
 //    IN->read(u16.c, 2);
-      memcpy(u16.c, check_eof_buffer + bamGzipHeadLength, 2)
+      memcpy(u16.c, check_eof_buffer + bamGzipHeadLength, 2);
 //    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
       memcpy(compressed_buffer, check_eof_buffer + bamGzipHeadLength + 2, bamEOFlength - bamGzipHeadLength - 2);
       IN->read(compressed_buffer + bamEOFlength - bamGzipHeadLength - 2, 
