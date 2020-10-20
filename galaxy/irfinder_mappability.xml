@@ -28,7 +28,7 @@
         @TEMPINDEX@
         STAR
         @REFGENOMEHANDLING@
-        --outSAMtype BAM Unsorted --outStd SAM --outSAMmode NoQS --outSAMattributes None --outFilterMultimapNmax 1
+        --outSAMtype BAM Unsorted --outStd BAM_Unsorted --outSAMmode NoQS --outSAMattributes None --outFilterMultimapNmax 1
         --readFilesIn <(
         #if str($fasta_type.fasta_source) == "all_fasta_source":
             ${__tool_directory__}/irfinder_galaxy gen_map_reads '$fasta_type.ref.fields.path' 
