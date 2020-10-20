@@ -57,19 +57,14 @@ int BAMReader::LoadBuffer() {
 
   IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
   
-  if(IN->eof()) {
+  // check true EOF
+  if(u16.u == 27) {
     IS_EOF = 1;
-    // check true EOF
-    char check_eof_buffer[BAMReader::bamEOFlength+1];
-    memcpy(check_eof_buffer, GzipCheck, bamGzipHeadLength);
-    memcpy(check_eof_buffer + bamGzipHeadLength, u16.c, 2);
-    memcpy(check_eof_buffer + bamGzipHeadLength + 2, compressed_buffer, bamEOFlength - bamGzipHeadLength - 2);
-    if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
-      return(0);
-    } else {
-      return(-1);
-    }
+    return(1);
+  } else {
+    return(-1);
   }
+
     bufferMax = 65536;
     z_stream zs;
     zs.zalloc = NULL;
@@ -121,8 +116,8 @@ int BAMReader::read(char * dest, unsigned int len) {
     // Initialisation if buffer empty
     if(bufferMax == 0 || bufferPos == bufferMax) {
         ret = LoadBuffer();
-        if(ret == -1) {
-          return(-1);
+        if(ret != 0) {
+          return(ret);
         }
     }
     
@@ -136,8 +131,8 @@ int BAMReader::read(char * dest, unsigned int len) {
         bufferMax = 0;
         bufferPos = 0;        
         ret = LoadBuffer();
-        if(ret == -1) {
-          return(-1);
+        if(ret != 0) {
+          return(ret);
         }
 
         while(remaining_bytes > bufferMax) {
@@ -147,9 +142,9 @@ int BAMReader::read(char * dest, unsigned int len) {
             bufferMax = 0;
             bufferPos = 0;
             ret = LoadBuffer();
-            if(ret == -1) {
-              return(-1);
-            }
+          if(ret != 0) {
+            return(ret);
+          }
         }
         
         memcpy(&dest[dest_pos], &buffer[bufferPos], remaining_bytes);
