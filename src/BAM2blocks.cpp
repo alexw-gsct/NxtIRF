@@ -258,7 +258,7 @@ int BAM2blocks::processAll(std::string& output) {
 	while(1) {
 		j++;
 		ret |= IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
-		if (ret == 1) {
+		if (IN->eof() || ret == 1) {
       cErrorReads = spare_reads.size();
 			oss << "Total reads processed\t" << j-1 << '\n';
 			oss << "Total nucleotides\t" << totalNucleotides << '\n';

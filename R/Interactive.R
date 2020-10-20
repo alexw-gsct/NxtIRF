@@ -1084,7 +1084,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
 		observeEvent(input$build_expr, {
 			output$txt_run_save_expr <- renderText({
-				validate(need(settings_expr$collate_path, "Please set path to FST main files first")
+				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
 				se.list = MakeSE(colData, settings_expr$collate_path)
 				settings_SE$se = se.list[["se"]]
 				settings_SE$filter = se.list[["se.filter"]]

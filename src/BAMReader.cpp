@@ -20,10 +20,12 @@ BAMReader::BAMReader() {
 
 void BAMReader::SetInputHandle(std::istream *in_stream) {
 	IN = in_stream;
-    // get length of file:
-  // IN->seekg (0, std::ios_base::end);
-  // IS_LENGTH = IN->tellg();
-  
+  //  get length of file:
+  if(in_stream != &std::cin) {
+    IN->seekg (0, std::ios_base::end);
+    IS_LENGTH = IN->tellg();
+    IN->seekg (0, std::ios_base::beg);    
+  }
   // IN->seekg (-bamEOFlength, std::ios_base::end);
   
   // char check_eof_buffer[BAMReader::bamEOFlength+1];
