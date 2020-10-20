@@ -485,25 +485,50 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         c("ccds_id") := list(i.ccds_id)]
     }
     
-    # Annotate candidate introns by min and max exon_groups by reference to upstream / downstream exon
-    
-    Exons.Hash = as.data.table(Exons)
-    Exons.Hash = Exons.Hash[, c("transcript_id", "exon_number", "gene_group_stranded", "gene_group_unstranded",
-        "exon_group_stranded", "exon_group_unstranded")]
-    setnames(Exons.Hash, "exon_number", "intron_number")
-    Exons.Hash[, intron_number := as.numeric(intron_number)]
-    candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
-        c("gene_group_stranded", "gene_group_unstranded",
-            "exon_group_stranded_upstream", "exon_group_unstranded_upstream") :=
-        list(i.gene_group_stranded, i.gene_group_unstranded,
-            i.exon_group_stranded, i.exon_group_unstranded)]
-    Exons.Hash[, intron_number := intron_number - 1]
-    candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
-        c("exon_group_stranded_downstream", "exon_group_unstranded_downstream") :=
-        list(i.exon_group_stranded, i.exon_group_unstranded)]
-
+    # Cannot annotate candidate introns by min and max exon_groups
+		# because retained introns will overlap one or more exon groups
+		# need to walk start -=1, end += 1, then do the overlap thing
+		
+    # Exons.Hash = as.data.table(Exons)
+    # Exons.Hash = Exons.Hash[, c("transcript_id", "exon_number", "gene_group_stranded", "gene_group_unstranded",
+        # "exon_group_stranded", "exon_group_unstranded")]
+    # setnames(Exons.Hash, "exon_number", "intron_number")
+    # Exons.Hash[, intron_number := as.numeric(intron_number)]
+    # candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
+        # c("gene_group_stranded", "gene_group_unstranded",
+            # "exon_group_stranded_upstream", "exon_group_unstranded_upstream") :=
+        # list(i.gene_group_stranded, i.gene_group_unstranded,
+            # i.exon_group_stranded, i.exon_group_unstranded)]
+    # Exons.Hash[, intron_number := intron_number - 1]
+    # candidate.introns[Exons.Hash, on = c("transcript_id", "intron_number"),
+        # c("exon_group_stranded_downstream", "exon_group_unstranded_downstream") :=
+        # list(i.exon_group_stranded, i.exon_group_unstranded)]
     candidate.introns[,intron_start := start]
     candidate.introns[,intron_end := end]
+				
+		candidate.introns[strand == "+", start := intron_start - 1]
+		candidate.introns[strand == "+", end := intron_start]
+		candidate.introns[strand == "-", start := intron_end]
+		candidate.introns[strand == "-", end := intron_end + 1]		
+			OL = GenomicRanges::findOverlaps(
+					candidate.introns, 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))			
+		
+    candidate.introns$gene_group_stranded[OL@from] = tmp.Exons.Group.stranded$gene_group[OL@to]
+    candidate.introns$exon_group_stranded_upstream[OL@from] = tmp.Exons.Group.stranded$exon_group[OL@to]		
+
+		candidate.introns[strand == "-", start := intron_start - 1]
+		candidate.introns[strand == "-", end := intron_start]
+		candidate.introns[strand == "+", start := intron_end]
+		candidate.introns[strand == "+", end := intron_end + 1]		
+			OL = GenomicRanges::findOverlaps(
+					candidate.introns, 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))			
+    candidate.introns$exon_group_stranded_downstream[OL@from] = tmp.Exons.Group.stranded$exon_group[OL@to]		
+
+		# reset
+    candidate.introns[,start := intron_start]
+    candidate.introns[,end := intron_end]
     candidate.introns[,Event :=  paste0(seqnames, ":", intron_start, "-", intron_end, "/", strand)]
     
     # NB in candidate.introns, transcript_biotype == c("sense_intronic", "retained_intron") can have
