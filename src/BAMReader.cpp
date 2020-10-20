@@ -43,8 +43,8 @@ int BAMReader::LoadBuffer() {
   stream_uint32 u32;
     
   // check EOF before proceeding further  
-  char check_eof_buffer[BAMReader::bamEOFlength+1];
-  IN->read(check_eof_buffer, BAMReader::bamEOFlength);
+  char check_eof_buffer[bamEOFlength];
+  IN->read(check_eof_buffer, bamEOFlength);
   
   if(strncmp(check_eof_buffer, bamEOF, bamEOFlength) == 0) {
     IS_EOF = 1;
@@ -76,10 +76,10 @@ int BAMReader::LoadBuffer() {
     }
  */
 //    IN->read(u16.c, 2);
-      memcpy(u16.c, check_eof_buffer + bamGzipHeadLength, 2);
+      memcpy(u16.c, &check_eof_buffer[bamGzipHeadLength], 2);
 //    IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
-      memcpy(compressed_buffer, check_eof_buffer + bamGzipHeadLength + 2, bamEOFlength - bamGzipHeadLength - 2);
-      IN->read(compressed_buffer + bamEOFlength - bamGzipHeadLength - 2, 
+      memcpy(compressed_buffer, &check_eof_buffer[bamGzipHeadLength + 2], bamEOFlength - bamGzipHeadLength - 2);
+      IN->read(&compressed_buffer[bamEOFlength - bamGzipHeadLength - 2], 
         u16.u + 1 - bamEOFlength);
       
     bufferMax = 65536;
