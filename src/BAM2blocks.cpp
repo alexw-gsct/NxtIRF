@@ -256,8 +256,9 @@ int BAM2blocks::processAll(std::string& output) {
 #endif
 	while(1) {
 		j++;
-		if (IN->eof() && !(IN->fail()) ) {
-            cErrorReads = spare_reads.size();
+		int ret = IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
+		if (IN->eof() && ret == 0) {
+      cErrorReads = spare_reads.size();
 			oss << "Total reads processed\t" << j-1 << '\n';
 			oss << "Total nucleotides\t" << totalNucleotides << '\n';
 			oss << "Total singles processed\t" << cSingleReads << '\n';
@@ -268,12 +269,10 @@ int BAM2blocks::processAll(std::string& output) {
 			oss << "Skipped reads\t" << cSkippedReads << '\n';
 			oss << "Error / Unpaired reads\t" << cErrorReads << '\n';
 			oss << "Error detected on line\t" << "NA" << '\n';
-            output = oss.str();
+      output = oss.str();
 			return(0);   
-		}
-		int ret = IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
-		if (IN->fail() && ret == -1) {
-            cErrorReads = spare_reads.size();
+		} else if(IN->fail() || ret == -1) {
+      cErrorReads = spare_reads.size();
 			cerr << "Input error at line:" << j << '\n';
 			// cerr << "Characters read on last read call:" << IN->gcount() << '\n';
 			oss << "Total reads processed\t" << j-1 << '\n';
@@ -286,7 +285,7 @@ int BAM2blocks::processAll(std::string& output) {
 			oss << "Skipped reads\t" << cSkippedReads << '\n';
 			oss << "Error / Unpaired reads\t" << cErrorReads << '\n';
 			oss << "Error detected on line\t" << j << '\n';
-            output = oss.str();
+      output = oss.str();
 			return(1);
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.
