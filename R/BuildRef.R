@@ -330,10 +330,35 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     # Assign gene groups then bake exon-groups into Exons
     tmp.Exons.Group.stranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude))
+    
     OL = GenomicRanges::findOverlaps(
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
         GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded)))
     tmp.Exons.Group.stranded$gene_group[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+
+    # Some retained_intron transcripts have terminal exons lying outside to that of main transcripts. Include these also
+    tmp.exons.exclude.span = GenomicRanges::split(
+      GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)),
+      tmp.Exons.Group.stranded$gene_group)
+    tmp.exons.exclude.span = unlist(range(tmp.exons.exclude.span),use.names=TRUE)
+ 
+    tmp.exons.RI =  Exons[grepl("intron", Exons$transcript_biotype)]
+    if(length(tmp.exons.RI) > 0) {
+      OL = GenomicRanges::findOverlaps(
+          tmp.exons.RI, 
+          tmp.exons.exclude.span
+      )
+      tmp.exons.RI = tmp.exons.RI[-OL@from]
+      tmp.exons.exclude = c(tmp.exons.exclude, tmp.exons.RI)
+    # Reassign everything
+      tmp.Exons.Group.stranded = as.data.table(GenomicRanges::reduce(tmp.exons.exclude))
+      
+      OL = GenomicRanges::findOverlaps(
+          GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)), 
+          GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded)))
+      tmp.Exons.Group.stranded$gene_group[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
+    }
+
     setorder(tmp.Exons.Group.stranded, seqnames, start, strand)
     tmp.Exons.Group.stranded[, exon_group := data.table::rowid(gene_group)]
     tmp.Exons.Group.stranded[strand == "-", 
@@ -505,13 +530,17 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         # list(i.exon_group_stranded, i.exon_group_unstranded)]
     candidate.introns[,intron_start := start]
     candidate.introns[,intron_end := end]
+
+    candidate.introns$gene_group_stranded = NA
+    candidate.introns$exon_group_stranded_upstream = NA
+    candidate.introns$exon_group_stranded_downstream = NA        
 				
 		candidate.introns[strand == "+", start := intron_start - 1]
 		candidate.introns[strand == "+", end := intron_start]
 		candidate.introns[strand == "-", start := intron_end]
 		candidate.introns[strand == "-", end := intron_end + 1]		
 			OL = GenomicRanges::findOverlaps(
-					candidate.introns, 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns)), 
 					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))			
 		
     candidate.introns$gene_group_stranded[OL@from] = tmp.Exons.Group.stranded$gene_group[OL@to]
@@ -522,9 +551,115 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 		candidate.introns[strand == "+", start := intron_end]
 		candidate.introns[strand == "+", end := intron_end + 1]		
 			OL = GenomicRanges::findOverlaps(
-					candidate.introns, 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns)), 
 					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded)))			
     candidate.introns$exon_group_stranded_downstream[OL@from] = tmp.Exons.Group.stranded$exon_group[OL@to]		
+
+    # Need fix for retained_introns or sense_intronic where junction extends into the obligate introns
+    tmp = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.stranded), keep.extra.columns = TRUE)
+    tmp.Introns.Group.stranded = grlGaps(
+        GenomicRanges::split(tmp, tmp$gene_group)
+    )
+    tmp.Introns.Group.stranded = data.table::as.data.table(tmp.Introns.Group.stranded)
+    setnames(tmp.Introns.Group.stranded, "group_name", "gene_group")
+    tmp.Introns.Group.stranded[,intron_number := data.table::rowid(gene_group)]
+    tmp.Introns.Group.stranded[strand == "-", intron_number := max(intron_number) + 1 - intron_number, by = "gene_group"]
+
+    candidate.introns.subset = candidate.introns[is.na(exon_group_stranded_upstream)]
+    candidate.introns = candidate.introns[!is.na(exon_group_stranded_upstream)]
+		candidate.introns.subset[strand == "+", start := intron_start - 1]
+		candidate.introns.subset[strand == "+", end := intron_start]
+		candidate.introns.subset[strand == "-", start := intron_end]
+		candidate.introns.subset[strand == "-", end := intron_end + 1]		
+
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns.subset)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Introns.Group.stranded)))			
+		
+    candidate.introns.subset$gene_group_stranded[OL@from] = tmp.Introns.Group.stranded$gene_group[OL@to]
+    candidate.introns.subset$exon_group_stranded_upstream[OL@from] = tmp.Introns.Group.stranded$intron_number[OL@to]		
+
+    candidate.introns = rbind(candidate.introns, candidate.introns.subset)
+
+    candidate.introns.subset = candidate.introns[is.na(exon_group_stranded_downstream)]
+    candidate.introns = candidate.introns[!is.na(exon_group_stranded_downstream)]
+		candidate.introns.subset[strand == "-", start := intron_start - 1]
+		candidate.introns.subset[strand == "-", end := intron_start]
+		candidate.introns.subset[strand == "+", start := intron_end]
+		candidate.introns.subset[strand == "+", end := intron_end + 1]		
+
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns.subset)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Introns.Group.stranded)))			
+		
+    candidate.introns.subset$exon_group_stranded_downstream[OL@from] = tmp.Introns.Group.stranded$intron_number[OL@to] + 1		
+
+    candidate.introns = rbind(candidate.introns, candidate.introns.subset)
+
+# Now repeat the same for unstranded condition
+    candidate.introns$gene_group_unstranded = NA
+    candidate.introns$exon_group_unstranded_upstream = NA
+    candidate.introns$exon_group_unstranded_downstream = NA
+  
+		candidate.introns[strand == "+", start := intron_start - 1]
+		candidate.introns[strand == "+", end := intron_start]
+		candidate.introns[strand == "-", start := intron_end]
+		candidate.introns[strand == "-", end := intron_end + 1]		
+			OL = GenomicRanges::findOverlaps(
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns)), 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)))			
+		
+    candidate.introns$gene_group_unstranded[OL@from] = tmp.Exons.Group.unstranded$gene_group[OL@to]
+    candidate.introns$exon_group_unstranded_upstream[OL@from] = tmp.Exons.Group.unstranded$exon_group[OL@to]		
+
+		candidate.introns[strand == "-", start := intron_start - 1]
+		candidate.introns[strand == "-", end := intron_start]
+		candidate.introns[strand == "+", start := intron_end]
+		candidate.introns[strand == "+", end := intron_end + 1]		
+			OL = GenomicRanges::findOverlaps(
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns)), 
+					GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded)))			
+    candidate.introns$exon_group_unstranded_downstream[OL@from] = tmp.Exons.Group.unstranded$exon_group[OL@to]		
+
+    # Need fix for retained_introns or sense_intronic where junction extends into the obligate introns
+    tmp = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Exons.Group.unstranded), keep.extra.columns = TRUE)
+    tmp.Introns.Group.unstranded = grlGaps(
+        GenomicRanges::split(tmp, tmp$gene_group)
+    )
+    tmp.Introns.Group.unstranded = data.table::as.data.table(tmp.Introns.Group.unstranded)
+    setnames(tmp.Introns.Group.unstranded, "group_name", "gene_group")
+    tmp.Introns.Group.unstranded[,intron_number := data.table::rowid(gene_group)]
+
+    candidate.introns.subset = candidate.introns[is.na(exon_group_unstranded_upstream)]
+    candidate.introns = candidate.introns[!is.na(exon_group_unstranded_upstream)]
+		candidate.introns.subset[strand == "+", start := intron_start - 1]
+		candidate.introns.subset[strand == "+", end := intron_start]
+		candidate.introns.subset[strand == "-", start := intron_end]
+		candidate.introns.subset[strand == "-", end := intron_end + 1]		
+
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns.subset)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Introns.Group.unstranded)))			
+		
+    candidate.introns.subset$gene_group_unstranded[OL@from] = tmp.Introns.Group.unstranded$gene_group[OL@to]
+    candidate.introns.subset$exon_group_unstranded_upstream[OL@from] = tmp.Introns.Group.unstranded$intron_number[OL@to]		
+
+    candidate.introns = rbind(candidate.introns, candidate.introns.subset)
+
+    candidate.introns.subset = candidate.introns[is.na(exon_group_unstranded_downstream)]
+    candidate.introns = candidate.introns[!is.na(exon_group_unstranded_downstream)]
+		candidate.introns.subset[strand == "-", start := intron_start - 1]
+		candidate.introns.subset[strand == "-", end := intron_start]
+		candidate.introns.subset[strand == "+", start := intron_end]
+		candidate.introns.subset[strand == "+", end := intron_end + 1]		
+
+    OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(candidate.introns.subset)), 
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(tmp.Introns.Group.unstranded)))			
+		
+    candidate.introns.subset$exon_group_unstranded_downstream[OL@from] = tmp.Introns.Group.unstranded$intron_number[OL@to] + 1		
+
+    candidate.introns = rbind(candidate.introns, candidate.introns.subset)
 
 		# reset
     candidate.introns[,start := intron_start]
@@ -1624,9 +1759,6 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	
 }
 
-grlGaps<-function(grl) {
-	GenomicRanges::psetdiff(unlist(range(grl),use.names=TRUE),grl)
-}
 
 DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
   # transcript_list can be a GRanges, data.frame, or data.table coerce-able to a GRanges object
@@ -1823,5 +1955,11 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
   return(final)
 }
 
+annotateIntronGroups <- function(candidate.introns, Exons.Group, stranded = TRUE) {
 
+}
+
+grlGaps<-function(grl) {
+	GenomicRanges::psetdiff(unlist(range(grl),use.names=TRUE),grl)
+}
 
