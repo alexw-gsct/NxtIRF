@@ -61,10 +61,7 @@ int BAMReader::LoadBuffer() {
   if(u16.u == 27) {
     IS_EOF = 1;
     return(1);
-  } else {
-    return(-1);
   }
-
     bufferMax = 65536;
     z_stream zs;
     zs.zalloc = NULL;
@@ -79,16 +76,17 @@ int BAMReader::LoadBuffer() {
 
     int ret = inflateInit2(&zs, -15);
     if(ret != Z_OK) {
-        std::ostringstream oss;
-        oss << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        // std::ostringstream oss;
+        Rcout << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
+        // throw(std::runtime_error(oss.str()));
+        return(-1);
     }
     ret = inflate(&zs, Z_FINISH);
     if(ret != Z_OK && ret != Z_STREAM_END) {
-        Rcout << IN->tellg() << '\n';
-        std::ostringstream oss;
-        oss << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        // std::ostringstream oss;
+        Rcout << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
+        return(-1);
+        // throw(std::runtime_error(oss.str()));
     }
     ret = inflateEnd(&zs);
     
@@ -98,9 +96,10 @@ int BAMReader::LoadBuffer() {
     uint32_t crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferMax);
     // CRC check:
     if(u32.u != crc) {
-        std::ostringstream oss;
-        oss << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
-        throw(std::runtime_error(oss.str()));
+        // std::ostringstream oss;
+        Rcout << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
+        // throw(std::runtime_error(oss.str()));
+        return(-1);
     }
     bufferPos = 0;
     
