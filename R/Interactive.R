@@ -333,7 +333,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
 				updateSelectInput(session = session, inputId = "expr_Cores", 
-					choices = seq(max_cores, 1))        								
+					choices = seq(max_cores, 1), selected = max_cores)        								
 			} else if(input$navSelection == "navExpr") {
 				# Determine IRFinder cores
 
@@ -345,16 +345,18 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				})
 			} else if(input$navSelection == "navFilter") {
 				if(!is.null(settings_SE$se.filter)) {
-					output$current_expr_Filters = renderText("SummarizedExperimentloaded")
+					output$current_expr_Filters = renderText("SummarizedExperiment loaded")
 				} else {
-					output$current_expr_Filters = renderText("Please load SummarizedExperimentloaded first")
+					output$current_expr_Filters = renderText("Please load SummarizedExperiment first")
 				}
 				if(settings_loadref$loadref_path != "") {
 					output$current_ref_Filters = renderText("Reference loaded")
 				} else {
 					output$current_ref_Filters = renderText("Please load reference first")
 				}
-
+        if(!is.null(settings_SE$se.filter) & settings_loadref$loadref_path != "") {
+          processFilters()
+        }
 			}
 		})
     
@@ -797,8 +799,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
 				if("SnowParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+          message(paste("Using SnowParam", input$expr_Cores, "cores"))
 				} else if("MulticoreParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+          message(paste("Using MulticoreParam", input$expr_Cores, "cores"))
 				} else {
 					BPPARAM_mod = BPPARAM
 				}
@@ -1028,7 +1032,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         output_path = settings_expr$collate_path,
 				BPPARAM = BPPARAM_mod
       )
-			args <- Filter(is_valid, args)
+      req(is_valid(args$reference_path) & is_valid(args$output_path))
+			# args <- Filter(is_valid, args)
       if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
         output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
 				do.call(CollateData, args)
@@ -1046,10 +1051,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
       req(selectedfile$datapath)
       df = fread(selectedfile$datapath, na.strings = c("", "NA"))
-      if(all(c("sample", "bam_file", "irf_file", "fst_file") %in% colnames(df))) {
+      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% colnames(df))) {
         if(all(is.na(df$bam_file))) df[, bam_file:=as.character(bam_file)]
         if(all(is.na(df$irf_file))) df[, irf_file:=as.character(irf_file)]
-        if(all(is.na(df$fst_file))) df[, fst_file:=as.character(fst_file)]
+        if(all(is.na(df$cov_file))) df[, fst_file:=as.character(cov_file)]
+        if(all(is.na(df$junc_file))) df[, fst_file:=as.character(junc_file)]
         settings_expr$df = as.data.frame(df)
         output$txt_run_save_expr <- renderText({
           paste(selectedfile$datapath, "loaded")
@@ -1085,9 +1091,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		observeEvent(input$build_expr, {
 			output$txt_run_save_expr <- renderText({
 				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
+        colData = as.data.table(settings_expr$df)
+        colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
+        validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
 				se.list = MakeSE(colData, settings_expr$collate_path)
 				settings_SE$se = se.list[["se"]]
-				settings_SE$filter = se.list[["se.filter"]]
+				settings_SE$se.filter = se.list[["se.filter"]]
 				"SummarizedExperiment Loaded"
 			})
 		})
@@ -1137,18 +1146,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
     })
 
-		observeEvent(input$load_filterdata_Filters, {
-			if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
-        DT = as.data.table(settings_expr$df)
-				irf_fst_files = DT$fst_file
-				colData = as.data.frame(DT[, -c("bam_file", "irf_file", "fst_file")])
-				if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
-					# Load filter object and perform event counts
-					settings_SE$se.filter = BuildFilterData(irf_fst_files, colData)
-          processFilters()
-				}
-			}
-		})
+		# observeEvent(input$load_filterdata_Filters, {
+			# if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
+        # DT = as.data.table(settings_expr$df)
+				# irf_fst_files = DT$fst_file
+				# colData = as.data.frame(DT[, -c("bam_file", "irf_file", "fst_file")])
+				# if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
+					# settings_SE$se.filter = BuildFilterData(irf_fst_files, colData)
+          # processFilters()
+				# }
+			# }
+		# })
     
     processFilters <- function() {
       message("Refreshing filters")
@@ -1198,7 +1206,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           keep = settings_SE$filterSummary)
         filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
         filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
-        filteredEvents.DT = unique(filteredEvents.DT)
+        filteredEvents.DT = unique(filteredEvents.DT, by = "EventType")
         incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
           dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
         excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%

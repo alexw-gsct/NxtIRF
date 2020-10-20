@@ -761,7 +761,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 		mat = NULL
 		for(x in seq_len(n_jobs)) {
 			temp = t(fread(file.path(temp_output_path, file.df$file[x]), data.table = FALSE))
-			colnames(temp) = df.internal$sample[x]
+			colnames(temp) = df.internal$sample[jobs[[x]]]
 			mat = cbind(mat, temp)
 			file.remove(file.path(temp_output_path, file.df$file[x]))
 		}
@@ -1053,17 +1053,19 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       if(use_cond == TRUE) {
         for(cond in cond_vars) {
           cov.subset = cov[, which(cond_vec == cond)]
-          sum = rowSums(cov.subset > filterVars$minimum)
+          sum = rowSums(cov.subset > filterVars$minimum / 100)
           sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= filterVars$pcTRUE, 1, 0)
         }
         n_TRUE = ifelse(!is.null(names(filterVars)) && "minCond" %in% names(filterVars), filterVars$minCond, -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
-        sum = rowSums(cov > filterVars$minimum)
-        res = ifelse(sum * 100 / ncol(cov.subset) >= filterVars$pcTRUE, TRUE, FALSE)
+        sum = rowSums(cov > filterVars$minimum / 100)
+        res = ifelse(sum * 100 / ncol(cov) >= filterVars$pcTRUE, TRUE, FALSE)
       }
-      res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
+      if("EventTypes" %in% names(filterVars)) {
+        res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
+      }
       return(res)
     }
   } else if(filterClass == "Annotation") {
