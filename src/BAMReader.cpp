@@ -63,6 +63,7 @@ int BAMReader::LoadBuffer() {
   IN->read(u16.c, 2);
   // check true EOF
   if(u16.u == 27) {
+    IN->ignore(8);
     IS_EOF = 1;
     return(1);
   }

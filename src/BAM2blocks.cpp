@@ -272,7 +272,7 @@ int BAM2blocks::processAll(std::string& output) {
 			oss << "Error detected on line\t" << "NA" << '\n';
       output = oss.str();
 			return(0);   
-		} else if(ret == -1) {
+		} else if(IN->fail() || ret == -1) {
       cErrorReads = spare_reads.size();
 			cerr << "Input error at line:" << j << '\n';
 			// cerr << "Characters read on last read call:" << IN->gcount() << '\n';
