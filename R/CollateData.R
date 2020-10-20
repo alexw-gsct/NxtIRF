@@ -54,10 +54,15 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     if(!dir.exists(norm_output_path)) {
         dir.create(norm_output_path)
     }
-    temp_output_path = file.path(base_output_path, "temp")
+    temp_output_path = file.path(norm_output_path, "temp")
     if(!dir.exists(temp_output_path)) {
         dir.create(temp_output_path)
     }		
+    if(!dir.exists(file.path(norm_output_path, "samples"))) {
+        dir.create(file.path(norm_output_path, "samples"))
+    }		
+
+
     df.internal = as.data.table(Experiment[,1:2])
     df.internal$paired = FALSE
     df.internal$strand = 0
@@ -72,6 +77,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
 
+    fst::threads_fst(1)
+
+    message("Compiling Sample Stats")
     df.internal = suppressWarnings(rbindlist(
       BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
         function(work, df.internal) {
@@ -129,7 +137,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }
     
     # Compile junctions and IR lists first, save to temp files
-    
+    message("Compiling Junction List")       
     # Compile junc.common via merge
     junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
       function(work, df.internal, temp_output_path) {
@@ -164,7 +172,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }
     rm(junc.list)
     gc()
-    
+    message("Compiling Intron Retention List")    
     irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
       function(work, df.internal, temp_output_path, runStranded, semi_join.DT) {
         suppressPackageStartupMessages({
@@ -470,6 +478,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     gc()
 
 	# Save irf.common, Splice.Anno
+	fst::write_fst(as.data.frame(junc.common), file.path(norm_output_path, "Junc.fst"))
 	fst::write_fst(as.data.frame(irf.common), file.path(norm_output_path, "IR.fst"))
 	fst::write_fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "Splice.fst"))
 
@@ -484,18 +493,26 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
   item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
 
-	
+  fst::write.fst(rowEvent, file.path(norm_output_path, "rowEvent.fst"))
+
   message("Generating NxtIRF FST files")
 	
   n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM$workers)
   jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
 	
 	suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
-		function(x, jobs, df.internal, junc.common, irf.common, Splice.Anno, rowEvent, norm_output_path) {
+		function(x, jobs, df.internal, norm_output_path) {
 			suppressPackageStartupMessages({
 				library(data.table)
 				library(stats)
 			})
+      
+      # Read this from fst file
+      rowEvent = as.data.table(fst::read.fst(file.path(norm_output_path, "rowEvent.fst")))
+      junc.common = as.data.table(fst::read.fst(file.path(norm_output_path, "Junc.fst")))
+      irf.common = as.data.table(fst::read.fst(file.path(norm_output_path, "IR.fst")))
+      Splice.Anno = as.data.table(fst::read.fst(file.path(norm_output_path, "Splice.fst")))
+      
 			work = jobs[[x]]
 			block = df.internal[work]
 			
@@ -542,7 +559,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				junc[JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
 				
 				fst::write.fst(as.data.frame(junc), 
-						file.path(norm_output_path, paste(block$sample[i], "junc.fst", sep=".")))
+						file.path(norm_output_path, "samples", paste(block$sample[i], "junc.fst", sep=".")))
 
 				splice = copy(Splice.Anno)
 				
@@ -634,10 +651,10 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				splice[splice.no_region, on = "EventName", TotalDepth := i.Depth]
 
 				fst::write.fst(as.data.frame(splice), 
-						file.path(norm_output_path, paste(block$sample[i], "splice.fst", sep=".")))
+						file.path(norm_output_path, "samples", paste(block$sample[i], "splice.fst", sep=".")))
 				
 				fst::write.fst(as.data.frame(irf),
-						file.path(norm_output_path, paste(block$sample[i], "irf.fst", sep=".")))
+						file.path(norm_output_path, "samples", paste(block$sample[i], "irf.fst", sep=".")))
 						
 				file.remove(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
 				file.remove(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
@@ -731,29 +748,31 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				paste("Down_Exc", as.character(x), "txt.gz", sep=".")), 
 				col.names = FALSE, row.names = FALSE)
 			
-		}, df.internal = df.internal, junc.common = junc.common, irf.common = irf.common, rowEvent = rowEvent,
-			Splice.Anno = Splice.Anno, norm_output_path = norm_output_path, BPPARAM = BPPARAM
+		}, df.internal = df.internal, jobs = jobs, 
+			norm_output_path = norm_output_path, BPPARAM = BPPARAM
 	))
   
   message("Building Final SummarizedExperiment Object")
-	fst::write.fst(rowEvent, file.path(norm_output_path, paste("rowEvent", "fst", sep=".")))
 	
   for(item in item.todo) {
 		file.df = data.frame(file = list.files(pattern = item, path = temp_output_path))
-		file.df$index = as.numeric(tstrsplit(file.df), sep=".", fixed = TRUE)[[2]]
+		file.df$index = as.numeric(tstrsplit(file.df, split=".", fixed = TRUE)[[2]])
 		file.df = file.df %>% dplyr::arrange(index)
 		mat = NULL
 		for(x in seq_len(nrow(file.df))) {
-			temp = t(fread(infile, data.table = FALSE))
+			temp = t(fread(file.df$file[x], data.table = FALSE))
 			colnames(temp) = df.internal$sample[jobs[[x]]]
 			mat = cbind(mat, temp)
-			file.remove(infile)
+			file.remove(file.df$file[x])
 		}
 
     outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
     fst::write.fst(as.data.frame(mat), outfile)
     
   }
+  
+  fst::threads_fst(parallel::detectCores())
+
   message("NxtIRF Collation Finished")
 
 }

@@ -10,6 +10,7 @@ CollateData(
   output_path,
   IRMode = c("SpliceOverMax", "SpliceMax"),
   localHub = FALSE,
+  samples_per_block = 16,
   BPPARAM = BiocParallel::bpparam()
 )
 }

@@ -119,10 +119,10 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   inGenome.open(genome_file, std::ifstream::in);
   
   // Allows writing to standard output if filename is '-'
-  int stdout = 0;
+  int is_stdout = 0;
   std::ofstream outFA;
   if(out_fa == "-") {
-    stdout = 1;
+    is_stdout = 1;
   } else {
     outFA.open(out_fa, std::ios::binary);    
   }
@@ -148,25 +148,29 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
     for(unsigned int bufferPos = 1; (bufferPos < sequence.length() - read_len - 1); bufferPos += read_stride) {
       memcpy(read, &buffer[bufferPos - 1], read_len);
       if(checkDNA(read, read_len)) {
-        std::string write_name;
-        write_name = (direction == 0 ? ">RF!" : ">RR!");
-        write_name.append(chr);
-        write_name.append("!");
-        write_name.append(std::to_string(bufferPos));
+        // std::string write_name;
+        // write_name = (direction == 0 ? ">RF!" : ">RR!");
+        // write_name.append(chr);
+        // write_name.append("!");
+        // write_name.append(std::to_string(bufferPos));
 
         
         std::string write_seq = GenerateReadError(read, read_len, error_pos, direction, seed) ;
         // outGZ.writeline(write_seq);
-        if(stdout == 1) {
-          Rcout << write_name << '\n' << write_seq << '\n';
+        if(is_stdout == 1) {
+          // Rcout << write_name << '\n' << write_seq << '\n';
+          Rcout << (direction == 0 ? ">RF!" : ">RR!") << chr << "!" << std::to_string(bufferPos)
+            << '\n' << write_seq << '\n';  
         } else {
-          outFA << write_name << '\n' << write_seq << '\n';          
+          // outFA << write_name << '\n' << write_seq << '\n';     
+          outFA << (direction == 0 ? ">RF!" : ">RR!") << chr << "!" << std::to_string(bufferPos)
+            << '\n' << write_seq << '\n'; 
         }
         seed += 1;
         direction = (direction == 0 ? 1 : 0);
       }
       if((seed % 100000 == 0) & (seed > 0)) {
-        if(stdout == 0) {
+        if(is_stdout == 0) {
           Rcout << "Processed " << bufferPos << " coord of chrom:" << chr << '\n';
         }
       }
@@ -176,7 +180,7 @@ int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa,
   delete[] read;
   
   inGenome.close();
-  if(stdout == 0) {
+  if(is_stdout == 0) {
     outFA.flush();
     outFA.close();
   }

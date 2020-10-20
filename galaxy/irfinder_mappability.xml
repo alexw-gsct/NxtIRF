@@ -37,7 +37,7 @@
             ${__tool_directory__}/irfinder_galaxy gen_map_reads '$fasta_type.ref' 
                 - $read_len $read_stride
         #end if
-        ) |
+        ) | tee $output3 |
         
         #if str($includeCov == "yes"):
             ${__tool_directory__}/irfinder_galaxy process_mappability_bam - $output1 $threshold $output2
@@ -119,11 +119,11 @@
     
     <!-- [REQUIRED] Output files -->
     <outputs>
-        <data name="output1" format="txt" label="Mappability Regions"> 
-        </data>
+        <data name="output1" format="txt" label="Mappability Regions"/> 
         <data name="output2" format="data" label="Mappability Coverage File"> 
 			<filter>includeCov == 'yes'</filter>
         </data>
+        <data name="output3" format="bam" label="BAM File"/> 
     </outputs>    
     
     <!-- [OPTIONAL] Tests to be run manually by the Galaxy admin -->
