@@ -508,7 +508,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 	
   n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
   jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
-	
+	n_jobs = length(jobs)
+  
 	agg.list <- suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
 		function(x, jobs, df.internal, norm_output_path) {
 			suppressPackageStartupMessages({

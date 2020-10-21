@@ -90,11 +90,12 @@ NxtIRF.CheckPackageInstalled <- function(package = "DESeq2", version = "1.0.0") 
 NxtIRF.SplitVector <- function(vector = "", n_workers = 1) {
 	assertthat::assert_that(n_workers >= 1,
 		msg = "n_workers must be at least  1")
-	n_workers = as.integer(n_workers)
+	n_workers_use = as.integer(n_workers)
 	
 	assertthat::assert_that(length(vector) >= 1,
 		msg = "vector to split must be of length at least 1")
-		
+  
+  if(n_workers_use > length(vector)) n_workers_use = length(vector)
 	vector_starts = round(seq(1, length(vector) + 1, length.out = n_workers + 1))
 	vector_starts = unique(vector_starts)
 	
