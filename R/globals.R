@@ -96,7 +96,7 @@ NxtIRF.SplitVector <- function(vector = "", n_workers = 1) {
 		msg = "vector to split must be of length at least 1")
   
   if(n_workers_use > length(vector)) n_workers_use = length(vector)
-	vector_starts = round(seq(1, length(vector) + 1, length.out = n_workers + 1))
+	vector_starts = round(seq(1, length(vector) + 1, length.out = n_workers_use + 1))
 	vector_starts = unique(vector_starts)
 	
 	return_val = list()

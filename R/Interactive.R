@@ -1023,35 +1023,36 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df)
 
-      if("SnowParam" %in% class(BPPARAM)) {
-        BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+      # if("SnowParam" %in% class(BPPARAM)) {
+        # BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
         # message(paste("Using SnowParam", input$expr_Cores, "cores"))
-      } else if("MulticoreParam" %in% class(BPPARAM)) {
-        BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+      # } else if("MulticoreParam" %in% class(BPPARAM)) {
+        # BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
         # message(paste("Using MulticoreParam", input$expr_Cores, "cores"))
-      } else {
+      # } else {
         # message(paste("Using", class(BPPARAM)[1], "mode with", BPPARAM$workers, "cores"))
-        BPPARAM_mod = BPPARAM
-      }
+        # BPPARAM_mod = BPPARAM
+      # }
 
-			args <- list(
-        Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")])),
-        reference_path = settings_loadref$loadref_path,
-        output_path = settings_expr$collate_path,
-				BPPARAM = BPPARAM_mod
-      )
-      req(is_valid(args$reference_path) & is_valid(args$output_path))
+      Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")]))
+      reference_path = settings_loadref$loadref_path
+      output_path = settings_expr$collate_path
+      # BPPARAM = BPPARAM_mod
+
+      output$txt_run_col_expr <- renderText({
+        validate(need(settings_loadref$loadref_path, "Please load a reference before generating NxtIRF FST files"))
+        validate(need(settings_expr$collate_path, "Please select a path to store NxtIRF FST files"))
+        "running CollateData()"
+      })
+          
 			# args <- Filter(is_valid, args)
-      if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
-        output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
-				do.call(CollateData, args)
+      # if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
+        # output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
+				# do.call(CollateData, args)
+        CollateData(Experiment, reference_path, output_path, n_threads = input$expr_Cores)#, BPPARAM = BPPARAM)
         Expr_Load_FSTs()
         output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
-      } else if(!("reference_path" %in% names(args))) {
-        output$txt_run_col_expr <- renderText("Please load a reference before generating NxtIRF FST files")
-      } else if(!("output_path" %in% names(args))) {
-        output$txt_run_col_expr <- renderText("Please select a path to store NxtIRF FST files")      
-      }
+      # }
     })
 		shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
       filetypes = c("csv"))
