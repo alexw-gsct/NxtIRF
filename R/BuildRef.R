@@ -1492,76 +1492,87 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     
     # Rename based on tsl and protein-coding ability, if applicable
     if(nrow(AS_Table) > 0) {
-        if("transcript_support_level" %in% colnames(candidate.introns)) {
-            candidate.introns.order = copy(candidate.introns)
-            candidate.introns.order[, is_protein_coding := !is.na(protein_id)]
-            candidate.introns.order[, by = "transcript_id", is_last_intron := (intron_number == max(intron_number))]
-            
-            AS_Table.search.a = AS_Table[, c("EventType", "EventID", "Event1a", "Event2a")]
-            AS_Table.search.a[,Event := Event1a]
-            AS_Table.search.a = candidate.introns.order[AS_Table.search.a, on = "Event", 
-                c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "intron_number")]
-            setnames(AS_Table.search.a, "intron_number", "in_1a")
-            AS_Table.search.a = AS_Table.search.a[EventType !=  "AFE" | in_1a == 1]
-            AS_Table.search.a = AS_Table.search.a[EventType !=  "ALE" | is_last_intron]
-            AS_Table.search.a[,Event := Event2a]
-            AS_Table.search.a[is.na(Event),Event := Event1a]
-            AS_Table.search.a = candidate.introns.order[AS_Table.search.a, 
-                on = c("Event",  "transcript_id", "transcript_support_level"),
-                c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","in_1a", "intron_number")]
-            AS_Table.search.a = AS_Table.search.a[!is.na(intron_number)]
-            setnames(AS_Table.search.a, "intron_number", "in_2a")
-            
-            AS_Table.search.b = AS_Table[, c("EventType", "EventID", "Event1b", "Event2b")]
-            AS_Table.search.b[,Event := Event1b]
-            AS_Table.search.b = candidate.introns.order[AS_Table.search.b, on = "Event", 
-                c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","intron_number")]
-            setnames(AS_Table.search.b, "intron_number", "in_1b")
-            AS_Table.search.b = AS_Table.search.b[EventType !=  "AFE" | in_1b == 1]
-            AS_Table.search.b = AS_Table.search.b[EventType !=  "ALE" | is_last_intron]
-            AS_Table.search.b[,Event := Event2b]
-            AS_Table.search.b[is.na(Event),Event := Event1b]
-            AS_Table.search.b = candidate.introns.order[AS_Table.search.b, 
-                on = c("Event",  "transcript_id", "transcript_support_level"),
-                c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "in_1b", "intron_number")]
-            AS_Table.search.b = AS_Table.search.b[!is.na(intron_number)]
-            setnames(AS_Table.search.b, "intron_number", "in_2b")
-
-            AS_Table.search.a[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
-            AS_Table.search.b[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
-            setorder(AS_Table.search.a, transcript_support_level, -is_protein_coding, transcript_name)
-            setorder(AS_Table.search.b, transcript_support_level, -is_protein_coding, transcript_name)
-            AS_Table.search.a = unique(AS_Table.search.a, by = "EventID")
-            AS_Table.search.a = AS_Table.search.a[AS_Table[, "EventID"], on = "EventID"]
-            AS_Table.search.b = unique(AS_Table.search.b, by = "EventID")
-            AS_Table.search.b = AS_Table.search.b[AS_Table[, "EventID"], on = "EventID"]
-            
-            AS_Table$transcript_id_a = AS_Table.search.a$transcript_id
-            AS_Table$transcript_name_a = AS_Table.search.a$transcript_name
-            AS_Table$intron_number_a = AS_Table.search.a$in_1a
-            AS_Table$transcript_id_b = AS_Table.search.b$transcript_id
-            AS_Table$transcript_name_b = AS_Table.search.b$transcript_name
-            AS_Table$intron_number_b = AS_Table.search.b$in_1b
-            
-            AS_Table[EventType == "MXE", EventName := paste0("MXE:", transcript_name_a,"-exon",
-                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-exon",
-                as.character(as.numeric(intron_number_b) + 1))]
-            AS_Table[EventType == "SE", EventName := paste0("SE:", transcript_name_a,"-exon",
-                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-int",
-                as.character(as.numeric(intron_number_b)))]
-            AS_Table[EventType == "AFE", EventName := paste0("AFE:", transcript_name_a,"-exon1;", 
-                transcript_name_b,"-exon1")]
-            AS_Table[EventType == "ALE", EventName := paste0("ALE:", transcript_name_a, "-exon", 
-                as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b, "-exon",
-                as.character(as.numeric(intron_number_b) + 1))]
-            AS_Table[EventType == "A5SS", EventName := paste0("A5SS:", transcript_name_a,"-exon", 
-                as.character(as.numeric(intron_number_a)), ";", transcript_name_b,"-exon",
-                as.character(as.numeric(intron_number_b)))]
-            AS_Table[EventType == "A3SS", EventName := paste0("A3SS:", transcript_name_a,"-exon", 
-                as.character(as.numeric(intron_number_a + 1)), ";", transcript_name_b,"-exon",
-                as.character(as.numeric(intron_number_b + 1)))]
+        candidate.introns.order = copy(candidate.introns)
+        if(!("transcript_support_level" %in% colnames(candidate.introns))) {
+          candidate.introns.order[, transcript_support_level := "NA"]
         }
+        candidate.introns.order[, is_protein_coding := !is.na(protein_id)]
+        candidate.introns.order[, by = "transcript_id", is_last_intron := (intron_number == max(intron_number))]
+        
+        AS_Table.search.a = AS_Table[, c("EventType", "EventID", "Event1a", "Event2a")]
+        AS_Table.search.a[,Event := Event1a]
+        AS_Table.search.a = candidate.introns.order[AS_Table.search.a, on = "Event", 
+            c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "intron_number")]
+        setnames(AS_Table.search.a, "intron_number", "in_1a")
+        AS_Table.search.a = AS_Table.search.a[EventType !=  "AFE" | in_1a == 1]
+        AS_Table.search.a = AS_Table.search.a[EventType !=  "ALE" | is_last_intron]
+        AS_Table.search.a[,Event := Event2a]
+        AS_Table.search.a[is.na(Event),Event := Event1a]
+        AS_Table.search.a = candidate.introns.order[AS_Table.search.a, 
+            on = c("Event",  "transcript_id", "transcript_support_level"),
+            c("EventType","EventID", "Event1a", "Event2a", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","in_1a", "intron_number")]
+        AS_Table.search.a = AS_Table.search.a[!is.na(intron_number)]
+        setnames(AS_Table.search.a, "intron_number", "in_2a")
+        
+        AS_Table.search.b = AS_Table[, c("EventType", "EventID", "Event1b", "Event2b")]
+        AS_Table.search.b[,Event := Event1b]
+        AS_Table.search.b = candidate.introns.order[AS_Table.search.b, on = "Event", 
+            c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron","intron_number")]
+        setnames(AS_Table.search.b, "intron_number", "in_1b")
+        AS_Table.search.b = AS_Table.search.b[EventType !=  "AFE" | in_1b == 1]
+        AS_Table.search.b = AS_Table.search.b[EventType !=  "ALE" | is_last_intron]
+        AS_Table.search.b[,Event := Event2b]
+        AS_Table.search.b[is.na(Event),Event := Event1b]
+        AS_Table.search.b = candidate.introns.order[AS_Table.search.b, 
+            on = c("Event",  "transcript_id", "transcript_support_level"),
+            c("EventType","EventID", "Event1b", "Event2b", "transcript_id", "transcript_support_level", "is_protein_coding", "is_last_intron", "in_1b", "intron_number")]
+        AS_Table.search.b = AS_Table.search.b[!is.na(intron_number)]
+        setnames(AS_Table.search.b, "intron_number", "in_2b")
+
+        AS_Table.search.a[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
+        AS_Table.search.b[candidate.introns.order, on = "transcript_id", transcript_name := i.transcript_name]
+        setorder(AS_Table.search.a, transcript_support_level, -is_protein_coding, transcript_name)
+        setorder(AS_Table.search.b, transcript_support_level, -is_protein_coding, transcript_name)
+        AS_Table.find.a = unique(AS_Table.search.a, by = "EventID")
+        AS_Table.find.a = AS_Table.find.a[AS_Table[, "EventID"], on = "EventID"]
+        AS_Table.find.b = unique(AS_Table.search.b, by = "EventID")
+        AS_Table.find.b = AS_Table.find.b[AS_Table[, "EventID"], on = "EventID"]
+        
+        AS_Table$transcript_id_a = AS_Table.find.a$transcript_id
+        AS_Table$transcript_name_a = AS_Table.find.a$transcript_name
+        AS_Table$intron_number_a = AS_Table.find.a$in_1a
+        AS_Table$transcript_id_b = AS_Table.find.b$transcript_id
+        AS_Table$transcript_name_b = AS_Table.find.b$transcript_name
+        AS_Table$intron_number_b = AS_Table.find.b$in_1b
+        
+        AS_Table[EventType == "MXE", EventName := paste0("MXE:", transcript_name_a,"-exon",
+            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-exon",
+            as.character(as.numeric(intron_number_b) + 1))]
+        AS_Table[EventType == "SE", EventName := paste0("SE:", transcript_name_a,"-exon",
+            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b,"-int",
+            as.character(as.numeric(intron_number_b)))]
+        AS_Table[EventType == "AFE", EventName := paste0("AFE:", transcript_name_a,"-exon1;", 
+            transcript_name_b,"-exon1")]
+        AS_Table[EventType == "ALE", EventName := paste0("ALE:", transcript_name_a, "-exon", 
+            as.character(as.numeric(intron_number_a) + 1), ";", transcript_name_b, "-exon",
+            as.character(as.numeric(intron_number_b) + 1))]
+        AS_Table[EventType == "A5SS", EventName := paste0("A5SS:", transcript_name_a,"-exon", 
+            as.character(as.numeric(intron_number_a)), ";", transcript_name_b,"-exon",
+            as.character(as.numeric(intron_number_b)))]
+        AS_Table[EventType == "A3SS", EventName := paste0("A3SS:", transcript_name_a,"-exon", 
+            as.character(as.numeric(intron_number_a + 1)), ";", transcript_name_b,"-exon",
+            as.character(as.numeric(intron_number_b + 1)))]
         fst::write.fst(as.data.frame(AS_Table), file.path(reference_path,"fst","Splice.fst"))
+        
+        setnames(AS_Table.search.a, c("Event1a", "Event2a", "in_1a", "in_2a"),
+          c("Event1", "Event2", "in_1", "in_2"))
+        AS_Table.search.a[, isoform := "A"]
+        setnames(AS_Table.search.b, c("Event1b", "Event2b", "in_1b", "in_2b"),
+          c("Event1", "Event2", "in_1", "in_2"))
+        AS_Table.search.b[, isoform := "B"]
+        
+        fst::write.fst(as.data.frame(rbind(AS_Table.search.a, AS_Table.search.b)), 
+          file.path(reference_path,"fst","Splice.options.fst"))
         message("done\n")
     } else {
         message("no splice events found\n")
