@@ -8,6 +8,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
   ah = AnnotationHub::AnnotationHub(localHub = offline)
 
+  # data.table::setDTthreads()
+
 	filterModule_UI <- function(id, label = "Counter") {
 		ns <- NS(id)
 		wellPanel(
@@ -1021,13 +1023,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df)
 
-			if("SnowParam" %in% class(BPPARAM)) {
-				BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
-			} else if("MulticoreParam" %in% class(BPPARAM)) {
-				BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
-			} else {
-				BPPARAM_mod = BPPARAM
-			}
+      if("SnowParam" %in% class(BPPARAM)) {
+        BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+        # message(paste("Using SnowParam", input$expr_Cores, "cores"))
+      } else if("MulticoreParam" %in% class(BPPARAM)) {
+        BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+        # message(paste("Using MulticoreParam", input$expr_Cores, "cores"))
+      } else {
+        # message(paste("Using", class(BPPARAM)[1], "mode with", BPPARAM$workers, "cores"))
+        BPPARAM_mod = BPPARAM
+      }
+
 			args <- list(
         Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")])),
         reference_path = settings_loadref$loadref_path,

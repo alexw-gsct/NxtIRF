@@ -38,6 +38,17 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     assertthat::assert_that(IRMode != "",
       msg = "IRMode must be either 'SpliceOverMax' (default) or 'SpliceMax'")
 
+    if("SnowParam" %in% class(BPPARAM)) {
+      BPPARAM_mod = BiocParallel::SnowParam(BPPARAM$workers)
+      message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
+    } else if("MulticoreParam" %in% class(BPPARAM)) {
+      BPPARAM_mod = BiocParallel::SnowParam(BPPARAM$workers)
+      message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
+    } else {
+      BPPARAM_mod = BiocParallel::SerialParam()
+      message(paste("Using SerialParam mode with", BPPARAM_mod$workers, "cores"))
+    }
+
 		settings = readRDS(file.path(reference_path, "settings.Rds"))
 		if(settings$ah_genome != "") {
 			genome = FetchAH(settings$ah_genome, localHub = localHub)
@@ -77,11 +88,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
 
-    fst::threads_fst(1)
-
     message("Compiling Sample Stats")
     df.internal = suppressWarnings(rbindlist(
-      BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
+      BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
         function(work, df.internal) {
           suppressPackageStartupMessages({
             library(data.table)
@@ -126,7 +135,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 						block$Fraction_Span_Reads[i] = sum(spans$total) / block$depth[i]
           }
           return(block)
-        }, df.internal = df.internal, BPPARAM = BPPARAM
+        }, df.internal = df.internal, BPPARAM = BPPARAM_mod
       )
     ))
     
@@ -139,7 +148,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     # Compile junctions and IR lists first, save to temp files
     message("Compiling Junction List")       
     # Compile junc.common via merge
-    junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
+    junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
       function(work, df.internal, temp_output_path) {
         suppressPackageStartupMessages({
           library(data.table)
@@ -160,7 +169,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
                 file.path(temp_output_path, paste(block$sample[i], "junc.fst.tmp", sep=".")))        
         }
         return(junc.segment)
-      }, df.internal = df.internal, temp_output_path = temp_output_path, BPPARAM = BPPARAM
+      }, df.internal = df.internal, temp_output_path = temp_output_path, BPPARAM = BPPARAM_mod
     ))
     junc.common = NULL
     for(i in seq_len(length(junc.list))) {
@@ -173,7 +182,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     rm(junc.list)
     gc()
     message("Compiling Intron Retention List")    
-    irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM$workers),
+    irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
       function(work, df.internal, temp_output_path, runStranded, semi_join.DT) {
         suppressPackageStartupMessages({
           library(data.table)
@@ -201,7 +210,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
         }
         return(irf.segment)
       }, df.internal = df.internal, temp_output_path = temp_output_path, 
-        runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM
+        runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM_mod
     ))
     irf.common = NULL
     for(i in seq_len(length(irf.list))) {
@@ -497,7 +506,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 
   message("Generating NxtIRF FST files")
 	
-  n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM$workers)
+  n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
   jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
 	
 	agg.list <- suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
@@ -749,19 +758,19 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 					col.names = FALSE, row.names = FALSE)
 				return(NULL)
 			} else {
-				if(x == 1) {
-					final = list(
-						Included = Included
-						Excluded = Excluded
-						Depth = Depth
-						Coverage = Coverage
-						minDepth = minDepth
-						Up_Inc = Up_Inc
-						Down_Inc = Down_Inc
-						Up_Exc = Up_Exc
-						Down_Exc = Down_Exc
-					)
-				} else {
+				# if(x == 1) {
+					# final = list(
+						# Included = Included,
+						# Excluded = Excluded,
+						# Depth = Depth,
+						# Coverage = Coverage,
+						# minDepth = minDepth,
+						# Up_Inc = Up_Inc,
+						# Down_Inc = Down_Inc,
+						# Up_Exc = Up_Exc,
+						# Down_Exc = Down_Exc
+					# )
+				# } else {
 					final = list(
 						Included = Included[, -c(1:3)],
 						Excluded = Excluded[, -c(1:3)],
@@ -773,14 +782,13 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 						Up_Exc = Up_Exc[, -c(1:3)],
 						Down_Exc = Down_Exc[, -c(1:3)]
 					)				
-				}
+				# }
 			}
 			
 		}, df.internal = df.internal, jobs = jobs, 
-			norm_output_path = norm_output_path, BPPARAM = BPPARAM
+			norm_output_path = norm_output_path, BPPARAM = BPPARAM_mod
 	))
-  
-	fst::threads_fst(parallel::detectCores())
+  gc()
 	
   message("Building Final SummarizedExperiment Object")
 	if(low_memory_mode) {
@@ -805,7 +813,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				if(x == 1) {
 					item.DTList[[item]] = agg.list[[x]][[item]]
 				} else {
-					item.DTList[[item]] = rbindlist(list(item.DTList[[item]], agg.list[[x]][[item]]))
+					item.DTList[[item]] = cbind(item.DTList[[item]], agg.list[[x]][[item]])
 				}
 			}
 			outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
