@@ -256,8 +256,7 @@ int BAM2blocks::processAll(std::string& output) {
   Progress p(IN->IS_LENGTH, true);
 #endif
 	while(1) {
-		j++;
-		ret |= IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
+		ret |= IN->read(reads[idx].c_block_size, 4);
 		if (IN->eof()) {
       cErrorReads = spare_reads.size();
 			oss << "Total reads processed\t" << j-1 << '\n';
@@ -291,38 +290,43 @@ int BAM2blocks::processAll(std::string& output) {
 			//This is possibly also just about the end of the file (say an extra null byte).
 			//IN->gcount() knows how many characters were actually read last time.
 		}
-		ret |= IN->read(reads[idx].read_name, reads[idx].l_read_name);
-		ret |= IN->read(reads[idx].cigar_buffer, reads[idx].n_cigar_op*4);    
-		ret |= IN->ignore(reads[idx].block_size - BAM_READ_CORE_BYTES + 4 - reads[idx].l_read_name - (reads[idx].n_cigar_op*4));
+    if(reads[idx].block_size > BAM_READ_CORE_BYTES - 4) {
+      j++;
+      ret |= IN->read(reads[idx].c, BAM_READ_CORE_BYTES - 4);
+      ret |= IN->read(reads[idx].read_name, reads[idx].l_read_name);
+      ret |= IN->read(reads[idx].cigar_buffer, reads[idx].n_cigar_op*4);    
+      // debugs
+      ret |= IN->ignore(reads[idx].block_size - BAM_READ_CORE_BYTES + 4 - reads[idx].l_read_name - (reads[idx].n_cigar_op*4));
 
-		if (reads[idx].flag & 0x904) {
-			/* If is an unmapped / secondary / supplementary alignment -- discard/overwrite */
-			cSkippedReads ++;
-		}else if (! (reads[idx].flag & 0x1)) {
-			/* If is a single read -- process it as a single -- then discard/overwrite */
-			cSingleReads ++;
-			totalNucleotides += processSingle(&reads[idx]);
-		}else{
-			/* If it is potentially a paired read, store it in our buffer, process the pair together when it is complete */
+      if (reads[idx].flag & 0x904) {
+        /* If is an unmapped / secondary / supplementary alignment -- discard/overwrite */
+        cSkippedReads ++;
+      }else if (! (reads[idx].flag & 0x1)) {
+        /* If is a single read -- process it as a single -- then discard/overwrite */
+        cSingleReads ++;
+        totalNucleotides += processSingle(&reads[idx]);
+      }else{
+        /* If it is potentially a paired read, store it in our buffer, process the pair together when it is complete */
 
-            std::string read_name = string(reads[0].read_name);
-            auto it_read = spare_reads.find(read_name);
-            
-            if(it_read != spare_reads.end()){
-                cPairedReads ++;
-                if (reads[0].pos <= it_read->second.pos) {
-                    //cout << "procesPair call1" << endl;        
-                    totalNucleotides += processPair(&reads[0], &(it_read->second));
-                    spare_reads.erase(read_name);
-                }else{
-                    //cout << "procesPair call2" << endl;                
-                    totalNucleotides += processPair(&(it_read->second), &reads[0]);
-                    spare_reads.erase(read_name);
-                }                
-            } else {
-                spare_reads[read_name] = reads[0];
-            }
-		}
+              std::string read_name = string(reads[0].read_name);
+              auto it_read = spare_reads.find(read_name);
+              
+              if(it_read != spare_reads.end()){
+                  cPairedReads ++;
+                  if (reads[0].pos <= it_read->second.pos) {
+                      //cout << "procesPair call1" << endl;        
+                      totalNucleotides += processPair(&reads[0], &(it_read->second));
+                      spare_reads.erase(read_name);
+                  }else{
+                      //cout << "procesPair call2" << endl;                
+                      totalNucleotides += processPair(&(it_read->second), &reads[0]);
+                      spare_reads.erase(read_name);
+                  }                
+              } else {
+                  spare_reads[read_name] = reads[0];
+              }
+      }
+    }
 #ifndef GALAXY
     p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
     prev_bam_pos = IN->tellg();

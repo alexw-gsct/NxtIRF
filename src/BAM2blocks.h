@@ -16,9 +16,13 @@ class BAM2blocks {
 	// TODO -- are structs best hidden inside the class? Does doing so push them into namespace of the class only?
 	struct bam_read_core {
 		union {
-		  char c[36];
+		  char c_block_size[4];
+		  uint32_t block_size;
+		};    
+		union {
+		  char c[32];
 		  struct {
-			uint32_t block_size;
+			// uint32_t block_size;
 			int32_t refID;
 			int32_t pos;
 			uint8_t l_read_name;

@@ -43,7 +43,6 @@ void BAMReader::SetInputHandle(std::istream *in_stream) {
 int BAMReader::LoadBuffer() {
   stream_uint16 u16;
   stream_uint32 u32;
-  Rcout << IN->tellg() << " ";
   char GzipCheck[bamGzipHeadLength];
   IN->read(GzipCheck, bamGzipHeadLength);
 
@@ -106,16 +105,11 @@ int BAMReader::LoadBuffer() {
     }
     bufferPos = 0;
 
-    // if(u16.u == 27) {
-      // IS_EOF = 1;
-      // return(1);
-    // }
-    
     return(ret);
 }
 
 int BAMReader::read(char * dest, unsigned int len) {
-    
+  
     unsigned int remaining_bytes = 0;
     unsigned int dest_pos = 0;
     
@@ -134,7 +128,9 @@ int BAMReader::read(char * dest, unsigned int len) {
         return(Z_OK);
     } else {
         remaining_bytes = len - (bufferMax - bufferPos);
+
         memcpy(&dest[dest_pos], &buffer[bufferPos], bufferMax - bufferPos);
+        dest_pos += bufferMax - bufferPos;
         bufferMax = 0;
         bufferPos = 0;        
         ret = LoadBuffer();
@@ -162,7 +158,7 @@ int BAMReader::read(char * dest, unsigned int len) {
 }
 
 int BAMReader::ignore(unsigned int len) {
-    
+
     unsigned int remaining_bytes = len;
     int ret = 0;
     if(bufferMax == 0 || bufferPos == bufferMax) {
