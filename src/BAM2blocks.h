@@ -18,7 +18,7 @@ class BAM2blocks {
 		union {
 		  char c[36];
 		  struct {
-			int32_t block_size;
+			uint32_t block_size;
 			int32_t refID;
 			int32_t pos;
 			uint8_t l_read_name;
@@ -26,7 +26,7 @@ class BAM2blocks {
 			uint16_t bin;
 			uint16_t n_cigar_op;
 			uint16_t flag;
-			int32_t l_seq;
+			uint32_t l_seq;
 			int32_t next_refID;
 			int32_t next_pos;
 			int32_t tlen;
@@ -35,7 +35,7 @@ class BAM2blocks {
 		char read_name[256];
 		union {
 		  char cigar_buffer[2000];
-		  int32_t cigar[500];
+		  uint32_t cigar[500];
 		};
 	};
  
@@ -77,7 +77,7 @@ class BAM2blocks {
 
 	BAMReader * IN;
 
-	void cigar2block(int32_t * cigar, uint16_t n_cigar_op, std::vector<int> &starts, std::vector<int> &lens, int &ret_genome_len);
+	void cigar2block(uint32_t * cigar, uint16_t n_cigar_op, std::vector<int> &starts, std::vector<int> &lens, int &ret_genome_len);
 
 	unsigned int processPair(bam_read_core * read1, bam_read_core * read2);
 	unsigned int processSingle(bam_read_core * read1);

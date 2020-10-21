@@ -43,14 +43,7 @@ void BAMReader::SetInputHandle(std::istream *in_stream) {
 int BAMReader::LoadBuffer() {
   stream_uint16 u16;
   stream_uint32 u32;
-  
-  if(IN->fail()) {
-    return(-1);
-  } else if(IN->eof()) {
-    IS_EOF = 1;
-    return(1);
-  }
-    
+  Rcout << IN->tellg() << " ";
   char GzipCheck[bamGzipHeadLength];
   IN->read(GzipCheck, bamGzipHeadLength);
 

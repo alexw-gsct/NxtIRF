@@ -50,7 +50,7 @@ void BAM2blocks::readBamHeader() {
   
 }
 
-void BAM2blocks::cigar2block(int32_t * cigar, uint16_t n_cigar_op, std::vector<int> &starts, std::vector<int> &lens, int &ret_genome_len) {
+void BAM2blocks::cigar2block(uint32_t * cigar, uint16_t n_cigar_op, std::vector<int> &starts, std::vector<int> &lens, int &ret_genome_len) {
   bool inBlock = true;
   int relpos = 0;
   int curblock = 0;
