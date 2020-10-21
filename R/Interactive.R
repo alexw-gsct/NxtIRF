@@ -198,7 +198,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
 					textOutput("txt_irf_path_expr"),
 					br(),
-										
+          actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
+					textOutput("txt_run_irf_expr"),
+					br(),
+          
 					wellPanel(
 						uiOutput("newcol_expr"), # done
             div(class='row',
