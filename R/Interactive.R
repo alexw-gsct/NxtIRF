@@ -200,8 +200,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					br(),
           actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
 					textOutput("txt_run_irf_expr"),
-					br(),
-          
+					br(),          
 					wellPanel(
 						uiOutput("newcol_expr"), # done
             div(class='row',

@@ -258,7 +258,7 @@ int BAM2blocks::processAll(std::string& output) {
 	while(1) {
 		j++;
 		ret |= IN->read(reads[idx].c, BAM_READ_CORE_BYTES);
-		if (IN->eof() || ret == 1) {
+		if (IN->eof()) {
       cErrorReads = spare_reads.size();
 			oss << "Total reads processed\t" << j-1 << '\n';
 			oss << "Total nucleotides\t" << totalNucleotides << '\n';
@@ -272,9 +272,9 @@ int BAM2blocks::processAll(std::string& output) {
 			oss << "Error detected on line\t" << "NA" << '\n';
       output = oss.str();
 			return(0);   
-		} else if(IN->fail() || ret == -1) {
+		} else if(IN->fail() || (ret != 0 && ret != 1)) {
       cErrorReads = spare_reads.size();
-			cerr << "Input error at line:" << j << '\n';
+			cerr << "Input error at line:" << j << ", return error (" << ret << ")\n";
 			// cerr << "Characters read on last read call:" << IN->gcount() << '\n';
 			oss << "Total reads processed\t" << j-1 << '\n';
 			oss << "Total nucleotides\t" << totalNucleotides << '\n';

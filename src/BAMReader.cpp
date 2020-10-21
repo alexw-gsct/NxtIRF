@@ -53,6 +53,14 @@ int BAMReader::LoadBuffer() {
     
   char GzipCheck[bamGzipHeadLength];
   IN->read(GzipCheck, bamGzipHeadLength);
+
+  if(IN->fail()) {
+    // likely just EOF
+    return(-1);
+  } else if(IN->eof()) {
+    IS_EOF = 1;
+    return(1);
+  }
     
 /*
 // Too intensive. Adds 43.69 -> 49.56 s for 2M paired reads
@@ -64,11 +72,6 @@ int BAMReader::LoadBuffer() {
  */
   IN->read(u16.c, 2);
   // check true EOF
-  if(u16.u == 27) {
-    IN->ignore(10);
-    IS_EOF = 1;
-    return(1);
-  }
 
   IN->read(compressed_buffer, u16.u + 1 - 2  - bamGzipHeadLength);
   
@@ -86,17 +89,15 @@ int BAMReader::LoadBuffer() {
 
     int ret = inflateInit2(&zs, -15);
     if(ret != Z_OK) {
-        // std::ostringstream oss;
+        std::ostringstream oss;
         Rcout << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
-        // throw(std::runtime_error(oss.str()));
-        return(-1);
+        throw(std::runtime_error(oss.str()));
     }
     ret = inflate(&zs, Z_FINISH);
     if(ret != Z_OK && ret != Z_STREAM_END) {
-        // std::ostringstream oss;
+        std::ostringstream oss;
         Rcout << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
-        return(-1);
-        // throw(std::runtime_error(oss.str()));
+        throw(std::runtime_error(oss.str()));
     }
     ret = inflateEnd(&zs);
     
@@ -106,12 +107,16 @@ int BAMReader::LoadBuffer() {
     uint32_t crc = crc32(crc32(0L, NULL, 0L), (Bytef*)buffer, bufferMax);
     // CRC check:
     if(u32.u != crc) {
-        // std::ostringstream oss;
+        std::ostringstream oss;
         Rcout << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
-        // throw(std::runtime_error(oss.str()));
-        return(-1);
+        throw(std::runtime_error(oss.str()));
     }
     bufferPos = 0;
+
+    // if(u16.u == 27) {
+      // IS_EOF = 1;
+      // return(1);
+    // }
     
     return(ret);
 }
@@ -145,13 +150,13 @@ int BAMReader::read(char * dest, unsigned int len) {
         }
 
         while(remaining_bytes > bufferMax) {
-            memcpy(&dest[dest_pos], &buffer[0], bufferMax);
-            remaining_bytes -= bufferMax;
-            dest_pos += bufferMax;
-            bufferMax = 0;
-            bufferPos = 0;
-            ret = LoadBuffer();
-          if(ret != 0) {
+          memcpy(&dest[dest_pos], &buffer[0], bufferMax);
+          remaining_bytes -= bufferMax;
+          dest_pos += bufferMax;
+          bufferMax = 0;
+          bufferPos = 0;
+          ret = LoadBuffer();
+          if(ret != 0 || bufferMax == 0) {
             return(ret);
           }
         }
@@ -166,9 +171,12 @@ int BAMReader::read(char * dest, unsigned int len) {
 int BAMReader::ignore(unsigned int len) {
     
     unsigned int remaining_bytes = len;
-
+    int ret = 0;
     if(bufferMax == 0 || bufferPos == bufferMax) {
-        LoadBuffer();        
+          ret = LoadBuffer();
+          if(ret != 0 || bufferMax == 0) {
+            return(ret);
+          }
     }
     
     if (len < bufferMax - bufferPos) {
@@ -180,13 +188,19 @@ int BAMReader::ignore(unsigned int len) {
         // memcpy(dest, &buffer[bufferPos], bufferMax - bufferPos);
         bufferMax = 0;
         bufferPos = 0; 
-        LoadBuffer();
+          ret = LoadBuffer();
+          if(ret != 0 || bufferMax == 0) {
+            return(ret);
+          }
 
-        while(remaining_bytes > bufferMax) {
+        while(remaining_bytes > bufferMax || bufferMax == 0) {
             remaining_bytes -= bufferMax;
             bufferMax = 0;
             bufferPos = 0;
-            LoadBuffer();
+            ret = LoadBuffer();
+            if(ret != 0 || bufferMax == 0) {
+              return(ret);
+            }
         }
         
         // memcpy(dest + bufferMax - bufferPos, &buffer[bufferPos], remaining_bytes);

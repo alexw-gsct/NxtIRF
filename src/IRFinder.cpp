@@ -222,7 +222,7 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string s_out
     
   BAMReader inbam;
   std::ifstream inbam_stream;
-  inbam_stream.open(s_bam, std::ifstream::binary);
+  inbam_stream.open(s_bam, std::ios::in | std::ios::binary);
   inbam.SetInputHandle(&inbam_stream);
   
   BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
