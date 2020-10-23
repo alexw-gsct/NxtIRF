@@ -277,6 +277,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Genes = gtf.gr[gtf.gr$type == "gene"]
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
+    Genes$gene_display_name = paste0(Genes$gene_name, " (", Genes$gene_id, ")")
     
     # Annotate gene_groups_stranded / unstranded
     Genes.Group.stranded = as.data.table(GenomicRanges::reduce(Genes))
@@ -308,6 +309,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         colnames(mcols(Transcripts))[which(colnames(mcols(Transcripts)) == "transcript_type")] = "transcript_biotype"
     } else {
         mcols(Transcripts)$transcript_biotype = "protein_coding"
+    }
+
+    if("transcript_support_level" %in% names(GenomicRanges::mcols(Transcripts))) {
+        Transcripts$transcript_support_level = data.table::tstrsplit(Transcripts$transcript_support_level, split=" ")[[1]]
+        Transcripts$transcript_support_level[is.na(Transcripts$transcript_support_level)] = "NA"
     }
    
         fst::write.fst(as.data.frame(Transcripts), file.path(reference_path,"fst","Transcripts.fst"))

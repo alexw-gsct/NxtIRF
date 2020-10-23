@@ -174,30 +174,27 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 			),
 			tabPanel("View", value = "navRef_View",
-				fluidRow(style='height:70vh',
-					column(3,
-            verbatimTextOutput("warning_view_ref")
+				fluidRow(style='height:30vh',
+					column(4, 
+            verbatimTextOutput("warning_view_ref"),
 						selectInput('genes_view', 'Genes', 
-							c("")),
-						rHandsontableOutput("hot_events_view_ref")
-					),
-					column(9,
-						plotlyOutput("plot_view_ref")
+							c("(none)")),
+						selectInput('events_view', 'Events', multiple = TRUE,
+							c("(none)"))
+          ),
+					column(8,
+						div(style="display: inline-block;vertical-align:top; width: 80px;",
+							selectInput("chr_view_ref", label = "Chr", c("(none)"), selected = "(none)")),
+						div(style="display: inline-block;vertical-align:top; width: 120px;",
+							textInput("start_view_ref", label = "Left", c(""))),
+						div(style="display: inline-block;vertical-align:top; width: 120px;",
+							textInput("end_view_ref", label = "Right", c(""))),						
+						div(style="display: inline-block;vertical-align:top; width: 250px;",
+							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 12))
 					)
 				),
 				fluidRow(
-					column(4),
-					column(4,
-						div(style="display: inline-block;vertical-align:top; width: 80px;",
-							selectInput("chr_view_ref", label = "Chr", c(""))),
-						div(style="display: inline-block;vertical-align:top; width: 150px;",
-							textInput("start_view_ref", label = "Left", c(""))),
-						div(style="display: inline-block;vertical-align:top; width: 150px;",
-							textInput("end_view_ref", label = "Right", c(""))),						
-						div(style="horizontal-align:center;",
-							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 12))
-					),
-					column(4)
+						plotlyOutput("plot_view_ref", height = "800px")
 				)
       )
 		),
@@ -356,19 +353,24 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           load_ref()
         }
         output$warning_view_ref <- renderText({
-            validate(need(settings_loadref$loadref_path, "Please select reference path"))
+            validate(need(settings_loadref$loadref_path, "Please select reference path"))            
             settings_loadref$loadref_path
         })
         req(settings_loadref$loadref_path)
-        
-				settings_ViewRef$gene_list <- getGeneList()
+        settings_ViewRef$gene_list <- getGeneList()
 				
-				if(!is.null(gene_list)) {
+				if(!is.null(settings_ViewRef$gene_list)) {
+          message(paste("Populating drop-down box with", 
+            length(unique(settings_ViewRef$gene_list$gene_display_name)),"genes"))
+					updateSelectInput(session = session, inputId = "chr_view_ref", 
+						choices = c("(none)", sort(unique(settings_ViewRef$gene_list$seqnames))), selected = "(none)")    								          
 					updateSelectInput(session = session, inputId = "genes_view", 
-						choices = c("(None)", settings_ViewRef$gene_list),selected = "(None)")        								
+						choices = c("(none)", settings_ViewRef$gene_list$gene_display_name), selected = "(none)")    								
 				} else {
+					updateSelectInput(session = session, inputId = "chr_view_ref", 
+						choices = c("(none)", settings_ViewRef$gene_list$gene_display_name), selected = "(none)")    								
 					updateSelectInput(session = session, inputId = "genes_view", 
-						choices = c("(None)"),selected = "(None)")    
+						choices = c("(none)"), selected = "(none)") 
 				}
         
 			} else if(input$navSelection == "navThreads") {	
@@ -733,8 +735,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         settings_loadref$loadref_path = ""
       }
 		}
-}
-		observeEvent(settings_loadref$loadref_path,{ 
+
+		observeEvent(settings_loadref$loadref_path,{
       req(settings_loadref$loadref_path)
 			if(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
 				load_ref()
@@ -747,23 +749,190 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 # View Ref page
 
     settings_ViewRef <- shiny::reactiveValues(
-			gene_list = NULL
+			gene_list = NULL,
+      elem.DT = NULL,
+      transcripts.DT = NULL,
+      view_chr = "",
+      view_start = "",
+      view_end = "",
+      blockView = FALSE
 		)
 		
+    loadTranscripts <- function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+			file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
+      
+      Transcripts.DT = as.data.table(fst::read.fst(file_path))
+
+      if("transcript_support_level" %in% colnames(Transcripts.DT)) {
+          Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
+          Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
+      } else {
+        Transcripts.DT$transcript_support_level = 1
+      }
+      
+      return(Transcripts.DT)
+    }
+
+
+
+    loadViewRef <- function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+			dir_path = file.path(settings_loadref$loadref_path, "fst")
+
+      exons.DT = as.data.table(fst::read.fst(file.path(dir_path, "Exons.fst")))
+      exons.DT = exons.DT[transcript_id != "protein_coding"]
+
+      protein.DT = as.data.table(fst::read.fst(file.path(dir_path, "Proteins.fst")))
+      misc.DT = as.data.table(fst::read.fst(file.path(dir_path, "Misc.fst")))
+      introns.DT = as.data.table(fst::read.fst(file.path(dir_path, "junctions.fst")))
+      introns.DT[, type := "intron"]
+      
+      total.DT = rbindlist(list(
+        exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+        protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+        misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+        introns.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
+      ))
+      return(total.DT)
+    }
+    
 		getGeneList <- function() {
       req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-			file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst"))) 
+			file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
 			if(!file.exists(file_path)) return(NULL)
 			
-			df = fst::read.fst(file_path, columns = c("gene_id", "gene_name", "gene_biotype"))
-			df$gene_display_name = paste0(df$gene_name, " (", df$gene_id, ")")
+			df = as.data.table(fst::read.fst(file_path))
 			return(df)
 		}
-		
-     
 
+    plot_view_ref_fn = function(chr, start, end) {
+      view_chr = input$chr_view_ref
+      view_start = as.numeric(input$start_view_ref)
+      view_end = as.numeric(input$end_view_ref)
 
-		
+      req(view_chr)
+      req(view_start)
+      req(view_end)
+      req(view_chr != settings_ViewRef$view_chr | view_start != settings_ViewRef$view_start | 
+        view_end != settings_ViewRef$view_end)
+
+      settings_ViewRef$view_chr = view_chr
+      settings_ViewRef$view_start = view_start
+      settings_ViewRef$view_end = view_end
+
+      message("plot_view_ref_fn")
+
+      if(is.null(settings_ViewRef$elem.DT)) settings_ViewRef$elem.DT <- loadViewRef()
+      if(is.null(settings_ViewRef$transcripts.DT)) settings_ViewRef$transcripts.DT <- loadTranscripts()
+
+      req(settings_ViewRef$elem.DT)
+      req(settings_ViewRef$transcripts.DT)
+      message("stuff loaded")
+      
+      screen.DT = settings_ViewRef$elem.DT[seqnames == view_chr]
+      screen.DT = screen.DT[start <= view_end & end >= view_start]
+      
+      tr_list = unique(screen.DT$transcript_id)
+      message(paste(length(tr_list), " transcripts"))
+      
+      # limit transcript list
+      req(length(tr_list) < 70)
+      
+      transcripts.DT = settings_ViewRef$transcripts.DT[transcript_id %in% tr_list]
+      transcripts.DT = transcripts.DT
+      setorder(transcripts.DT, transcript_support_level, width)
+
+      transcripts.DT[, FOV_start := start]
+      transcripts.DT[, FOV_end := end]   
+      
+      # apply plot_order on transcripts.DT
+      transcripts.DT$plot_level = 0
+      i = 0
+      while(any(transcripts.DT$plot_level == 0)) {
+        i = i + 1
+        remaining = which(transcripts.DT$plot_level == 0)
+        while(length(remaining) > 0) {
+          transcripts.DT$plot_level[remaining[1]] = i
+          ol.gr = GenomicRanges::reduce(
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT[plot_level == i])),
+            ignore.strand = TRUE
+          )
+          OL = GenomicRanges::findOverlaps(
+            ol.gr,
+            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
+            ignore.strand = TRUE
+          )
+          remaining = which(transcripts.DT$plot_level == 0)
+          remaining = remaining[which(!(remaining %in% OL@to))]
+        }
+      }
+      transcripts.DT[strand == "+", display_name := paste(transcript_name, "-", transcript_biotype, " ->>")]
+      transcripts.DT[strand == "-", display_name := paste("<-- ", transcript_name, "-", transcript_biotype)]
+
+      plot.DT = settings_ViewRef$elem.DT[transcript_id %in% transcripts.DT$transcript_id]
+      plot.DT$transcript_id = factor(plot.DT$transcript_id, unique(transcripts.DT$transcript_id), ordered = TRUE)
+      plot.DT[transcripts.DT, on = "transcript_id", 
+        c("transcript_name", "transcript_biotype", "transcript_support_level", "display_name", "plot_level") := 
+        list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
+      
+      p = ggplot(plot.DT, aes(text = display_name))
+      if(nrow(subset(as.data.frame(plot.DT), type = "intron")) > 0) {
+        p = p + geom_segment(data = subset(as.data.frame(plot.DT), type = "intron"), 
+          aes(x = start, xend = end, y = plot_level, yend = plot_level))
+      }
+      if(nrow(subset(as.data.frame(plot.DT), type != "intron")) > 0) {
+        p = p + geom_rect(data = subset(as.data.frame(plot.DT), type != "intron"), 
+          aes(xmin = start, xmax = end, 
+            ymin = plot_level - 0.1 - ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
+            ymax = plot_level + 0.1 + ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)))
+      }
+      p = p + xlim(view_start, view_end)
+            
+      output$plot_view_ref <- renderPlotly({
+        print(
+          ggplotly(p, tooltip = "text")
+        )
+      })      
+    }
+
+		observeEvent(input$genes_view, {
+      req(input$genes_view)
+      req(input$genes_view != "(none)")
+
+      gene_id_view = settings_ViewRef$gene_list[gene_display_name == input$genes_view]
+
+      settings_ViewRef$blockView = TRUE
+
+      # change settings on input based on this
+      updateSelectInput(session = session, inputId = "chr_view_ref", 
+        selected = gene_id_view$seqnames[1])
+      updateTextInput(session = session, inputId = "start_view_ref", 
+        value = gene_id_view$start[1])
+      updateTextInput(session = session, inputId = "end_view_ref", 
+        value = gene_id_view$end[1])
+        
+      settings_ViewRef$blockView = FALSE
+		})
+
+    observeEvent(settings_ViewRef$blockView, {
+      req(settings_ViewRef$blockView == FALSE)
+      plot_view_ref_fn()      
+    })
+    observeEvent(input$chr_view_ref, {
+      req(settings_ViewRef$blockView == FALSE)
+      req(input$chr_view_ref != "(none)")
+      plot_view_ref_fn()
+    })
+    observeEvent(input$start_view_ref, {
+      req(settings_ViewRef$blockView == FALSE)
+      plot_view_ref_fn()
+    })
+    observeEvent(input$end_view_ref, {
+      req(settings_ViewRef$blockView == FALSE)
+      plot_view_ref_fn()
+    })
+    
 # Design Experiment page
 		settings_expr <- shiny::reactiveValues(
 			expr_path = "",
