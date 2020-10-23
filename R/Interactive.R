@@ -174,30 +174,32 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 			),
 			tabPanel("View", value = "navRef_View",
-				fluidRow(style='height:80vh',
-					column(2,
+				fluidRow(style='height:70vh',
+					column(3,
+            verbatimTextOutput("warning_view_ref")
 						selectInput('genes_view', 'Genes', 
 							c("")),
-						rHandsontableOutput("hot_events_view")
+						rHandsontableOutput("hot_events_view_ref")
 					),
-					column(10,
-						plotlyOutput("plot_view_reference")
+					column(9,
+						plotlyOutput("plot_view_ref")
 					)
 				),
 				fluidRow(
 					column(4),
 					column(4,
-						div(style="display: inline-block;vertical-align:top; width: 50px;",
+						div(style="display: inline-block;vertical-align:top; width: 80px;",
 							selectInput("chr_view_ref", label = "Chr", c(""))),
-						div(style="display: inline-block;vertical-align:top; width: 80px;",
+						div(style="display: inline-block;vertical-align:top; width: 150px;",
 							textInput("start_view_ref", label = "Left", c(""))),
-						div(style="display: inline-block;vertical-align:top; width: 80px;",
+						div(style="display: inline-block;vertical-align:top; width: 150px;",
 							textInput("end_view_ref", label = "Right", c(""))),						
 						div(style="horizontal-align:center;",
-							sliderInput("zoom_view_ref", label = "Zoom", 1:12))
+							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 12))
 					),
 					column(4)
 				)
+      )
 		),
 		# Experiment
 		tabPanel("Experiment", value = "navExpr",
@@ -349,6 +351,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             validate(need(settings_loadref$loadref_path, "Please select reference path"))
             settings_loadref$loadref_path
         })
+			} else if(input$navSelection == "navRef_View") {
+        if(settings_loadref$loadref_path != "") {
+          load_ref()
+        }
+        output$warning_view_ref <- renderText({
+            validate(need(settings_loadref$loadref_path, "Please select reference path"))
+            settings_loadref$loadref_path
+        })
+        req(settings_loadref$loadref_path)
+        load_ref_data()
+        
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
 				updateSelectInput(session = session, inputId = "expr_Cores", 
@@ -711,6 +724,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         settings_loadref$loadref_path = ""
       }
 		}
+}
 		observeEvent(settings_loadref$loadref_path,{ 
       req(settings_loadref$loadref_path)
 			if(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
@@ -721,6 +735,18 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					settings_loadref$loadref_path
 			})
 		})
+# View Ref page
+
+    settings_ViewRef <- shiny::reactiveValues()
+		
+    load_ref_data = function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))    
+    
+    
+    
+    
+
+
 		
 # Design Experiment page
 		settings_expr <- shiny::reactiveValues(
