@@ -360,7 +360,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             settings_loadref$loadref_path
         })
         req(settings_loadref$loadref_path)
-        load_ref_data()
+        
+				settings_ViewRef$gene_list <- getGeneList()
+				
+				if(!is.null(gene_list)) {
+					updateSelectInput(session = session, inputId = "genes_view", 
+						choices = c("(None)", settings_ViewRef$gene_list),selected = "(None)")        								
+				} else {
+					updateSelectInput(session = session, inputId = "genes_view", 
+						choices = c("(None)"),selected = "(None)")    
+				}
         
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
@@ -737,14 +746,21 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 # View Ref page
 
-    settings_ViewRef <- shiny::reactiveValues()
+    settings_ViewRef <- shiny::reactiveValues(
+			gene_list = NULL
+		)
 		
-    load_ref_data = function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))    
-    
-    
-    
-    
+		getGeneList <- function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+			file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst"))) 
+			if(!file.exists(file_path)) return(NULL)
+			
+			df = fst::read.fst(file_path, columns = c("gene_id", "gene_name", "gene_biotype"))
+			df$gene_display_name = paste0(df$gene_name, " (", df$gene_id, ")")
+			return(df)
+		}
+		
+     
 
 
 		
