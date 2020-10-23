@@ -57,17 +57,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           filterType = "",
           filterVars = list()
         )
-        
-        # observe({
-          # final$filterClass = input$filterClass
-          # final$filterType = input$filterType
-          # final$filterVars$minimum = input$d1_1
-          # final$filterVars$minDepth = input$d1_1b
-          # final$filterVars$minCond = input$d1_2
-          # final$filterVars$condition = input$cond1
-          # final$filterVars$pcTRUE = input$d1_3
-        # })
-        
+
         observeEvent(input$filterType, {
           message("Update being triggered")
           if(input$filterType %in% c("Depth", "Coverage")) {
@@ -182,7 +172,32 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						textOutput("loadRef_field7"),						
 					)
 				)
-			)
+			),
+			tabPanel("View", value = "navRef_View",
+				fluidRow(style='height:80vh',
+					column(2,
+						selectInput('genes_view', 'Genes', 
+							c("")),
+						rHandsontableOutput("hot_events_view")
+					),
+					column(10,
+						plotlyOutput("plot_view_reference")
+					)
+				),
+				fluidRow(
+					column(4),
+					column(4,
+						div(style="display: inline-block;vertical-align:top; width: 50px;",
+							selectInput("chr_view_ref", label = "Chr", c(""))),
+						div(style="display: inline-block;vertical-align:top; width: 80px;",
+							textInput("start_view_ref", label = "Left", c(""))),
+						div(style="display: inline-block;vertical-align:top; width: 80px;",
+							textInput("end_view_ref", label = "Right", c(""))),						
+						div(style="horizontal-align:center;",
+							sliderInput("zoom_view_ref", label = "Zoom", 1:12))
+					),
+					column(4)
+				)
 		),
 		# Experiment
 		tabPanel("Experiment", value = "navExpr",
