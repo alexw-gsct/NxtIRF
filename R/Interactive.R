@@ -112,7 +112,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		tabPanel("Multithreading", value = "navThreads",
 			wellPanel(
 				selectInput('expr_Cores', 'Number of Processors to Use', width = '100%',
-					choices = c(1)),					
+					choices = 1, selected = 1),					
 			),
 		),		
 # Reference
@@ -636,6 +636,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path_load)
     })
 		load_ref = function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
 			settings_loadref$settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
       if("reference_path" %in% names(settings_loadref$settings)) {
         if("ah_genome" %in% names(settings_loadref$settings)) {
@@ -1049,7 +1050,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       # if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
         # output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
 				# do.call(CollateData, args)
-        CollateData(Experiment, reference_path, output_path, n_threads = input$expr_Cores)#, BPPARAM = BPPARAM)
+        cores_to_use = input$expr_Cores
+        if(!is_valid(input$expr_Cores)) cores_to_use = 1
+        CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
         Expr_Load_FSTs()
         output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
       # }

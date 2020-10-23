@@ -119,7 +119,7 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
   gz_in.LoadGZ(s_in, true);
   
   std::ofstream out;
-  out.open(s_out, std::ifstream::out);
+  out.open(s_out, std::ofstream::binary);
   std::string myLine;
   
   while(!gz_in.iss.eof()) {
@@ -129,6 +129,82 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
   out.flush(); out.close();
   
   return(0);
+}
+
+// [[Rcpp::export]]
+List IRF_gunzip_DF(std::string s_in, StringVector s_header_begin) {
+  
+  GZReader gz_in;
+  gz_in.LoadGZ(s_in, false, true);
+  
+  // std::ofstream out;
+  // out.open(s_out, std::ifstream::out);
+  
+  // Look for first line of data to return
+  std::string myLine;
+  std::string myEntry;
+  unsigned int q = 0;
+
+  char delim = '\n';
+
+  List Final_final_list;
+  for(unsigned int z = 0; z < s_header_begin.size(); z++) {
+    std::string header = string(s_header_begin(z));
+    std::vector<std::string> columns;
+    while(!gz_in.eof()) {
+      gz_in.getline(myLine, delim); q++;
+      myLine.erase( std::remove(myLine.begin(), myLine.end(), '\r'), myLine.end() ); // remove \r 
+      
+      if(strncmp(myLine.c_str(), header.c_str(), header.size()) == 0) {
+        // read columns
+        std::istringstream column_iss;
+        column_iss.str(myLine);
+        
+        while(!column_iss.eof() && !column_iss.fail()) {
+          getline(column_iss, myEntry, '\t');
+          columns.push_back(myEntry);
+        }
+        
+        break;
+      }
+    }
+
+    // use a map of string vectors
+    std::map< std::string, std::vector<std::string> > column_data;
+      
+    while(!gz_in.eof()) {
+      gz_in.getline(myLine, delim); q++;
+      myLine.erase( std::remove(myLine.begin(), myLine.end(), '\r'), myLine.end() ); // remove \r 
+      if (myLine.length() == 0) {
+        break;  // End at detection of empty line
+      }
+      std::istringstream entry_iss;
+      entry_iss.str(myLine);
+      unsigned int j = 0;
+      while(!entry_iss.eof() && !entry_iss.fail() && j < columns.size()) {
+        getline(entry_iss, myEntry, '\t');
+        column_data[columns.at(j)].push_back(myEntry);
+        j++;
+      }
+      if(j > columns.size()) {
+        Rcout << "Detecting extra rows at line" << q << '\n';
+        // ignore for now
+      } else if(j != columns.size()) {
+        Rcout << "Missing entries detected at line" << q << '\n';
+        // attempt to repair by putting blank entries
+        for(unsigned int k = j; k < columns.size(); k++) {
+          column_data[columns.at(k)].push_back("");
+        }
+      }
+    }
+    List final_list;
+    for(unsigned int i = 0; i < columns.size(); i++) {
+      final_list.push_back(column_data[columns.at(i)], columns.at(i));
+    }
+    Final_final_list.push_back(final_list, header);
+  }
+
+  return(Final_final_list);
 }
 
 #else

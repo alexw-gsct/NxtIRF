@@ -13,6 +13,10 @@ IRF_gunzip <- function(s_in, s_out) {
     .Call(`_NxtIRF_IRF_gunzip`, s_in, s_out)
 }
 
+IRF_gunzip_DF <- function(s_in, s_header_begin) {
+    .Call(`_NxtIRF_IRF_gunzip_DF`, s_in, s_header_begin)
+}
+
 IRF_main <- function(bam_file, reference_file, output_file) {
     .Call(`_NxtIRF_IRF_main`, bam_file, reference_file, output_file)
 }

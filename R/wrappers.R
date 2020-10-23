@@ -21,6 +21,39 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
 }
 
 #' @export
+run_Gunzip = function(infile = "", outfile) {
+  file_to_read = normalizePath(infile)
+  assertthat::assert_that(file.exists(file_to_read),
+    msg = paste(file_to_read, "does not exist"))
+    
+  assertthat::assert_that(dir.exists(dirname(outfile)),
+    msg = paste(dirname(outfile), "does not exist"))
+    
+  IRF_gunzip(file_to_read, outfile)
+}
+
+#' @export
+get_multi_DT_from_gz = function(infile = "", block_headers = c("Header1", "Header2")) {
+  file_to_read = normalizePath(infile)
+  assertthat::assert_that(file.exists(file_to_read),
+    msg = paste(file_to_read, "does not exist"))
+
+
+  df.list = IRF_gunzip_DF(file_to_read, block_headers)
+  for(i in seq_len(length(df.list))) {
+    for(j in seq_len(length(df.list[[i]]))) {
+      suppressWarnings({
+        if(all(df.list[[i]][[j]] == "NA" | !is.na(as.numeric(df.list[[i]][[j]])))) {
+          df.list[[i]][[j]] = as.numeric(df.list[[i]][[j]])
+        }
+      })
+    }
+    df.list[[i]] = as.data.table(df.list[[i]])
+  }
+  return(df.list)
+}
+
+#' @export
 GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
   assertthat::assert_that(as.numeric(strand) %in% c(0,1,2),
                           msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")

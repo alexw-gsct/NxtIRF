@@ -38,8 +38,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     assertthat::assert_that(IRMode != "",
       msg = "IRMode must be either 'SpliceOverMax' (default) or 'SpliceMax'")
 
-    assertthat::assert_that(n_threads <= parallel::detectCores() - 2,
-      "NxtIRF does not support more threads than parallel::detectCores() - 2") 
+    assertthat::assert_that(n_threads <= (parallel::detectCores() - 2),
+      msg = "NxtIRF does not support more threads than parallel::detectCores() - 2") 
 
     BPPARAM = BiocParallel::bpparam()
     
@@ -103,13 +103,13 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
           })
           block = df.internal[work]
           for(i in seq_len(length(work))) {
-            stats = suppressWarnings(fread(block$path[i], skip = "BAM", 
-							colClasses = c("character", "numeric")))
-            direct = suppressWarnings(fread(block$path[i], skip = "Directionality", 
-							colClasses = c("character", "numeric")))
-            ROI = suppressWarnings(fread(block$path[i], skip = "ROIname"))
-            ChrCov = suppressWarnings(fread(block$path[i], skip = "ChrCoverage"))
-            junc = suppressWarnings(fread(block$path[i], skip = "JC_seqname"))
+            data.list = get_multi_DT_from_gz(block$path[i], c("BAM", "Directionality", "ROIname", "ChrCoverage", "JC_seqname"))
+          
+            stats = data.list$BAM
+            direct = data.list$Directionality
+            ROI = data.list$ROIname
+            ChrCov = data.list$ChrCoverage
+            junc = data.list$JC_seqname
 		
             if(stats$Value[3] == 0 & stats$Value[4] > 0) {
                 block$paired[i] = TRUE
@@ -162,6 +162,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
         block = df.internal[work]
         junc.segment = NULL
         for(i in seq_len(length(work))) {
+          # junc = get_multi_DT_from_gz(block$path[i], c("JC_seqname"))
+          # junc = junc$JC_seqname
           junc = suppressWarnings(as.data.table(fread(block$path[i], skip = "JC_seqname")))
           setnames(junc, "JC_seqname", "seqnames")
           if(is.null(junc.segment)) {
@@ -199,6 +201,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
         
         # Compile IRFinder based on strand
           if(!runStranded) {
+            # fread is faster here
             irf = suppressWarnings(as.data.table(fread(block$path[i], skip = "Nondir_")))
             setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
           } else {

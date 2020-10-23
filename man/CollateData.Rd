@@ -12,7 +12,7 @@ CollateData(
   localHub = FALSE,
   low_memory_mode = FALSE,
   samples_per_block = 16,
-  BPPARAM = BiocParallel::bpparam()
+  n_threads = 1
 )
 }
 \arguments{

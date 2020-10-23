@@ -7,16 +7,21 @@
 
 class GZReader {
 private:
+  gzFile gz_in;
+  int GetBuffer();
 
 public:
   GZReader();
   ~GZReader();
-  void LoadGZ(std::string s_filename, bool asStream = false);
-  void read(char * dest, const size_t len);
-  void ignore(const size_t len);
+  void LoadGZ(std::string s_filename, bool asStream = false, bool lazy = false);
+  int getline(std::string & s_myLine, const char delim);
+
+  void read(char * dest, const unsigned long len);
+  void ignore(const unsigned long len);
+  bool eof();
   
   std::istringstream iss;
   char * buffer;
-  size_t bufferLen;
-  size_t bufferPos;
+  unsigned long bufferLen;
+  unsigned long bufferPos;
 };
