@@ -856,12 +856,12 @@ MakeSE = function(colData, fst_path) {
   Up_Exc = as.matrix(fst::read.fst(files.todo[9], columns = colData$sample))
   Down_Exc = as.matrix(fst::read.fst(files.todo[10], columns = colData$sample))
 
-  mode(Included) <- "integer"
-  mode(Excluded) <- "integer"
-  mode(Up_Inc) <- "integer"
-  mode(Down_Inc) <- "integer"
-  mode(Up_Exc) <- "integer"
-  mode(Down_Exc) <- "integer"
+  # mode(Included) <- "integer"
+  # mode(Excluded) <- "integer"
+  # mode(Up_Inc) <- "integer"
+  # mode(Down_Inc) <- "integer"
+  # mode(Up_Exc) <- "integer"
+  # mode(Down_Exc) <- "integer"
   
   se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
 		Included = Included, Excluded = Excluded),
