@@ -1567,13 +1567,134 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     
     # DE
 		settings_DE <- shiny::reactiveValues(
-
-
+			res = NULL,
+			batchVar1 = NULL,
+			batchVar2 = NULL,
+			DE_Var = NULL,
+			nom_DE = NULL,
+			denom_DE = NULL
 		)
     
-    observeEvent(input$variable_DE, 
+    observeEvent(input$variable_DE, {
+			req(input$variable_DE)
+			req(input$variable_DE != "(none)")
+			
+			colData = SummarizedExperiment::colData(settings_SE$se)
+			
+			if(class(colData[,input$variable_DE]) != "factor") {
+				output$warning_DE = renderText("Contrast must be performed on discrete categories")
+        updateSelectInput(session = session, inputId = "variable_DE", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")
+			} else {
+        updateSelectInput(session = session, inputId = "nom_DE", 
+          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")					
+        updateSelectInput(session = session, inputId = "denom_DE", 
+          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")		
+			}
+		})
     
-    
+    observeEvent(input$perform_DE, {
+			req(settings_SE$se)
+			output$warning_DE = renderText({
+				validate(need(input$variable_DE != "(none)"), "Variable for DE needs to be defined")
+				validate(need(input$nom_DE != "(none)"), "Nominator for DE Variable needs to be defined")
+				validate(need(input$denom_DE != "(none)"), "Denominator for DE Variable needs to be defined")
+				validate(need(input$denom_DE != input$nom_DE), "Denominator and Nominator must be different")
+			})
+			req(input$variable_DE)
+			req(input$nom_DE)
+			req(input$denom_DE)
+			req(input$variable_DE != "(none)" & input$nom_DE != "(none)" & input$denom_DE != "(none)")
+			
+			if(length(settings_SE$filterSummary) == nrow(settings_SE$se)) {
+				se = settings_SE$se[settings_SE$filterSummary,]
+			} else {
+				se = settings_SE$se
+			}
+			rowData = SummarizedExperiment::rowData(se)
+			colData = SummarizedExperiment::colData(settings_SE$se)
+			
+			settings_DE$DE_Var = input$variable_DE
+			settings_DE$nom_DE = input$nom_DE
+			settings_DE$nom_DE = input$denom_DE
+			
+			if(input$batch1_DE != "(none)" & input$batch1_DE != input$variable_DE) {
+				settings_DE$batchVar1 = input$batch1_DE
+			} else (
+				settings_DE$batchVar1 = NULL
+        updateSelectInput(session = session, inputId = "batch1_DE", 
+          selected = "(none)")
+			)
+			if(input$batch2_DE != "(none)" & input$batch2_DE != input$variable_DE & 
+					input$batch2_DE != input$batch1_DE) {
+				settings_DE$batchVar2 = input$batch2_DE
+			} else (
+				settings_DE$batchVar2 = NULL
+        updateSelectInput(session = session, inputId = "batch2_DE", 
+          selected = "(none)")
+			)
+			
+			if(input$method_DE == "DESeq2") {
+				NxtIRF.CheckPackageInstalled("DESeq2", "1.28.0")
+				# build design
+				if(!is.null(settings_DE$batchVar2)) {
+					dds_formula = paste0("~", paste(
+						settings_DE$batchVar1, settings_DE$batchVar2, settings_DE$DE_Var,
+						paste0(settings_DE$DE_Var, ":ASE"),
+						sep="+"))
+				} else if(!is.null(settings_DE$batchVar1)) {
+					dds_formula = paste0("~", paste(
+						settings_DE$batchVar1, settings_DE$DE_Var,
+						paste0(settings_DE$DE_Var, ":ASE"),
+						sep="+"))				
+				} else {
+					dds_formula = paste0("~", paste(settings_DE$DE_Var,
+						paste0(settings_DE$DE_Var, ":ASE"),
+						sep="+"))						
+				}
+				
+				# construct dds
+				se = settings_SE$se[settings_SE$filterSummary,]
+				countData = cbind(SummarizedExperiment::assay(se, "Included"), 
+					SummarizedExperiment::assay(se, "Excluded"))
+				colData_use = rbind(colData, colData)
+				rownames(colData_use) = c(
+					paste(rownames(colData), "Included", sep=".")
+					paste(rownames(colData), "Excluded", sep=".")
+				)
+				colnames(countData) = rownames(colData_use)
+				rownames(countData) = rowData$EventName
+				countData = round(countData)
+				mode(countData) = "integer"
+
+				dds = DESeq2::DESeqDataSetFromMatrix(
+					countData = countData,
+					colData = colData_use,
+					design = as.formula(dds_formula)
+				)
+				
+				DESeq2::sizeFactors(dds) = 1
+				
+				dds = DESeq2::DESeq(dds, parallel = TRUE)
+				
+				res = as.data.frame(results(dds,
+					list(
+						paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),
+						paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")
+					), parallel = TRUE)
+				)
+				res = cbind(as.data.frame(rowData), res)
+				settings_DE$res = res
+				output$hot_DE <- renderRHandsontable({
+					if (!is.null(settings_DE$res)) {     
+						rhandsontable(settings_DE$res, useTypes = TRUE, stretchH = "all")
+					} else {
+						NULL
+					}
+				})				
+			}
+			
+		})    
     
 # End of server function		
   }
