@@ -7,7 +7,7 @@
 #' @import shinyFiles
 #' @import rhandsontable
 #' @import ggplot2
-#' @importFrom plotly subplot layout ggplotly plotlyOutput renderPlotly
+#' @importFrom plotly subplot layout ggplotly plotlyOutput renderPlotly event_data
 #' @importFrom dplyr %>%
 #' @importFrom rtracklayer import
 #' @importFrom IRanges IRanges

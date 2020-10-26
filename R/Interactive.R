@@ -174,11 +174,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 			),
 			tabPanel("View", value = "navRef_View",
-				fluidRow(style='height:30vh',
+				fluidRow(style='height:20vh',
 					column(4, 
             verbatimTextOutput("warning_view_ref"),
-						selectInput('genes_view', 'Genes', 
-							c("(none)")),
+						selectizeInput('genes_view', 'Genes', choices = "(none)"),
 						selectInput('events_view', 'Events', multiple = TRUE,
 							c("(none)"))
           ),
@@ -194,7 +193,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
 				),
 				fluidRow(
-						plotlyOutput("plot_view_ref", height = "800px")
+						plotlyOutput("plot_view_ref", height = "800px"),
+            textOutput("plotly_event")
 				)
       )
 		),
@@ -289,7 +289,29 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
         )
       ),
-			tabPanel("Differential Analysis", value = "navAnalyse")	# DESeq2 or DSS
+			tabPanel("Differential Analysis", value = "navAnalyse",
+        fluidRow(
+					column(4,	
+						textOutput("warning_DE"),
+            selectInput('method_DE', 'Method', 
+							c("DESeq2", "limma", "DSS")),
+            selectInput('variable_DE', 'Variable', 
+							c("(none)")),
+            selectInput('nom_DE', 'Nominator', 
+							c("(none)")),
+            selectInput('denom_DE', 'Denominator', 
+							c("(none)")),
+            selectInput('batch1_DE', 'Batch Factor 1', 
+							c("(none)")),
+            selectInput('batch2_DE', 'Batch Factor 2', 
+							c("(none)")),
+						actionButton("perform_DE", "Perform DE")            
+					),
+					column(8,	
+            rHandsontableOutput("hot_DE")
+          )
+        )
+      )	# DESeq2 or DSS
 
 		),
 
@@ -359,17 +381,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         req(settings_loadref$loadref_path)
         settings_ViewRef$gene_list <- getGeneList()
 				
+        settings_ViewRef$elem.DT <- loadViewRef()
+        settings_ViewRef$transcripts.DT <- loadTranscripts()
+        
 				if(!is.null(settings_ViewRef$gene_list)) {
           message(paste("Populating drop-down box with", 
             length(unique(settings_ViewRef$gene_list$gene_display_name)),"genes"))
 					updateSelectInput(session = session, inputId = "chr_view_ref", 
 						choices = c("(none)", sort(unique(settings_ViewRef$gene_list$seqnames))), selected = "(none)")    								          
-					updateSelectInput(session = session, inputId = "genes_view", 
+					updateSelectizeInput(session = session, inputId = "genes_view", server = TRUE,
 						choices = c("(none)", settings_ViewRef$gene_list$gene_display_name), selected = "(none)")    								
 				} else {
 					updateSelectInput(session = session, inputId = "chr_view_ref", 
 						choices = c("(none)", settings_ViewRef$gene_list$gene_display_name), selected = "(none)")    								
-					updateSelectInput(session = session, inputId = "genes_view", 
+					updateSelectizeInput(session = session, inputId = "genes_view", server = TRUE,
 						choices = c("(none)"), selected = "(none)") 
 				}
         
@@ -400,6 +425,19 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         if(!is.null(settings_SE$se.filter) & settings_loadref$loadref_path != "") {
           processFilters()
         }
+			} else if(input$navSelection == "navAnalyse") {
+        output$warning_DE = renderText({
+          validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
+          "Experiment Loaded"
+        })
+        req(settings_SE$se)
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        updateSelectInput(session = session, inputId = "variable_DE", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")						
+        updateSelectInput(session = session, inputId = "batch1_DE", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")						
+        updateSelectInput(session = session, inputId = "batch2_DE", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")
 			}
 		})
     
@@ -755,7 +793,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       view_chr = "",
       view_start = "",
       view_end = "",
-      blockView = FALSE
+      data_start = 0,
+      data_end = 0,
+      blockView = FALSE,
+      repan = NULL,
+      plot_ini = FALSE
 		)
 		
     loadTranscripts <- function() {
@@ -821,7 +863,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       settings_ViewRef$view_start = view_start
       settings_ViewRef$view_end = view_end
 
+      # set data_start and data_end at 3X zoom outside the view start / end
+      view_center = round(0.5 * (view_start + view_end))
+      
       message("plot_view_ref_fn")
+
+      data_start = view_start - (view_end - view_start)
+      data_end = view_end + (view_end - view_start)
+
+      settings_ViewRef$data_start = data_start
+      settings_ViewRef$data_end = data_end
+
 
       if(is.null(settings_ViewRef$elem.DT)) settings_ViewRef$elem.DT <- loadViewRef()
       if(is.null(settings_ViewRef$transcripts.DT)) settings_ViewRef$transcripts.DT <- loadTranscripts()
@@ -831,7 +883,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       message("stuff loaded")
       
       screen.DT = settings_ViewRef$elem.DT[seqnames == view_chr]
-      screen.DT = screen.DT[start <= view_end & end >= view_start]
+      screen.DT = screen.DT[start <= data_end & end >= data_start]
       
       tr_list = unique(screen.DT$transcript_id)
       message(paste(length(tr_list), " transcripts"))
@@ -869,6 +921,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
       transcripts.DT[strand == "+", display_name := paste(transcript_name, "-", transcript_biotype, " ->>")]
       transcripts.DT[strand == "-", display_name := paste("<-- ", transcript_name, "-", transcript_biotype)]
+      transcripts.DT[, disp_x := 0.5 * (start + end)]
+      transcripts.DT[start < view_start, disp_x := 0.5 * (view_start + end)]
+      transcripts.DT[end > view_end, disp_x := 0.5 * (start + view_end)]
+      transcripts.DT[start < view_start & end > view_end, disp_x := 0.5 * (view_start + view_end)]
+      transcripts.DT = transcripts.DT[end > view_start & start < view_end]
 
       plot.DT = settings_ViewRef$elem.DT[transcript_id %in% transcripts.DT$transcript_id]
       plot.DT$transcript_id = factor(plot.DT$transcript_id, unique(transcripts.DT$transcript_id), ordered = TRUE)
@@ -877,24 +934,69 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
       
       p = ggplot(plot.DT, aes(text = display_name))
+      # text
+      # p = p + geom_text(data = transcripts.DT, aes(
+          # x = 0.5 * (max(start, view_start) + min(end, view_end)), y = plot_level - 0.4, label = display_name
+        # )
+      # )
+      
       if(nrow(subset(as.data.frame(plot.DT), type = "intron")) > 0) {
         p = p + geom_segment(data = subset(as.data.frame(plot.DT), type = "intron"), 
           aes(x = start, xend = end, y = plot_level, yend = plot_level))
       }
       if(nrow(subset(as.data.frame(plot.DT), type != "intron")) > 0) {
-        p = p + geom_rect(data = subset(as.data.frame(plot.DT), type != "intron"), 
-          aes(xmin = start, xmax = end, 
-            ymin = plot_level - 0.1 - ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
-            ymax = plot_level + 0.1 + ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)))
+        p = p + 
+          geom_rect(data = subset(as.data.frame(plot.DT), type != "intron"), 
+            aes(xmin = start, xmax = end, 
+              ymin = plot_level - 0.1 - ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
+              ymax = plot_level + 0.1 + ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)
+            )
+          )
       }
-      p = p + xlim(view_start, view_end)
-            
+      # p = p + xlim(view_start, view_end)
+      
+      anno = list(
+        x = transcripts.DT$disp_x,
+        y = transcripts.DT$plot_level - 0.4,
+        text = transcripts.DT$display_name,
+        xref = "x", yref = "y", showarrow = FALSE)
+        
+      
       output$plot_view_ref <- renderPlotly({
         print(
-          ggplotly(p, tooltip = "text")
+          ggplotly(p, tooltip = "text") %>% layout(
+            annotations = anno,
+            dragmode = "pan",
+            xaxis = list(range = c(view_start, view_end)),
+            yaxis = list(fixedrange = TRUE)
+          ) %>% config(editable = TRUE)
         )
-      })      
+      })
+      settings_ViewRef$plot_ini = TRUE      
     }
+    
+
+    settings_ViewRef$repan = reactive({
+      req(settings_ViewRef$plot_ini == TRUE)
+      event_data("plotly_relayout")
+    })
+
+    observeEvent(settings_ViewRef$repan(), {
+      repan = settings_ViewRef$repan()
+      message(names(repan))
+      req(length(repan) == 2)
+      req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(repan)))
+      settings_ViewRef$blockView = TRUE
+
+      updateTextInput(session = session, inputId = "start_view_ref", 
+        value = max(1, round(repan[["xaxis.range[0]"]])))
+      updateTextInput(session = session, inputId = "end_view_ref", 
+        value = round(repan[["xaxis.range[1]"]]))
+        
+      settings_ViewRef$blockView = FALSE
+      
+    })
+
 
 		observeEvent(input$genes_view, {
       req(input$genes_view)
@@ -1462,6 +1564,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
       }
     })
+    
+    # DE
+		settings_DE <- shiny::reactiveValues(
+
+
+		)
+    
+    observeEvent(input$variable_DE, 
+    
+    
+    
 # End of server function		
   }
 
