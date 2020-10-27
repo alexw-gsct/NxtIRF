@@ -17,10 +17,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("", "Annotation", "Data")),
 			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("")),
       conditionalPanel(ns = ns,
+        condition = "['Consistency'].indexOf(input.filterType) >= 0",
+        shinyWidgets::sliderTextInput(ns("d1_1c"), "log-fold maximum", choices = seq(0.2, 5, by = 0.2), selected = 1)
+      ),
+      conditionalPanel(ns = ns,
+        condition = "['Coverage'].indexOf(input.filterType) >= 0",
+        sliderInput(ns("d1_1d"), "Percent Coverage", min = 0, max = 100, value = 80)
+      ),
+      conditionalPanel(ns = ns,
+        shinyWidgets::sliderTextInput(ns("d1_1"), "Minimum", choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
+      ),
+      conditionalPanel(ns = ns,
         condition = "['Depth', 'Coverage'].indexOf(input.filterType) >= 0",
         tagList(
-          sliderInput(ns("d1_1"), "Minimum", min = 1, max = 500, value = 10),
-          sliderInput(ns("d1_2"), "Minimum Conditions Satisfy Criteria (-1 = ALL)", min = -1, max = 8, value = -1),
+          shinyWidgets::sliderTextInput(ns("d1_2"), "Minimum Conditions Satisfy Criteria (-1 = ALL)", choices = seq(-1,8), selected = -1),
           selectInput(ns("cond1"), "Condition", width = '100%',
             choices = c("")),
           sliderInput(ns("d1_3"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
@@ -29,7 +39,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       conditionalPanel(ns = ns,
         condition = "['Coverage'].indexOf(input.filterType) >= 0",
         sliderInput(ns("d1_1b"), "Signal Threshold to apply criteria", min = 1, max = 500, value = 10)
-      )
+      ),
+			selectInput(ns("EventType"), "Splice Type", width = '100%', multiple = TRUE,
+				choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
+			
 		)
 	}
 
@@ -44,7 +57,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("Filter A", "Filter B"))
 					} else if(input$filterClass == "Data") {
 						updateSelectInput(session = session, inputId = "filterType", 
-							choices = c("Depth", "Coverage"))
+							choices = c("Depth", "Coverage", "Consistency"))
 					} else {
 						updateSelectInput(session = session, inputId = "filterType", 
 							choices = c(""))						
@@ -75,12 +88,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         observeEvent(toListen(), {
           final$filterClass = input$filterClass
           final$filterType = input$filterType
-          final$filterVars$minimum = input$d1_1
+					if(final$filterType == "Depth") {
+						final$filterVars$minimum = input$d1_1
+					} else {
+						final$filterVars$minimum = input$d1_1d
+					}
+					final$filterVars$maximum = input$d1_1c
           final$filterVars$minDepth = input$d1_1b
           final$filterVars$minCond = input$d1_2
           final$filterVars$condition = input$cond1
           final$filterVars$pcTRUE = input$d1_3
-        
+					final$filterVars$EventTypes = input$EventType
           if(length(final$filterVars) > 0 && all(sapply(final$filterVars, is_valid))) {
             final$trigger = runif(1)
           } else {
