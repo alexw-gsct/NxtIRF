@@ -412,7 +412,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					settings_loadref$loadref_path
 				})
 			} else if(input$navSelection == "navFilter") {
-				if(!is.null(settings_SE$se.filter)) {
+				if(!is.null(settings_SE$se)) {
 					output$current_expr_Filters = renderText("SummarizedExperiment loaded")
 				} else {
 					output$current_expr_Filters = renderText("Please load SummarizedExperiment first")
@@ -422,7 +422,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					output$current_ref_Filters = renderText("Please load reference first")
 				}
-        if(!is.null(settings_SE$se.filter) & settings_loadref$loadref_path != "") {
+        if(!is.null(settings_SE$se) & settings_loadref$loadref_path != "") {
           processFilters()
         }
 			} else if(input$navSelection == "navAnalyse") {
@@ -1434,16 +1434,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         colData = as.data.table(settings_expr$df)
         colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
         validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
-				se.list = MakeSE(colData, settings_expr$collate_path)
-				settings_SE$se = se.list[["se"]]
-				settings_SE$se.filter = se.list[["se.filter"]]
+				se = MakeSE(colData, settings_expr$collate_path)
+				settings_SE$se = se
 				"SummarizedExperiment Loaded"
 			})
 		})
 		
 	# Analyse - Calculate PSIs
 		settings_SE <- shiny::reactiveValues(
-			se.filter = NULL,
 			se = NULL,
 			
 			filterSummary = NULL,
@@ -1471,37 +1469,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
     
     conditionList = reactive({
-      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
-        colnames(SummarizedExperiment::colData(settings_SE$se.filter))
+      if(is(settings_SE$se, "SummarizedExperiment")) {
+        colnames(SummarizedExperiment::colData(settings_SE$se))
       } else {
         c("")
       }
     })
     
     se.filterModule <- reactive({
-      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
-        settings_SE$se.filter
+      if(is(settings_SE$se, "SummarizedExperiment")) {
+        settings_SE$se
       } else {
         NULL
       }
     })
 
-		# observeEvent(input$load_filterdata_Filters, {
-			# if(!is.null(settings_expr$df) & settings_loadref$loadref_path != "") {
-        # DT = as.data.table(settings_expr$df)
-				# irf_fst_files = DT$fst_file
-				# colData = as.data.frame(DT[, -c("bam_file", "irf_file", "fst_file")])
-				# if(all(grepl("\\.irf.fst$", irf_fst_files)) && all(file.exists(irf_fst_files))) {
-					# settings_SE$se.filter = BuildFilterData(irf_fst_files, colData)
-          # processFilters()
-				# }
-			# }
-		# })
-    
     processFilters <- function() {
       message("Refreshing filters")
-      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
-        filterSummary = rep(TRUE, nrow(settings_SE$se.filter))
+      if(is(settings_SE$se, "SummarizedExperiment")) {
+        filterSummary = rep(TRUE, nrow(settings_SE$se))
         for(i in 1:8) {
           print(settings_SE$filters[[i]]$filterVars)
           print(settings_SE$filters[[i]]$trigger)
@@ -1510,7 +1496,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 settings_SE$filters[[i]]$filterClass,
                 settings_SE$filters[[i]]$filterType,
                 settings_SE$filters[[i]]$filterVars,
-                settings_SE$se.filter)
+                settings_SE$se)
             } else {
               message(paste("Trigger", i, "is NULL"))
             }
@@ -1520,7 +1506,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     }
     
     observeEvent({
-      settings_SE$se.filter
+      settings_SE$se
       settings_SE$filters[[1]]$trigger
       settings_SE$filters[[2]]$trigger
       settings_SE$filters[[3]]$trigger
@@ -1541,8 +1527,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(settings_SE$filterSummary, {
       req(settings_SE$filterSummary)
 
-      if(is(settings_SE$se.filter, "SummarizedExperiment")) {
-        filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se.filter)$EventType,
+      if(is(settings_SE$se, "SummarizedExperiment")) {
+        filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se)$EventType,
           keep = settings_SE$filterSummary)
         filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
         filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
