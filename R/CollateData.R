@@ -896,6 +896,11 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
   } else {
     usePC = filterVars$pcTRUE
   }
+  if(!("minDepth" %in% names(filterVars))) {
+    minDepth = 0
+  } else {
+    minDepth = filterVars$minDepth
+  }
 	use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars), TRUE, FALSE)
 	rowData = SummarizedExperiment::rowData(filterObject)
 	colData = SummarizedExperiment::colData(filterObject)
@@ -943,7 +948,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       }
       cov = as.matrix(SummarizedExperiment::assay(filterObject, "Coverage"))
       depth = as.matrix(SummarizedExperiment::assay(filterObject, "minDepth"))
-      cov[depth < filterVars$minDepth] = 1    # do not test if depth below threshold
+      cov[depth < minDepth] = 1    # do not test if depth below threshold
       
       sum_res = rep(0, nrow(filterObject))
       if(use_cond == TRUE) {
@@ -974,22 +979,21 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
         cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
         cond_vars = unique(cond_vec)
       }
-      Up_Inc = as.matrix(SummarizedExperiment::assay(filterObject, "Up_Inc"))
-      Down_Inc = as.matrix(SummarizedExperiment::assay(filterObject, "Down_Inc"))
+      Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)
+      Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)
 			IntronDepth = as.matrix(SummarizedExperiment::assay(filterObject, "Included"))
 			IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE")]
-      minDepth = as.matrix(SummarizedExperiment::assay(filterObject, "minDepth"))
-			minDepth.Inc = minDepth[rownames(Up_Inc),]
-      Up_Inc[minDepth.Inc < filterVars$minDepth] = IntronDepth[minDepth.Inc < filterVars$minDepth]    # do not test if depth below threshold
-      Down_Inc[minDepth.Inc < filterVars$minDepth] = IntronDepth[minDepth.Inc < filterVars$minDepth]    # do not test if depth below threshold
+      minDepth.Inc = Up_Inc + Down_Inc
+      Up_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
+      Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
      
 			Excluded = as.matrix(SummarizedExperiment::assay(filterObject, "Excluded"))
 			Excluded = Excluded[rowData$EventType %in% c("MXE")]
-      Up_Exc = as.matrix(SummarizedExperiment::assay(filterObject, "Up_Exc"))
-      Down_Exc = as.matrix(SummarizedExperiment::assay(filterObject, "Down_Exc"))
-      minDepth.Exc = minDepth[rownames(Up_Exc),]
-			Up_Exc[minDepth.Exc < filterVars$minDepth] = Excluded[minDepth.Exc < filterVars$minDepth]    # do not test if depth below threshold
-      Down_Exc[minDepth.Exc < filterVars$minDepth] = Excluded[minDepth.Exc < filterVars$minDepth]    # do not test if depth below threshold
+      Up_Exc = as.matrix(S4Vectors::metadata(filterObject)$Up_Exc)
+      Down_Exc = as.matrix(S4Vectors::metadata(filterObject)$Down_Exc)
+      minDepth.Exc = Up_Exc + Down_Exc
+			Up_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]    # do not test if depth below threshold
+      Down_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]    # do not test if depth below threshold
 			
       sum_res = rep(0, nrow(filterObject))
       if(use_cond == TRUE) {
@@ -1013,25 +1017,25 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 					sum_exc = c(rep(ncol(Up_Inc.subset), sum(rowData$EventType == "IR")),
 						sum_exc, rep(ncol(Up_Inc.subset), sum(!(rowData$EventType %in% c("IR", "MXE")))))
           sum = 0.5 * (sum_inc + sum_exc)
-          sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= usePC, 1, 0)
+          sum_res = sum_res + ifelse(sum * 100 / ncol(Up_Inc.subset) >= usePC, 1, 0)
         }
         n_TRUE = ifelse(use_cond == TRUE, filterVars$minCond, -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
 				sum_inc = rowSums(
-					abs(log2(Up_Inc + 1) - log2(IntronDepth +1)) > filterVars$maximum &
-					abs(log2(Down_Inc + 1) - log2(IntronDepth +1)) > filterVars$maximum
+					abs(log2(Up_Inc + 1) - log2(IntronDepth +1)) < filterVars$maximum &
+					abs(log2(Down_Inc + 1) - log2(IntronDepth +1)) < filterVars$maximum
 				)
 				sum_exc = rowSums(
-					abs(log2(Up_Exc + 1) - log2(Excluded +1)) > filterVars$maximum &
-					abs(log2(Down_Exc + 1) - log2(Excluded +1)) > filterVars$maximum
+					abs(log2(Up_Exc + 1) - log2(Excluded +1)) < filterVars$maximum &
+					abs(log2(Down_Exc + 1) - log2(Excluded +1)) < filterVars$maximum
 				)
-				sum_inc = c(sum_inc, rep(1, sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
-				sum_exc = c(rep(1, sum(rowData$EventType == "IR")),
-					sum_exc, rep(1, sum(!(rowData$EventType %in% c("IR", "MXE")))))
+				sum_inc = c(sum_inc, rep(ncol(Up_Inc), sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
+				sum_exc = c(rep(ncol(Up_Inc), sum(rowData$EventType == "IR")),
+					sum_exc, rep(ncol(Up_Inc), sum(!(rowData$EventType %in% c("IR", "MXE")))))
 				sum = 0.5 * (sum_inc + sum_exc)
-        res = ifelse(sum * 100 / ncol(cov) >= usePC, TRUE, FALSE)
+        res = ifelse(sum * 100 / ncol(Up_Inc) >= usePC, TRUE, FALSE)
       }
       if("EventTypes" %in% names(filterVars)) {
         res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
