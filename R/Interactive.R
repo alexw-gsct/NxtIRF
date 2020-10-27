@@ -1,4 +1,4 @@
-is_valid <- function(.) !is.null(.) && . != ""
+is_valid <- function(.) !is.null(.) && . != "" && . != "(none)"
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
@@ -308,7 +308,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						actionButton("perform_DE", "Perform DE")            
 					),
 					column(8,	
-            rHandsontableOutput("hot_DE")
+            DT::dataTableOutput("DT_DE")
           )
         )
       )	# DESeq2 or DSS
@@ -352,7 +352,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	# tabEvent Observer
 		observeEvent(input$navSelection, {
 			if(input$navSelection == "navRef_New") {
-				# autopopulate if previous settings detected
+				# autopopulate if previous settings detectedrend
 				if(settings_newref$newref_path != "") output$txt_reference_path <- renderText(settings_newref$newref_path)
 				if(input$newrefAH_Species != "") {
 				} else {
@@ -1378,7 +1378,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       # if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
         # output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
 				# do.call(CollateData, args)
-        cores_to_use = input$expr_Cores
+        cores_to_use = as.numeric(input$expr_Cores)
         if(!is_valid(input$expr_Cores)) cores_to_use = 1
         CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
         Expr_Load_FSTs()
@@ -1600,6 +1600,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				validate(need(input$nom_DE != "(none)"), "Nominator for DE Variable needs to be defined")
 				validate(need(input$denom_DE != "(none)"), "Denominator for DE Variable needs to be defined")
 				validate(need(input$denom_DE != input$nom_DE), "Denominator and Nominator must be different")
+        paste("Running", input$method_DE)
 			})
 			req(input$variable_DE)
 			req(input$nom_DE)
@@ -1611,38 +1612,38 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {
 				se = settings_SE$se
 			}
-			rowData = SummarizedExperiment::rowData(se)
-			colData = SummarizedExperiment::colData(settings_SE$se)
+			rowData = as.data.frame(SummarizedExperiment::rowData(se))
+			colData = as.data.frame(SummarizedExperiment::colData(se))
 			
 			settings_DE$DE_Var = input$variable_DE
 			settings_DE$nom_DE = input$nom_DE
-			settings_DE$nom_DE = input$denom_DE
+			settings_DE$denom_DE = input$denom_DE
 			
 			if(input$batch1_DE != "(none)" & input$batch1_DE != input$variable_DE) {
 				settings_DE$batchVar1 = input$batch1_DE
-			} else (
+			} else {
 				settings_DE$batchVar1 = NULL
         updateSelectInput(session = session, inputId = "batch1_DE", 
           selected = "(none)")
-			)
+			}
 			if(input$batch2_DE != "(none)" & input$batch2_DE != input$variable_DE & 
 					input$batch2_DE != input$batch1_DE) {
 				settings_DE$batchVar2 = input$batch2_DE
-			} else (
+			} else {
 				settings_DE$batchVar2 = NULL
         updateSelectInput(session = session, inputId = "batch2_DE", 
           selected = "(none)")
-			)
+			}
 			
 			if(input$method_DE == "DESeq2") {
 				NxtIRF.CheckPackageInstalled("DESeq2", "1.28.0")
 				# build design
-				if(!is.null(settings_DE$batchVar2)) {
+				if(!is_valid(settings_DE$batchVar2)) {
 					dds_formula = paste0("~", paste(
 						settings_DE$batchVar1, settings_DE$batchVar2, settings_DE$DE_Var,
 						paste0(settings_DE$DE_Var, ":ASE"),
 						sep="+"))
-				} else if(!is.null(settings_DE$batchVar1)) {
+				} else if(!is_valid(settings_DE$batchVar1)) {
 					dds_formula = paste0("~", paste(
 						settings_DE$batchVar1, settings_DE$DE_Var,
 						paste0(settings_DE$DE_Var, ":ASE"),
@@ -1659,9 +1660,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					SummarizedExperiment::assay(se, "Excluded"))
 				colData_use = rbind(colData, colData)
 				rownames(colData_use) = c(
-					paste(rownames(colData), "Included", sep=".")
+					paste(rownames(colData), "Included", sep="."),
 					paste(rownames(colData), "Excluded", sep=".")
 				)
+        colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
 				colnames(countData) = rownames(colData_use)
 				rownames(countData) = rowData$EventName
 				countData = round(countData)
@@ -1674,24 +1676,47 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 				
 				DESeq2::sizeFactors(dds) = 1
+
+        cores_to_use = as.numeric(input$expr_Cores)
+        if(!is_valid(input$expr_Cores)) cores_to_use = 1
+        
+        BPPARAM = BiocParallel::bpparam()
+        
+        if("SnowParam" %in% class(BPPARAM)) {
+          BPPARAM_mod = BiocParallel::SnowParam(cores_to_use)
+          message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
+        } else if("MulticoreParam" %in% class(BPPARAM)) {
+          BPPARAM_mod = BiocParallel::MulticoreParam(cores_to_use)
+          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
+        } else {
+          BPPARAM_mod = BiocParallel::SerialParam()
+          message(paste("Using SerialParam mode with", BPPARAM_mod$workers, "cores"))
+        }
 				
-				dds = DESeq2::DESeq(dds, parallel = TRUE)
+				dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
 				
-				res = as.data.frame(results(dds,
+        # print(DESeq2::resultsNames(dds))
+        message(paste("Factors to contrast are", paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),
+          paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")))
+        
+				res = as.data.frame(DESeq2::results(dds,
 					list(
 						paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),
 						paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")
-					), parallel = TRUE)
+					), parallel = TRUE, BPPARAM = BPPARAM_mod)
 				)
 				res = cbind(as.data.frame(rowData), res)
 				settings_DE$res = res
-				output$hot_DE <- renderRHandsontable({
-					if (!is.null(settings_DE$res)) {     
-						rhandsontable(settings_DE$res, useTypes = TRUE, stretchH = "all")
-					} else {
-						NULL
-					}
-				})				
+				output$DT_DE <- DT::renderDataTable(
+          DT::datatable(
+            settings_DE$res,
+            class = 'cell-border stripe',
+            rownames = FALSE,
+            filter = 'top'
+          )
+        )
+        output$warning_DE = renderText({"Finished"})
+        
 			}
 			
 		})    

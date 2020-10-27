@@ -696,7 +696,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 					)]
 				} else {
 					Excluded[, c(block$sample[i]) := c(
-						irf$SpliceMaxMax,
+						irf$SpliceMax,
 						0.5 * (splice$count_Event1b[splice$EventType %in% c("MXE")] + 
 							splice$count_Event2b[splice$EventType %in% c("MXE")]),
 						splice$count_Event1b[!splice$EventType %in% c("MXE")]
@@ -712,7 +712,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				Up_Inc[, c(block$sample[i]) := c(irf$Up_Inc, splice$count_Event1a[splice$EventType %in% c("MXE", "SE")])]
 				Down_Inc[, c(block$sample[i]) := c(irf$Down_Inc, splice$count_Event2a[splice$EventType %in% c("MXE", "SE")])]
 				
-				Up_Exc[, c(block$sample[i]) := splice$count_Event2a[splice$EventType %in% c("MXE")]]
+				Up_Exc[, c(block$sample[i]) := splice$count_Event1b[splice$EventType %in% c("MXE")]]
 				Down_Exc[, c(block$sample[i]) := splice$count_Event2b[splice$EventType %in% c("MXE")]]
 				
 				Depth[, c(block$sample[i]) := c(irf$TotalDepth, splice$TotalDepth)]
@@ -843,7 +843,23 @@ MakeSE = function(colData, fst_path) {
   assertthat::assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
+  colData = as.data.frame(colData)
   colnames(colData)[1] = "sample"
+  remove_na = NULL
+  if(ncol(colData) > 1) {
+    for(i in seq(2, ncol(colData))) {
+      if(class(colData[,i]) == "character") {
+        colData[,i] = factor(unlist(colData[,i]))      
+      } else if(any(class(colData[,i])=="logical")) {
+        colData[,i] <- factor(unlist(ifelse(colData[,i], "TRUE","FALSE")))				
+      } else if(all(is.na(unlist(colData[,i])))) {
+        remove_na = append(remove_na, i)
+      }
+    }
+  }
+	if(!is.null(remove_na)) {
+		colData = colData[,-remove_na]
+	}
   
   rowData = fst::read.fst(files.todo[1])
   Included = as.matrix(fst::read.fst(files.todo[2], columns = colData$sample))
@@ -867,6 +883,11 @@ MakeSE = function(colData, fst_path) {
 		Included = Included, Excluded = Excluded),
     rowData = rowData, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
   rownames(se) = SummarizedExperiment::rowData(se)$EventName
+
+  rownames(Up_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
+  rownames(Down_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
+  rownames(Up_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
+  rownames(Down_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
 
   S4Vectors::metadata(se)$Up_Inc = Up_Inc
 	S4Vectors::metadata(se)$Down_Inc = Down_Inc
