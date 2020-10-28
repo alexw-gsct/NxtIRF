@@ -76,7 +76,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }		
     if(!dir.exists(file.path(norm_output_path, "samples"))) {
         dir.create(file.path(norm_output_path, "samples"))
-    }		
+    }
 
 
     df.internal = as.data.table(Experiment[,1:2])
@@ -93,6 +93,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
 
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(0.01, message = "Compiling Sample Stats")
+    }
     message("Compiling Sample Stats")
     df.internal = suppressWarnings(rbindlist(
       BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
@@ -151,6 +154,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }
     
     # Compile junctions and IR lists first, save to temp files
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(0.15, message = "Compiling Junction List")
+    }
     message("Compiling Junction List")       
     # Compile junc.common via merge
     junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
@@ -188,6 +194,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }
     rm(junc.list)
     gc()
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(0.15, message = "Compiling Intron Retention List")
+    }  
     message("Compiling Intron Retention List")    
     irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
       function(work, df.internal, temp_output_path, runStranded, semi_join.DT) {
@@ -236,6 +245,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 
 # Reassign +/- based on junctions.fst annotation
     # Annotate junctions
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(0.15, message = "Tidying up splice junctions and intron retentions")
+    }  
     message("Tidying up splice junctions and intron retentions")
     
     candidate.introns = as.data.table(fst::read.fst(file.path(reference_path, "fst", "junctions.fst")))
@@ -495,9 +507,14 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     gc()
 
 	# Save irf.common, Splice.Anno
-	fst::write_fst(as.data.frame(junc.common), file.path(norm_output_path, "Junc.fst"))
-	fst::write_fst(as.data.frame(irf.common), file.path(norm_output_path, "IR.fst"))
-	fst::write_fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "Splice.fst"))
+  
+  if(!dir.exists(file.path(norm_output_path, "annotation"))) {
+      dir.create(file.path(norm_output_path, "annotation"))
+  }		  
+  
+	fst::write_fst(as.data.frame(junc.common), file.path(norm_output_path, "annotation", "Junc.fst"))
+	fst::write_fst(as.data.frame(irf.common), file.path(norm_output_path, "annotation", "IR.fst"))
+	fst::write_fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "annotation", "Splice.fst"))
 
 	# make rowEvent here
 	irf.anno.brief = irf.common[, c("Name", "EventRegion")]
@@ -510,8 +527,16 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
   item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
 
-  fst::write.fst(rowEvent, file.path(norm_output_path, "rowEvent.fst"))
+  se_output_path = file.path(norm_output_path, "se")
+  if(!dir.exists(se_output_path)) {
+      dir.create(se_output_path)
+  }		
 
+  fst::write.fst(rowEvent, file.path(se_output_path, "rowEvent.fst"))
+
+  if(!is.null(shiny::getDefaultReactiveDomain())) {
+    shiny::incProgress(0.15, message = "Generating NxtIRF FST files")
+  }  
   message("Generating NxtIRF FST files")
 	
   n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
@@ -526,10 +551,10 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 			})
       
       # Read this from fst file
-      rowEvent = as.data.table(fst::read.fst(file.path(norm_output_path, "rowEvent.fst")))
-      junc.common = as.data.table(fst::read.fst(file.path(norm_output_path, "Junc.fst")))
-      irf.common = as.data.table(fst::read.fst(file.path(norm_output_path, "IR.fst")))
-      Splice.Anno = as.data.table(fst::read.fst(file.path(norm_output_path, "Splice.fst")))
+      rowEvent = as.data.table(fst::read.fst(file.path(norm_output_path, "se", "rowEvent.fst")))
+      junc.common = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
+      irf.common = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation","IR.fst")))
+      Splice.Anno = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation","Splice.fst")))
       
 			work = jobs[[x]]
 			block = df.internal[work]
@@ -786,7 +811,11 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 	))
   gc()
 	
+  if(!is.null(shiny::getDefaultReactiveDomain())) {
+    shiny::incProgress(0.20, message = "Building Final SummarizedExperiment Object")
+  }  
   message("Building Final SummarizedExperiment Object")
+  
 	if(low_memory_mode) {
 		for(item in item.todo) {
 			file.DT = data.table(file = list.files(pattern = item, path = file.path(norm_output_path, "temp")))
@@ -799,7 +828,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				mat = cbind(mat, temp)
 				file.remove(file.path(file.path(norm_output_path, "temp"), file.DT$file[x]))
 			}
-			outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
+			outfile = file.path(se_output_path, paste(item, "fst", sep="."))
 			fst::write.fst(as.data.frame(mat), outfile)
 		}
   } else {
@@ -812,12 +841,14 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 					item.DTList[[item]] = cbind(item.DTList[[item]], agg.list[[x]][[item]])
 				}
 			}
-			outfile = file.path(norm_output_path, paste(item, "fst", sep="."))
+			outfile = file.path(se_output_path, paste(item, "fst", sep="."))
 			fst::write.fst(as.data.frame(item.DTList[[item]]), outfile)
 		}
 	}
   
-
+  if(!is.null(shiny::getDefaultReactiveDomain())) {
+    shiny::incProgress(0.19, message = "NxtIRF Collation Finished")
+  }  
   message("NxtIRF Collation Finished")
 }
 
@@ -826,7 +857,7 @@ MakeSE = function(colData, fst_path) {
 
   item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
     "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
-  files.todo = file.path(normalizePath(fst_path), paste(item.todo, "fst", sep="."))
+  files.todo = file.path(normalizePath(fst_path), "se", paste(item.todo, "fst", sep="."))
   assertthat::assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
@@ -982,7 +1013,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)
       Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)
 			IntronDepth = as.matrix(SummarizedExperiment::assay(filterObject, "Included"))
-			IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE")]
+			IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE"),]
       minDepth.Inc = Up_Inc + Down_Inc
       Up_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
       Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold

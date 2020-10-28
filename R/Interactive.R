@@ -25,6 +25,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         sliderInput(ns("d1_1d"), "Percent Coverage", min = 0, max = 100, value = 80)
       ),
       conditionalPanel(ns = ns,
+        condition = "['Depth'].indexOf(input.filterType) >= 0",
         shinyWidgets::sliderTextInput(ns("d1_1"), "Minimum", choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
       ),
       conditionalPanel(ns = ns,
@@ -37,12 +38,15 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         )
       ),
       conditionalPanel(ns = ns,
-        condition = "['Coverage'].indexOf(input.filterType) >= 0",
-        sliderInput(ns("d1_1b"), "Signal Threshold to apply criteria", min = 1, max = 500, value = 10)
+        condition = "['Coverage', 'Consistency'].indexOf(input.filterType) >= 0",
+        shinyWidgets::sliderTextInput(ns("d1_1b"), "Signal Threshold to apply criteria", 
+          choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
       ),
-			selectInput(ns("EventType"), "Splice Type", width = '100%', multiple = TRUE,
-				choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
-			
+      conditionalPanel(ns = ns,
+        condition = "['Data'].indexOf(input.filterClass) >= 0",
+        selectInput(ns("EventType"), "Splice Type", width = '100%', multiple = TRUE,
+          choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
+      )
 		)
 	}
 
@@ -81,8 +85,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         
         toListen <- reactive({
           list(input$filterClass, input$filterType,
-             input$d1_1, input$d1_1b, input$d1_2,
-             input$cond1, input$d1_3)
+             input$d1_1, input$d1_1b, input$d1_1c, input$d1_1d, 
+             input$d1_2, input$d1_3,
+             input$cond1, input$EventType
+          )
         })
         
         observeEvent(toListen(), {
@@ -302,6 +308,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						# actionButton("load_filterdata_Filters", "Load Data"),
 						actionButton("refresh_filters_Filters", "Refresh Filters"),
 						plotlyOutput("plot_filtered_Events"),
+						selectInput('graphscale_Filters', 'Y-axis Scale', width = '100%',
+							choices = c("linear", "log10")),            
 						shinySaveButton("saveAnalysis_Filters", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
 							filetype = list(dataframe = "Rds")),
 					)
@@ -1398,7 +1406,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# do.call(CollateData, args)
         cores_to_use = as.numeric(input$expr_Cores)
         if(!is_valid(input$expr_Cores)) cores_to_use = 1
-        CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
+        withProgress(message = 'Collating IRFinder output', value = 0, {
+          CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
+        })
         Expr_Load_FSTs()
         output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
       # }
@@ -1548,8 +1558,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       if(is(settings_SE$se, "SummarizedExperiment")) {
         filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se)$EventType,
           keep = settings_SE$filterSummary)
-        filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
-        filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
+        if(input$graphscale_Filters == "log10") {
+          filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
+          filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
+        } else {
+          filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
+          filteredEvents.DT[, Excluded := sum(keep != TRUE) , by = "EventType"]        
+        }
         filteredEvents.DT = unique(filteredEvents.DT, by = "EventType")
         incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
           dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
@@ -1558,9 +1573,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         # ggplot summary as bar plot
         
         p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
-          geom_bar(position="stack", stat="identity") +
-          labs(y = "log10 Events")
-          
+          geom_bar(position="stack", stat="identity")
+        if(input$graphscale_Filters == "log10") {
+          p = p + labs(y = "log10 Events")
+        } else {
+          p = p + labs(y = "Events")        
+        }
         output$plot_filtered_Events <- renderPlotly({
           print(
             ggplotly(p)
