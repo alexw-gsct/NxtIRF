@@ -230,12 +230,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					br(),
 					
 					shinyDirButton("dir_bam_path_load", 
-						label = "Locate BAMs from Folder", title = "Locate BAMs from Folder"), # done
+						label = "Choose BAM path", title = "Choose BAM path"), # done
 					textOutput("txt_bam_path_expr"),
 					br(),
 					
 					shinyDirButton("dir_irf_path_load", 
-						label = "Set IRFinder output path", title = "Set IRFinder output path"), # done					
+						label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
 					textOutput("txt_irf_path_expr"),
 					br(),
           actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
@@ -255,11 +255,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					),
 
 					shinyDirButton("dir_collate_path_load", 
-						label = "Choose NxtIRF Folder", title = "Choose NxtIRF Folder"), # done
+						label = "Choose NxtIRF FST output path", title = "Choose NxtIRF FST output path"), # done
 					textOutput("txt_collate_path_expr"), # done
 					br(),
 					
-					actionButton("run_collate_expr", "Compile NxtIRF Experiment"),
+					actionButton("run_collate_expr", "Compile NxtIRF FST files"),
 					textOutput("txt_run_col_expr")
 				),
 				column(8,
@@ -270,14 +270,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					actionButton("clear_expr", "Clear Experiment"),
 					textOutput("txt_run_save_expr"),
           br(),
-					shinyWidgets::switchInput("edit_files_expr", label = "Edit file paths", value = FALSE),
 					shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
-						title = "Merge Sample Annotations from CSV", multiple = FALSE), # done
+						title = "Choose Sample Annotation Table", multiple = FALSE), # done
 					textOutput("txt_sample_anno_expr"), # done
           br(),
 					actionButton("build_expr", "Build SummarizedExperiment"),
- 					textOutput("txt_progress_build_expr"),
-					rHandsontableOutput("hot_expr")
+          rHandsontableOutput("hot_expr")
 				)	# last column
 			),
 		),
@@ -366,6 +364,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
     default_volumes <- c("Working Directory" = getwd(), "Home" = fs::path_home(), getVolumes()())
     addit_volume = c()
+    # addit_volume <- reactive({
+      # req(input$navSelection)
+      # if(input$navSelection == "navRef_New") {
+        # req(settings_newref$newref_path)
+        # c(Ref = settings_newref$newref_path)    
+      # } else if(input$navSelection == "navExpr") {
+        # req(settings_expr$expr_path)
+        # c(Ref = settings_expr$expr_path)            
+      # }
+    # })
 
 	# tabEvent Observer
 		observeEvent(input$navSelection, {
@@ -1066,60 +1074,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		## Handsontable auto-updates settings_expr$df on user edit
     observe({
       if (!is.null(input$hot_expr)) {
-        df = hot_to_r(input$hot_expr)
-				if(input$edit_files_expr == FALSE) {
-					DT = as.data.table[df[, -("bam", "irf", "cov", "junc")]]
-					DT.files = as.data.table(settings_expr$df)
-					DT[DT.files, on = "sample", c("bam_file", "irf_file", "cov_file", "junc_file") :=
-						list(i.bam_file, i.irf_file, i.cov_file, i.junc_file)]
-					settings_expr$df = as.data.frame(
-						rbind(as.data.table(settings_expr$df[1,]), DT, fill = TRUE)
-					)
-				} else {
-					settings_expr$df = as.data.frame(
-						rbind(as.data.table(settings_expr$df[1,]), as.data.table(df), fill = TRUE)
-					)
-				}
+        settings_expr$df = hot_to_r(input$hot_expr)
       }
     })
-		
 		output$hot_expr <- renderRHandsontable({
-			if (!is.null(settings_expr$df)) {
-				req(settings_expr$df$sample[1] == "(Experiment)"])
-				df = settings_expr$df[-1,]
-				req(all(
-					c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% colnames(df)
-				))
-		
-				if(input$edit_files_expr == FALSE) {
-					df.anno = df[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
-					# check files existing
-					df.check = df.anno[,"sample", drop = FALSE]
-					df.check$bam = FALSE
-					if(any(sapply(df$bam_file, is_valid))) {
-						df.check$bam[sapply(df$bam_file, is_valid)] = file.exists(df$bam_file[sapply(df$bam_file, is_valid)])
-					}
-					df.check$irf = FALSE
-					if(any(sapply(df$irf_file, is_valid))) {
-						df.check$irf[sapply(df$irf_file, is_valid)] = file.exists(df$irf_file[sapply(df$irf_file, is_valid)])
-					}
-					df.check$cov = FALSE
-					if(any(sapply(df$cov_file, is_valid))) {
-						df.check$cov[sapply(df$cov_file, is_valid)] = file.exists(df$cov_file[sapply(df$cov_file, is_valid)])
-					}
-					df.check$junc = FALSE
-					if(any(sapply(df$bam_file, is_valid))) {
-						df.check$junc[sapply(df$junc_file, is_valid)] = file.exists(df$junc_file[sapply(df$junc_file, is_valid)])
-					}
-					df.final = cbind(df.check, df.anno[, -c("sample"), drop=FALSE])
-					rhandsontable(df.final, useTypes = TRUE, stretchH = "all") %>%
-						hot_col("bam", readOnly = TRUE) %>%
-						hot_col("irf", readOnly = TRUE) %>%
-						hot_col("cov", readOnly = TRUE) %>%
-						hot_col("junc", readOnly = TRUE)
-				} else {
-					rhandsontable(df, useTypes = TRUE, stretchH = "all")
-				}
+			if (!is.null(settings_expr$df)) {     
+				rhandsontable(settings_expr$df, useTypes = TRUE, stretchH = "all")
 			} else {
         NULL
       }
@@ -1130,30 +1090,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				paste("Root folder:", settings_expr$expr_path)
 			})
 		})
-		observeEvent(settings_expr$bam_path, {
-			output$txt_bam_path_expr <- renderText({
-				validate(need(settings_expr$bam_path, "Please select path where BAM files are fouund"))
-				validate(need(dir.exists(settings_expr$bam_path), "BAM path does not exist"))
-				settings_expr$expr_path = dirname(settings_expr$bam_path)
-				settings_expr$bam_path
-			})
-		})
-		observeEvent(settings_expr$irf_path, {
-			output$txt_irf_path_expr <- renderText({
-				validate(need(settings_expr$irf_path, "Please select path where IRFinder output should be kept"))
-				validate(need(dir.exists(settings_expr$irf_path), "IRFinder path does not exist"))
-				settings_expr$expr_path = dirname(settings_expr$irf_path)
-				settings_expr$irf_path
-			})
-		})
-		observeEvent(settings_expr$collate_path, {
-			output$txt_collate_path_expr <- renderText({
-				validate(need(settings_expr$collate_path), "Please select path where NxtIRF compiled output should be kept"))
-				validate(need(dir.exists(settings_expr$collate_path), "NxtIRF Collated files path does not exist"))
-				settings_expr$expr_path = dirname(settings_expr$collate_path)
-				settings_expr$collate_path
-			})
-		})
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
 			output$txt_bam_path_expr <- renderText({
@@ -1162,24 +1098,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
 			})
     })
-		
-		Read_Expr_Paths = function() {
-			req(settings_expr$df)
-			req("sample" %in% colnames(settings_expr$df))
-			req(settings_expr$df$sample[1] == "(Experiment)"])
-			if("bam_file" %in% colnames(settings_expr$df)) settings_expr$bam_path = settings_expr$df$bam_file[1]
-			if("irf_file" %in% colnames(settings_expr$df)) settings_expr$irf_path = settings_expr$df$irf_file[1]
-			if("junc_file" %in% colnames(settings_expr$df)) settings_expr$collate_path = settings_expr$df$junc_file[1]
-		}
-		Write_Expr_Paths = function() {
-			req(settings_expr$df)
-			req("sample" %in% colnames(settings_expr$df))
-			req(settings_expr$df$sample[1] == "(Experiment)"])
-			if("bam_file" %in% colnames(settings_expr$df)) settings_expr$df$bam_file[1] = settings_expr$bam_path
-			if("irf_file" %in% colnames(settings_expr$df)) settings_expr$df$irf_file[1] = settings_expr$irf_path
-			if("junc_file" %in% colnames(settings_expr$df)) settings_expr$df$junc_file[1] = settings_expr$collate_path
-		}
-		
     Expr_Load_BAMs = function() {
 		# First assume bams are named by subdirectory names
 			temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
@@ -1209,7 +1127,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				colnames(temp.DT)[2] = "bam_file"
 				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
-					DT = rbind(as.data.table(settings_expr$df[-1,]), temp.DT[!(sample %in% settings_expr$df$sample)],
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
 				} else {
@@ -1217,11 +1135,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					DT = data.table(sample = temp.DT$sample,
 						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
 					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
-				}
-				header = data.table(sample = "(Experiment)")
-        settings_expr$df = as.data.frame(rbind(header, DT, fill = TRUE))
-				Write_Expr_Paths()
-			}
+				}		
+        settings_expr$df = as.data.frame(DT)
+			}    
     }
 		observeEvent(settings_expr$bam_path,{
       req(settings_expr$bam_path)
@@ -1268,8 +1184,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         validate(need(settings_expr$irf_path, "Please select path where IRFinder output should be kept"))
         settings_expr$expr_path = dirname(settings_expr$irf_path)
         settings_expr$irf_path
-      })
-			Expr_Load_IRFs()
+      })    
     })
     
     Expr_Load_IRFs = function() {
@@ -1299,7 +1214,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					colnames(temp.DT)[2] = "irf_file"
 				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
-					DT = rbind(as.data.table(settings_expr$df[-1,]), temp.DT[!(sample %in% settings_expr$df$sample)],
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
 					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				} else {
@@ -1308,7 +1223,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
 					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
 				}
-        # settings_expr$df = as.data.frame(DT)        
+        settings_expr$df = as.data.frame(DT)        
 			}
 			
 			# Attempt to find Coverage files
@@ -1333,17 +1248,21 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with irfinder paths
 			if(!is.null(temp.DT)) {
 				colnames(temp.DT)[2] = "cov_file"
+
 			# merge with existing dataframe	
-				DT = rbind(DT, temp.DT[!(sample %in% settings_expr$df$sample)],
+				DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 						fill = TRUE) # Add samples not in original DT
 				DT[temp.DT, on = "sample", cov_file := i.cov_file] # Update new cov paths
-			}
-			
-			header = data.table(sample = "(Experiment)")
-			settings_expr$df = as.data.frame(rbind(header, DT, fill = TRUE))
-			Write_Expr_Paths()			
+
+        settings_expr$df = as.data.frame(DT)        
+			}			
     }
 		
+		observeEvent(settings_expr$irf_path,{
+      req(settings_expr$irf_path)
+      Expr_Load_IRFs()
+		})
+
 		# Add annotation to data frame
     shinyFileChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
       session = session)
@@ -1366,7 +1285,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				colnames(temp.df)[1] = "sample"
 			}
 			if(!is.null(settings_expr$df) && nrow(temp.df) > 0) {
-				df = settings_expr$df[-1,]
+				df = settings_expr$df
 				commonNames <- names(temp.df)[which(colnames(temp.df) %in% colnames(df))]
 				commonNames <- commonNames[commonNames != "sample"]
 				dfmerge<- merge(df,temp.df,by="sample",all=T)
@@ -1378,9 +1297,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					colnames(dfmerge)[colnames(dfmerge) == left] <- i
 				}
 			}
-			settings_expr$df = as.data.frame(
-				rbind(as.data.table(settings_expr$df[1,]), as.data.table(dfmerge), fill = TRUE)
-			)
+			settings_expr$df = dfmerge     
 		})
 
     observe({
@@ -1420,7 +1337,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					colnames(temp.DT)[2] = "junc_file"
 				if(!is.null(settings_expr$df)) {
 			# merge with existing dataframe	
-					DT = rbind(as.data.table(settings_expr$df[-1,]), temp.DT[!(sample %in% settings_expr$df$sample)],
+					DT = rbind(as.data.table(settings_expr$df), temp.DT[!(sample %in% settings_expr$df$sample)],
 							fill = TRUE) # Add samples not in original DT
 					DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
 				} else {
@@ -1429,19 +1346,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
 					DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
 				}
-				header = data.table(sample = "(Experiment)")
-        settings_expr$df = as.data.frame(rbind(header, DT, fill = TRUE))
-				Write_Expr_Paths()     
-			}
+        settings_expr$df = as.data.frame(DT)        
+			}    
     }
-		
 		observeEvent(settings_expr$collate_path,{
       req(settings_expr$collate_path)
       Expr_Load_FSTs()
 		})
 	
     output$newcol_expr <- renderUI({
-      textInput("newcolumnname_expr", "Add / Remove Columns", sprintf("newcol%s", 1+ncol(settings_expr$df)))
+      textInput("newcolumnname_expr", "New Column Name", sprintf("newcol%s", 1+ncol(settings_expr$df)))
     })
  		# Add column
 		observeEvent(input$addcolumn_expr, {
@@ -1464,23 +1378,40 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df)
 
+      # if("SnowParam" %in% class(BPPARAM)) {
+        # BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
+        # message(paste("Using SnowParam", input$expr_Cores, "cores"))
+      # } else if("MulticoreParam" %in% class(BPPARAM)) {
+        # BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
+        # message(paste("Using MulticoreParam", input$expr_Cores, "cores"))
+      # } else {
+        # message(paste("Using", class(BPPARAM)[1], "mode with", BPPARAM$workers, "cores"))
+        # BPPARAM_mod = BPPARAM
+      # }
+
       Experiment = na.omit(as.data.table(settings_expr$df[, c("sample", "irf_file")]))
       reference_path = settings_loadref$loadref_path
       output_path = settings_expr$collate_path
+      # BPPARAM = BPPARAM_mod
 
       output$txt_run_col_expr <- renderText({
         validate(need(settings_loadref$loadref_path, "Please load a reference before generating NxtIRF FST files"))
         validate(need(settings_expr$collate_path, "Please select a path to store NxtIRF FST files"))
         "running CollateData()"
       })
-
-			cores_to_use = as.numeric(input$expr_Cores)
-			if(!is_valid(input$expr_Cores)) cores_to_use = 1
-			withProgress(message = 'Collating IRFinder output', value = 0, {
-				CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
-			})
-			Expr_Load_FSTs()
-			output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
+          
+			# args <- Filter(is_valid, args)
+      # if(all(c("Experiment", "reference_path", "output_path") %in% names(args))) {
+        # output$txt_run_col_expr <- renderText("Collating IRFinder output into NxtIRF FST files")
+				# do.call(CollateData, args)
+        cores_to_use = as.numeric(input$expr_Cores)
+        if(!is_valid(input$expr_Cores)) cores_to_use = 1
+        withProgress(message = 'Collating IRFinder output', value = 0, {
+          CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
+        })
+        Expr_Load_FSTs()
+        output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
+      # }
     })
 		shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
       filetypes = c("csv"))
@@ -1494,7 +1425,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         if(all(is.na(df$cov_file))) df[, fst_file:=as.character(cov_file)]
         if(all(is.na(df$junc_file))) df[, fst_file:=as.character(junc_file)]
         settings_expr$df = as.data.frame(df)
-				Read_Expr_Paths()
         output$txt_run_save_expr <- renderText({
           paste(selectedfile$datapath, "loaded")
         })
