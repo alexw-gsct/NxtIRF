@@ -25,6 +25,7 @@ Collate: Imports.R
 	globals.R
 	wrappers.R
 	BuildRef.R
+	DE_IR.R
 	CollateData.R
 	Interactive.R
 RoxygenNote: 7.1.1

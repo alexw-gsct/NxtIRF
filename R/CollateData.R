@@ -1019,7 +1019,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
      
 			Excluded = as.matrix(SummarizedExperiment::assay(filterObject, "Excluded"))
-			Excluded = Excluded[rowData$EventType %in% c("MXE")]
+			Excluded = Excluded[rowData$EventType %in% c("MXE"),]
       Up_Exc = as.matrix(S4Vectors::metadata(filterObject)$Up_Exc)
       Down_Exc = as.matrix(S4Vectors::metadata(filterObject)$Down_Exc)
       minDepth.Exc = Up_Exc + Down_Exc
@@ -1037,12 +1037,12 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 					Excluded.subset = Excluded[, which(cond_vec == cond)]
 
 					sum_inc = rowSums(
-						abs(log2(Up_Inc.subset + 1) - log2(IntronDepth.subset +1)) > maximum &
-						abs(log2(Down_Inc.subset + 1) - log2(IntronDepth.subset +1)) > maximum
+						abs(log2(Up_Inc.subset + 1) - log2(IntronDepth.subset +1)) < maximum &
+						abs(log2(Down_Inc.subset + 1) - log2(IntronDepth.subset +1)) < maximum
 					)
 					sum_exc = rowSums(
-						abs(log2(Up_Exc.subset + 1) - log2(Excluded.subset +1)) > maximum &
-						abs(log2(Down_Exc.subset + 1) - log2(Excluded.subset +1)) > maximum
+						abs(log2(Up_Exc.subset + 1) - log2(Excluded.subset +1)) < maximum &
+						abs(log2(Down_Exc.subset + 1) - log2(Excluded.subset +1)) < maximum
 					)
 					sum_inc = c(sum_inc, rep(ncol(Up_Inc.subset), sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
 					sum_exc = c(rep(ncol(Up_Inc.subset), sum(rowData$EventType == "IR")),
