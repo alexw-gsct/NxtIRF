@@ -290,11 +290,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					conditionalPanel(
 						condition = "['Files'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_files_expr")
-					),
+					},
 					conditionalPanel(
 						condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_anno_expr")
-					)
+					}
 				)	# last column
 			),
 		),
@@ -328,9 +328,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						actionButton("refresh_filters_Filters", "Refresh Filters"),
 						plotlyOutput("plot_filtered_Events"),
 						selectInput('graphscale_Filters', 'Y-axis Scale', width = '100%',
-							choices = c("linear", "log10")),            
+							choices = c("linear", "log10")), 
 						shinySaveButton("saveAnalysis_Filters", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
-							filetype = list(dataframe = "Rds")),
+							filetype = list(RDS = "Rds")),
 					)
         )
       ),
@@ -350,7 +350,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							c("(none)")),
             selectInput('batch2_DE', 'Batch Factor 2', 
 							c("(none)")),
-						actionButton("perform_DE", "Perform DE")            
+						actionButton("perform_DE", "Perform DE"),
+					shinyFilesButton("load_DE", label = "Load DE", 
+							title = "Load DE from RDS", multiple = FALSE),
+						shinySaveButton("save_DE", "Save DE", "Save DE as...", 
+							filetype = list(RDS = "Rds")),
 					),
 					column(8,	
             DT::dataTableOutput("DT_DE")
@@ -468,7 +472,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         req(settings_SE$se)
         colData = SummarizedExperiment::colData(settings_SE$se)
         updateSelectInput(session = session, inputId = "variable_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")						
+          choices = c("(none)", colnames(colData)), selected = "(none)")
         updateSelectInput(session = session, inputId = "batch1_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")						
         updateSelectInput(session = session, inputId = "batch2_DE", 
@@ -1087,25 +1091,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			df.anno = c()
 		)
 		files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
-    
-    # Make sure df.anno exists when df.files exist:
-    
-    observeEvent(settings_expr$df.files, {
-      req(settings_expr$df.files)
-      if(!is_valid(settings_expr$df.anno)) {
-        DT = as.data.table(settings_expr$df.files)
-        settings_expr$df.anno = DT[, "sample"]
+		## Handsontable auto-updates settings_expr$df on user edit
+    observe({
+      if (!is.null(input$hot_files_expr)) {
+        settings_expr$df.files = hot_to_r(input$hot_files_expr)
       }
     })
-    
-		## Handsontable auto-updates settings_expr$df on user edit
-    observeEvent(input$hot_files_expr,{
-      req(input$hot_files_expr)
-      settings_expr$df.files = hot_to_r(input$hot_files_expr)
-    })
-    observeEvent(input$hot_anno_expr,{
-      req(input$hot_anno_expr)
-      settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
+    observe({
+      if (!is.null(input$hot_anno_expr)) {
+        settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
+      }
     })
 		output$hot_files_expr <- renderRHandsontable({
 			if (!is.null(settings_expr$df.files)) {     
@@ -1161,7 +1156,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with bam paths
 			if(!is.null(temp.DT)) {
 				colnames(temp.DT)[2] = "bam_file"
-				if(is_valid(settings_expr$df.files)) {
+				if(!is.null(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1245,7 +1240,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with irfinder paths
 			if(!is.null(temp.DT)) {
 					colnames(temp.DT)[2] = "irf_file"
-				if(is_valid(settings_expr$df.files)) {
+				if(!is.null(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1315,10 +1310,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			})
 			req("sample" %in% colnames(temp.DT))
 			
-      anno_header = names(temp.DT)[!(names(temp.DT) %in% files_header)]
-			temp.DT.files = copy(temp.DT)
-      if(length(anno_header) > 0) temp.DT.files[, c(anno_header) := NULL]
-			if(is_valid(settings_expr$df.files)) {
+			temp.DT.files = temp.DT[, c("sample", intersect(files_header, colnames(temp.DT)))]
+			if(!is.null(settings_expr$df.files)) {
 				settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT.files)
 			} else {
 				DT = data.table(sample = temp.DT$sample, bam_file = "", irf_file = "",
@@ -1326,10 +1319,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				settings_expr$df.files = update_data_frame(DT, temp.DT.files)
 			}
 			
-			temp.DT.anno = copy(temp.DT)
-      files_header_exist = intersect(files_header, names(temp.DT))
-      if(length(files_header_exist) > 0) temp.DT.anno[, c(files_header_exist):= NULL]
-			if(is_valid(settings_expr$df.anno)) {
+			temp.DT.anno = temp.DT[, -intersect(files_header, colnames(temp.DT))]
+			if(!is.null(settings_expr$df.anno)) {
 				settings_expr$df.anno = update_data_frame(settings_expr$df.anno, temp.DT.anno)
 			} else {
 				settings_expr$df.anno = temp.DT.files
@@ -1371,7 +1362,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with fst paths
 			if(!is.null(temp.DT)) {
 					colnames(temp.DT)[2] = "junc_file"
-				if(is_valid(settings_expr$df.files)) {
+				if(!is.null(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1437,35 +1428,29 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$loadexpr_expr, {
       selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
       req(selectedfile$datapath)
-      DT = fread(selectedfile$datapath, na.strings = c("", "NA"))
-			DT.header = DT[sample == "(Experiment)"]
-			DT = DT[sample != "(Experiment)"]
-
-      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% names(DT)) & nrow(DT.header) == 1) {
-        if(all(is.na(DT$bam_file))) DT[, bam_file:=as.character(bam_file)]
-        if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
-        if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
-        if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
+      df = fread(selectedfile$datapath, na.strings = c("", "NA"))
+			df.header = df[1]
+			df = df[-1]
+      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% colnames(df))) {
+        if(all(is.na(df$bam_file))) df[, bam_file:=as.character(bam_file)]
+        if(all(is.na(df$irf_file))) df[, irf_file:=as.character(irf_file)]
+        if(all(is.na(df$cov_file))) df[, fst_file:=as.character(cov_file)]
+        if(all(is.na(df$junc_file))) df[, fst_file:=as.character(junc_file)]
+        settings_expr$df.files = as.data.frame(df[, c("sample", files_header)])
+				settings_expr$df.anno = as.data.frame(df[, -c(files_header)])
+				
 				# offload paths from header if legit:
-
-        DT.files = copy(DT)
-        anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
-        DT.files[, c(anno_col) := NULL]
-        DT.anno = copy(DT)
-        DT.anno[, c(files_header) := NULL]
-        
-        settings_expr$df.files = as.data.frame(DT.files)
-        settings_expr$df.anno = as.data.frame(DT.anno)
-
-        settings_expr$bam_path = DT.header$bam_file
-        settings_expr$irf_path = DT.header$irf_file
-        settings_expr$collate_path = DT.header$junc_file
+				if(df.header$sample = "(Experiment)") {
+					settings_expr$bam_path = df.header$bam_file
+					settings_expr$irf_path = df.header$irf_file
+					settings_expr$collate_path = df.header$junc_file
+				}
         output$txt_run_save_expr <- renderText({
           paste(selectedfile$datapath, "loaded")
-      })
+        })
       } else {
         output$txt_run_save_expr <- renderText({
-          paste(selecteDTile$datapath, "is not a valid NxtIRF experiment file")
+          paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
         })
       }
 		})		
@@ -1479,11 +1464,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
       req(selectedfile$datapath)
       
-			df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
-      df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
-      if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
-      if(is_valid(settings_expr$irf_file)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_file]
-      if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
+			df = merge(settings_expr$df.files, settings_expr$df.anno)
+			df.header = data.table(sample = "(Experiment)", bam_file = settings_expr$bam_path,
+				irf_file = settings_expr$irf_path, junc_file = settings_expr$collate_path)
+			df = merge(df.header, df, all = TRUE)
 			fwrite(df, selectedfile$datapath)
 			output$txt_run_save_expr <- renderText({
         paste("Experiment saved to:", selectedfile$datapath)
@@ -1503,6 +1487,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			output$txt_run_save_expr <- renderText({
 				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
         colData = as.data.table(settings_expr$df.anno)
+        # colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
         validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
 				se = MakeSE(colData, settings_expr$collate_path)
 				settings_SE$se = se
@@ -1632,6 +1617,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     # DE
 		settings_DE <- shiny::reactiveValues(
 			res = NULL,
+			res_settings = list(),
 			batchVar1 = NULL,
 			batchVar2 = NULL,
 			DE_Var = NULL,
@@ -1650,13 +1636,31 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         updateSelectInput(session = session, inputId = "variable_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")
 			} else {
-        updateSelectInput(session = session, inputId = "nom_DE", 
+				updateSelectInput(session = session, inputId = "nom_DE", 
           choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")					
         updateSelectInput(session = session, inputId = "denom_DE", 
-          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")		
+          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")
+				if(is_valid(settings_DE$nom_DE) && settings_DE$nom_DE %in% levels(colData[,input$variable_DE])) {
+					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$nom_DE)
+				}
+				if(is_valid(settings_DE$nom_DE) && settings_DE$denom_DE %in% levels(colData[,input$variable_DE])) {
+					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)
+				}
 			}
+			
+			
 		})
     
+		observeEvent(settings_DE$DE_Var, {
+        updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
+		})
+		observeEvent(settings_DE$batchVar1, {
+        updateSelectInput(session = session, inputId = "batch1_DE", selected = settings_DE$batchVar1)		
+		})
+		observeEvent(settings_DE$batchVar2, {
+        updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
+		})
+		
     observeEvent(input$perform_DE, {
 			req(settings_SE$se)
 			output$warning_DE = renderText({
@@ -1770,14 +1774,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 				res = cbind(as.data.frame(rowData), res)
 				settings_DE$res = res
-				output$DT_DE <- DT::renderDataTable(
-          DT::datatable(
-            settings_DE$res,
-            class = 'cell-border stripe',
-            rownames = FALSE,
-            filter = 'top'
-          )
-        )
+
         output$warning_DE = renderText({"Finished"})
         
 			} else if(input$method_DE == "limma") {
@@ -1813,20 +1810,92 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         setorder(res.ASE, -B)
 
 				settings_DE$res = as.data.frame(res.ASE)
-        
-				output$DT_DE <- DT::renderDataTable(
-          DT::datatable(
-            settings_DE$res,
-            class = 'cell-border stripe',
-            rownames = FALSE,
-            filter = 'top'
-          )
-        )
 
         output$warning_DE = renderText({"Finished"})
       }
-		})    
-    
+			
+			req(settings_DE$res)
+			# save settings for current res
+			settings_DE$res_settings$DE_Var = settings_DE$DE_Var
+			settings_DE$res_settings$nom_DE = settings_DE$nom_DE
+			settings_DE$res_settings$denom_DE = settings_DE$denom_DE
+			settings_DE$res_settings$batchVar1 = settings_DE$batchVar1
+			settings_DE$res_settings$batchVar2 = settings_DE$batchVar2
+		})
+		
+		observeEvent(settings_DE$res, {
+			req(settings_DE$res)
+			output$DT_DE <- DT::renderDataTable(
+				DT::datatable(
+					settings_DE$res,
+					class = 'cell-border stripe',
+					rownames = FALSE,
+					filter = 'top'
+				)
+			)		
+		})
+		
+		observeEvent(input$save_DE, {	
+			req(settings_DE$res)
+			req(length(settings_DE$res_settings) == 5)
+      
+			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
+			req(selectedfile$datapath)
+			
+			save_DE = list(res = settings_DE$res, settings = settings_DE$res_settings)
+			saveRDS(save_DE,selectedfile$datapath)
+		})
+
+    shinyFileChoose(input, "load_DE", roots = c(default_volumes, addit_volume), 
+      session = session, filetype = list(RDS = "Rds"))
+    observeEvent(input$load_DE, {
+      req(input$load_DE)
+      file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
+        input$load_DE)
+      
+			load_DE = readRDS(file_selected)
+			req(all(c("res", "settings") %in% names(load_DE)))
+			
+		# check all parameters exist in colData(se)
+			req(settings_SE$se)
+			colData = SummarizedExperiment::colData(settings_SE$se)
+			req(load_DE$settings$DE_Var %in% colnames(colData))
+			req(!is_valid(load_DE$settings$batchVar1) || load_DE$settings$batchVar1 %in% colnames(colData))
+			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
+			req(any(load_DE$settings$nom_DE %in% colData[,load_DE$settings$DE_Var])
+			req(any(load_DE$settings$denom_DE %in% colData[,load_DE$settings$DE_Var])
+			
+			settings_DE$res = load_DE$res
+			settings_DE$res_settings$DE_Var = load_DE$settings$DE_Var
+			settings_DE$res_settings$nom_DE = load_DE$settings$nom_DE
+			settings_DE$res_settings$denom_DE = load_DE$settings$denom_DE
+			settings_DE$res_settings$batchVar1 = load_DE$settings$batchVar1
+			settings_DE$res_settings$batchVar2 = load_DE$settings$batchVar2
+			
+			settings_DE$DE_Var = settings_DE$res_settings$DE_Var
+			settings_DE$nom_DE = settings_DE$res_settings$nom_DE
+			settings_DE$denom_DE = settings_DE$res_settings$denom_DE
+			settings_DE$batchVar1 = settings_DE$res_settings$batchVar1
+			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2			
+    })
+		
+		
+	make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10) {
+		
+		if(method == "PSI") {
+			# essentially M/Cov
+			inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
+			exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
+			
+			mat = inc/(inc + exc)
+			mat[inc + exc < depth_threshold] = NA
+			return(mat)
+		}
+		
+	}
+  
+	
+  
 # End of server function		
   }
 
@@ -1838,61 +1907,9 @@ update_data_frame <- function(existing_df, new_df) {
 	# add extra samples to existing df
 	DT1 = as.data.table(existing_df)
 	DT2 = as.data.table(new_df)
-
-  common_cols = intersect(names(DT1)[-1], names(DT2)[-1])
-  new_cols = names(DT2)[!(names(DT2) %in% names(DT1))]
-  
-  if(!all(DT2$sample %in% DT1$sample)) {
-    DT_add = DT2[!(sample %in% DT1$sample)]
-    if(length(new_cols) > 0) DT_add = DT_add[, c(new_cols) := NULL]
-    newDT = rbind(DT1, DT_add, fill = TRUE)
-  } else {
-    newDT = copy(DT1)
-  }
-  
-  if(length(new_cols) > 0) {
-    DT_tomerge = copy(DT2)
-    if(length(common_cols) > 0) {
-      DT_tomerge[, c(common_cols) := NULL]
-    }
-    newDT = merge(newDT, DT_tomerge, all = TRUE, by = "sample")
-  }
-  
-  # now update conflicting values
-  if(length(common_cols) > 0 & any(DT2$sample %in% DT1$sample)) {
-    DT_toupdate = DT2[(sample %in% DT1$sample)]
-    if(length(new_cols) > 0) DT_toupdate = DT_toupdate[, c(new_cols) := NULL]
-
-    newDT[DT_toupdate, on=.(sample), (common_cols) := mget(paste0("i.", common_cols))]
-  }
-  return(as.data.frame(newDT))
+	md1 = melt(DT1, id = "sample")
+	md2 = melt(DT2, id = "sample")
+	
+	res = unique(rbind(md1, md2), by = c("sample", "variable"), fromLast = TRUE)
+	return(as.data.frame(dcast(res, sample ~ ...)))
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
