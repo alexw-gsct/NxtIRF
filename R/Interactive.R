@@ -1845,7 +1845,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			req(settings_DE$res)
 			# save settings for current res
-			settings_DE$settings$method = settings_DE$method
+			settings_DE$res_settings$method = settings_DE$method
 			settings_DE$res_settings$DE_Var = settings_DE$DE_Var
 			settings_DE$res_settings$nom_DE = settings_DE$nom_DE
 			settings_DE$res_settings$denom_DE = settings_DE$denom_DE
@@ -1871,7 +1871,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(settings_DE$res)
 			req(length(settings_DE$res_settings) > 0)
       
-			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
+			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$save_DE)
 			req(selectedfile$datapath)
 			
 			save_DE = list(res = settings_DE$res, settings = settings_DE$res_settings)
@@ -1915,20 +1915,49 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
 		
 		
-	make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10) {
+	make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5) {
+
+    inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
+    exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
 		
 		if(method == "PSI") {
 			# essentially M/Cov
-			inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
-			exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
-			
 			mat = inc/(inc + exc)
 			mat[inc + exc < depth_threshold] = NA
 			return(mat)
-		}
+		} else if(method == "logit") {
+			mat = inc/(inc + exc)
+			mat[inc + exc < depth_threshold] = NA
+      mat = boot::logit(mat)
+      mat[mat > logit_max] = logit_max
+      mat[mat < -logit_max] = -logit_max
+      return(mat)
+    }
 		
 	}
   
+	make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_threshold = 10, logit_max = 5) {
+
+    inc = SummarizedExperiment::assay(se, "Included")[event_list, ]
+    exc = SummarizedExperiment::assay(se, "Excluded")[event_list, ]
+    mat = inc/(inc + exc)
+    mat[inc + exc < depth_threshold] = NA
+
+    # use logit method to calculate geometric mean
+
+    mat.nom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
+    mat.denom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
+    
+    mat.nom[mat.nom > logit_max] = logit_max
+    mat.denom[mat.denom > logit_max] = logit_max
+    mat.nom[mat.nom < -logit_max] = -logit_max
+    mat.denom[mat.denom < -logit_max] = -logit_max
+        
+    df = data.frame(EventName = event_list, nom = boot::inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
+      denom = boot::inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
+		
+    return(df)
+	}
 	
   
 # End of server function		
