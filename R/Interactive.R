@@ -364,7 +364,30 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 		),
 
-		navbarMenu("Display"
+		navbarMenu("Display",
+			tabPanel("Diagonal Plots",  value = "navDiag",
+				fluidRow(
+					column(2,	
+						shinyWidgets::sliderTextInput("number_events_diag", "Number of Top Events", 
+							choices = c(100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000), 
+							selected = 10000),
+						selectInput("EventType_diag", "Splice Type", width = '100%', multiple = TRUE,
+							choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
+						selectInput('variable_diag', 'Variable', 
+							c("(none)")),
+            selectInput('nom_diag', 'X-axis condition', 
+							c("(none)")),
+            selectInput('denom_diag', 'Y-axis condition', 
+							c("(none)")),
+						actionButton("clear_diag", "Clear settings"),
+						textInput("warning_diag")
+					),
+					column(10,
+						plotlyOutput("plot_diag")
+					)
+			tabPanel("Heatmaps")
+			tabPanel("Coverage Plots")
+			
 
 		) # last navbar
 
@@ -476,6 +499,15 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         updateSelectInput(session = session, inputId = "batch1_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")						
         updateSelectInput(session = session, inputId = "batch2_DE", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")
+			} else if(input$navSelection == "navDiag") {
+        output$warning_diag = renderText({
+          validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
+          "Experiment Loaded"
+        })
+        req(settings_SE$se)
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        updateSelectInput(session = session, inputId = "variable_diag", 
           choices = c("(none)", colnames(colData)), selected = "(none)")
 			}
 		})
@@ -1661,7 +1693,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         updateSelectInput(session = session, inputId = "denom_DE", 
           choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")
 				if(is_valid(settings_DE$nom_DE) && settings_DE$nom_DE %in% levels(colData[,input$variable_DE])) {
-					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$nom_DE)
+					updateSelectInput(session = session, inputId = "nom_DE", selected = settings_DE$nom_DE)
 				}
 				if(is_valid(settings_DE$nom_DE) && settings_DE$denom_DE %in% levels(colData[,input$variable_DE])) {
 					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)
@@ -1802,6 +1834,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					), parallel = TRUE, BPPARAM = BPPARAM_mod)
 				)
 				res = cbind(as.data.frame(rowData), res)
+				res = res %>% dplyr::arrange(padj)
 				settings_DE$res = res
 
         output$warning_DE = renderText({"Finished"})
@@ -1837,6 +1870,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           paste("Exc", colnames(res.exc)[1:6], sep=".") := list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
           
         setorder(res.ASE, -B)
+				
+				rowData.DT = as.data.table(rowData)
+				res.ASE = rowData.DT[res.ASE, on = "EventName"]
 
 				settings_DE$res = as.data.frame(res.ASE)
 
@@ -1914,51 +1950,71 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2			
     })
 		
-		
-	make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5) {
-
-    inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
-    exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
-		
-		if(method == "PSI") {
-			# essentially M/Cov
-			mat = inc/(inc + exc)
-			mat[inc + exc < depth_threshold] = NA
-			return(mat)
-		} else if(method == "logit") {
-			mat = inc/(inc + exc)
-			mat[inc + exc < depth_threshold] = NA
-      mat = boot::logit(mat)
-      mat[mat > logit_max] = logit_max
-      mat[mat < -logit_max] = -logit_max
-      return(mat)
-    }
-		
-	}
-  
-	make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_threshold = 10, logit_max = 5) {
-
-    inc = SummarizedExperiment::assay(se, "Included")[event_list, ]
-    exc = SummarizedExperiment::assay(se, "Excluded")[event_list, ]
-    mat = inc/(inc + exc)
-    mat[inc + exc < depth_threshold] = NA
-
-    # use logit method to calculate geometric mean
-
-    mat.nom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
-    mat.denom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
-    
-    mat.nom[mat.nom > logit_max] = logit_max
-    mat.denom[mat.denom > logit_max] = logit_max
-    mat.nom[mat.nom < -logit_max] = -logit_max
-    mat.denom[mat.denom < -logit_max] = -logit_max
-        
-    df = data.frame(EventName = event_list, nom = boot::inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
-      denom = boot::inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
-		
-    return(df)
-	}
+	# Diagonal Plots
 	
+		output$plot_diag <- renderPlotly({
+			validate(need(settings_SE$se, "Load Experiment first"))
+			validate(need(settings_DE$res, "Load DE Analysis first"))
+			validate(need(input$variable_diag, "Select conditions and contrasts"))
+			validate(need(input$nom_diag, "Select conditions and contrasts"))
+			validate(need(input$denom_diag, "Select conditions and contrasts"))
+			validate(need(input$variable_diag != "(none)", "Select conditions and contrasts"))
+			validate(need(input$nom_diag != "(none)", "Select conditions and contrasts"))
+			validate(need(input$denom_diag != "(none)", "Select conditions and contrasts"))
+			
+			num_events = input$number_events_diag
+			res = as.data.table(settings_DE$res)
+			if(is_valid(input$EventType_diag)) {
+				res = res[EventType %in% input$EventType_diag]
+			}
+			if(num_events < nrow(res)) {
+				res = res[seq_len(num_events)]
+			}
+			df.diag = make_diagonal(settings_SE$se, res$EventName, input$variable_diag,
+				input$nom_diag, input$denom_diag)
+			
+			print(
+				ggplotly(
+					ggplot(df.diag, aes(x = nom, y = denom, text = EventName)) + geom_point(),
+					tooltip = "text"
+				)
+			)
+		})
+		
+		observeEvent(input$variable_diag, {
+			req(settings_SE$se)
+			req(input$variable_diag != "(none)")
+			colData = SummarizedExperiment::colData(settings_SE$se)
+			req(input$variable_diag %in% colnames(colData))
+
+			if(class(colData[,input$variable_diag]) != "factor") {
+				output$warning_diag = renderText("Contrast must be performed on discrete categories")
+        updateSelectInput(session = session, inputId = "variable_diag", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")
+			} else {
+				updateSelectInput(session = session, inputId = "nom_diag", 
+					 choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
+				updateSelectInput(session = session, inputId = "denom_diag", 
+					 choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
+			}
+		})
+
+		observeEvent(input$clear_diag, {
+			updateselectInput(session = session, "EventType_diag", selected = NULL)
+			updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
+			if(is_valid(settings_SE$se)) {
+				colData = SummarizedExperiment::colData(settings_SE$se)
+        updateSelectInput(session = session, inputId = "variable_diag", 
+          choices = c("(none)", colnames(colData)), selected = "(none)")
+			} else {
+        updateSelectInput(session = session, inputId = "variable_diag", 
+          choices = c("(none)"), selected = "(none)")			
+			}
+			updateSelectInput(session = session, inputId = "nom_diag", 
+				 choices = c("(none)"), selected = "(none)")			
+			updateSelectInput(session = session, inputId = "denom_diag", 
+				 choices = c("(none)"), selected = "(none)")			
+		})
   
 # End of server function		
   }
@@ -1966,6 +2022,53 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
   runApp(shinyApp(ui, server))
 
 }
+
+# Temp Utilities
+
+make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5) {
+
+	inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
+	exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
+	
+	if(method == "PSI") {
+		# essentially M/Cov
+		mat = inc/(inc + exc)
+		mat[inc + exc < depth_threshold] = NA
+		return(mat)
+	} else if(method == "logit") {
+		mat = inc/(inc + exc)
+		mat[inc + exc < depth_threshold] = NA
+		mat = boot::logit(mat)
+		mat[mat > logit_max] = logit_max
+		mat[mat < -logit_max] = -logit_max
+		return(mat)
+	}
+	
+}
+
+make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_threshold = 10, logit_max = 5) {
+
+	inc = SummarizedExperiment::assay(se, "Included")[event_list, ]
+	exc = SummarizedExperiment::assay(se, "Excluded")[event_list, ]
+	mat = inc/(inc + exc)
+	mat[inc + exc < depth_threshold] = NA
+
+	# use logit method to calculate geometric mean
+
+	mat.nom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
+	mat.denom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
+	
+	mat.nom[mat.nom > logit_max] = logit_max
+	mat.denom[mat.denom > logit_max] = logit_max
+	mat.nom[mat.nom < -logit_max] = -logit_max
+	mat.denom[mat.denom < -logit_max] = -logit_max
+			
+	df = data.frame(EventName = event_list, nom = boot::inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
+		denom = boot::inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
+	
+	return(df)
+}
+
 update_data_frame <- function(existing_df, new_df) {
 	# add extra samples to existing df
 	DT1 = as.data.table(existing_df)
