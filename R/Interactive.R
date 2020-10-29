@@ -367,12 +367,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		navbarMenu("Display",
 			tabPanel("Diagonal Plots",  value = "navDiag",
 				fluidRow(
-					column(2,	
-						shinyWidgets::sliderTextInput("number_events_diag", "Number of Top Events", 
+					column(3,	
+						shinyWidgets::sliderTextInput(inputId = "number_events_diag", label = "Number of Top Events",
 							choices = c(100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000), 
 							selected = 10000),
 						selectInput("EventType_diag", "Splice Type", width = '100%', multiple = TRUE,
-							choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
+							choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
 						selectInput('variable_diag', 'Variable', 
 							c("(none)")),
             selectInput('nom_diag', 'X-axis condition', 
@@ -380,12 +380,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             selectInput('denom_diag', 'Y-axis condition', 
 							c("(none)")),
 						actionButton("clear_diag", "Clear settings"),
-						textInput("warning_diag")
+						textOutput("warning_diag")
 					),
-					column(10,
-						plotlyOutput("plot_diag")
+					column(9,
+						plotlyOutput("plot_diag", height = "800px")
 					)
-			tabPanel("Heatmaps")
+        )
+      ),
+			tabPanel("Heatmaps"),
 			tabPanel("Coverage Plots")
 			
 
@@ -1706,10 +1708,18 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		observeEvent(settings_DE$method, {
 			req(settings_DE$method)
       updateSelectInput(session = session, inputId = "method_DE", selected = settings_DE$method)		
-		})    
+		})
 		observeEvent(settings_DE$DE_Var, {
 			req(settings_DE$DE_Var)
       updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
+		})
+		observeEvent(settings_DE$nom_DE, {
+			req(settings_DE$nom_DE)
+      updateSelectInput(session = session, inputId = "nom_DE_DE", selected = settings_DE$nom_DE)		
+		})
+		observeEvent(settings_DE$denom_DE, {
+			req(settings_DE$denom_DE)
+      updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)		
 		})
 		observeEvent(settings_DE$batchVar1, {
 			req(settings_DE$batchVar1)
@@ -1915,13 +1925,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
     shinyFileChoose(input, "load_DE", roots = c(default_volumes, addit_volume), 
-      session = session, filetype = list(RDS = "Rds"))
+      session = session, filetype = c("Rds"))
     observeEvent(input$load_DE, {
       req(input$load_DE)
-      file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
-        input$load_DE)
-      
-			load_DE = readRDS(file_selected)
+      file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$load_DE)
+      req(file_selected$datapath)
+			load_DE = readRDS(as.character(file_selected$datapath))
 			req(all(c("res", "settings") %in% names(load_DE)))
 			
 		# check all parameters exist in colData(se)
@@ -1932,7 +1941,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
 			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$nom_DE))
 			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$denom_DE))
-			req(load$settings$method %in% c("DESeq2", "limma", "DSS"))
+			req(load_DE$settings$method %in% c("DESeq2", "limma", "DSS"))
 			
 			settings_DE$res = load_DE$res
 			settings_DE$res_settings$method = load_DE$settings$method
