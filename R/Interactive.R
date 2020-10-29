@@ -290,11 +290,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					conditionalPanel(
 						condition = "['Files'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_files_expr")
-					},
+					),
 					conditionalPanel(
 						condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_anno_expr")
-					}
+					)
 				)	# last column
 			),
 		),
@@ -1440,7 +1440,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				settings_expr$df.anno = as.data.frame(df[, -c(files_header)])
 				
 				# offload paths from header if legit:
-				if(df.header$sample = "(Experiment)") {
+				if(df.header$sample == "(Experiment)") {
 					settings_expr$bam_path = df.header$bam_file
 					settings_expr$irf_path = df.header$irf_file
 					settings_expr$collate_path = df.header$junc_file
@@ -1873,8 +1873,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(load_DE$settings$DE_Var %in% colnames(colData))
 			req(!is_valid(load_DE$settings$batchVar1) || load_DE$settings$batchVar1 %in% colnames(colData))
 			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
-			req(any(load_DE$settings$nom_DE %in% colData[,load_DE$settings$DE_Var])
-			req(any(load_DE$settings$denom_DE %in% colData[,load_DE$settings$DE_Var])
+			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$nom_DE))
+			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$denom_DE))
 			req(load$settings$method %in% c("DESeq2", "limma", "DSS"))
 			
 			settings_DE$res = load_DE$res
