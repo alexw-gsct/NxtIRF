@@ -328,9 +328,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						actionButton("refresh_filters_Filters", "Refresh Filters"),
 						plotlyOutput("plot_filtered_Events"),
 						selectInput('graphscale_Filters', 'Y-axis Scale', width = '100%',
-							choices = c("linear", "log10")),            
+							choices = c("linear", "log10")), 
 						shinySaveButton("saveAnalysis_Filters", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
-							filetype = list(dataframe = "Rds")),
+							filetype = list(RDS = "Rds")),
 					)
         )
       ),
@@ -350,7 +350,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							c("(none)")),
             selectInput('batch2_DE', 'Batch Factor 2', 
 							c("(none)")),
-						actionButton("perform_DE", "Perform DE")            
+						actionButton("perform_DE", "Perform DE"),
+					shinyFilesButton("load_DE", label = "Load DE", 
+							title = "Load DE from RDS", multiple = FALSE),
+						shinySaveButton("save_DE", "Save DE", "Save DE as...", 
+							filetype = list(RDS = "Rds")),
 					),
 					column(8,	
             DT::dataTableOutput("DT_DE")
@@ -468,7 +472,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         req(settings_SE$se)
         colData = SummarizedExperiment::colData(settings_SE$se)
         updateSelectInput(session = session, inputId = "variable_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")						
+          choices = c("(none)", colnames(colData)), selected = "(none)")
         updateSelectInput(session = session, inputId = "batch1_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")						
         updateSelectInput(session = session, inputId = "batch2_DE", 
@@ -1087,9 +1091,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			df.anno = c()
 		)
 		files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
-    
+
     # Make sure df.anno exists when df.files exist:
-    
     observeEvent(settings_expr$df.files, {
       req(settings_expr$df.files)
       if(!is_valid(settings_expr$df.anno)) {
@@ -1101,7 +1104,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		## Handsontable auto-updates settings_expr$df on user edit
     observeEvent(input$hot_files_expr,{
       req(input$hot_files_expr)
-      settings_expr$df.files = hot_to_r(input$hot_files_expr)
+      settings_expr$df.files = hot_to_r(input$hot_files_expr) 
     })
     observeEvent(input$hot_anno_expr,{
       req(input$hot_anno_expr)
@@ -1446,34 +1449,26 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
         if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
         if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
-				# offload paths from header if legit:
-<<<<<<< HEAD
-				if(df.header$sample == "(Experiment)") {
-					settings_expr$bam_path = df.header$bam_file
-					settings_expr$irf_path = df.header$irf_file
-					settings_expr$collate_path = df.header$junc_file
-				}
-=======
-
+        
         DT.files = copy(DT)
         anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
         DT.files[, c(anno_col) := NULL]
         DT.anno = copy(DT)
         DT.anno[, c(files_header) := NULL]
-        
+
         settings_expr$df.files = as.data.frame(DT.files)
         settings_expr$df.anno = as.data.frame(DT.anno)
 
         settings_expr$bam_path = DT.header$bam_file
         settings_expr$irf_path = DT.header$irf_file
         settings_expr$collate_path = DT.header$junc_file
->>>>>>> parent of 15de7fd... Add save / load DE
+        
         output$txt_run_save_expr <- renderText({
           paste(selectedfile$datapath, "loaded")
-      })
+        })
       } else {
         output$txt_run_save_expr <- renderText({
-          paste(selecteDTile$datapath, "is not a valid NxtIRF experiment file")
+          paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
         })
       }
 		})		
@@ -1487,7 +1482,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
       req(selectedfile$datapath)
       
-			df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
+      df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
       df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
       if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
       if(is_valid(settings_expr$irf_file)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_file]
@@ -1511,6 +1506,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			output$txt_run_save_expr <- renderText({
 				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
         colData = as.data.table(settings_expr$df.anno)
+        # colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
         validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
 				se = MakeSE(colData, settings_expr$collate_path)
 				settings_SE$se = se
@@ -1640,11 +1636,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     # DE
 		settings_DE <- shiny::reactiveValues(
 			res = NULL,
-<<<<<<< HEAD
 			res_settings = list(),
 			method = NULL,
-=======
->>>>>>> parent of 15de7fd... Add save / load DE
 			batchVar1 = NULL,
 			batchVar2 = NULL,
 			DE_Var = NULL,
@@ -1663,13 +1656,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         updateSelectInput(session = session, inputId = "variable_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")
 			} else {
-        updateSelectInput(session = session, inputId = "nom_DE", 
+				updateSelectInput(session = session, inputId = "nom_DE", 
           choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")					
         updateSelectInput(session = session, inputId = "denom_DE", 
-          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")		
+          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")
+				if(is_valid(settings_DE$nom_DE) && settings_DE$nom_DE %in% levels(colData[,input$variable_DE])) {
+					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$nom_DE)
+				}
+				if(is_valid(settings_DE$nom_DE) && settings_DE$denom_DE %in% levels(colData[,input$variable_DE])) {
+					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)
+				}
 			}
+			
+			
 		})
-<<<<<<< HEAD
 
 		observeEvent(settings_DE$method, {
 			req(settings_DE$method)
@@ -1688,9 +1688,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
 		})
 		
-=======
-    
->>>>>>> parent of 15de7fd... Add save / load DE
     observeEvent(input$perform_DE, {
 			req(settings_SE$se)
 			output$warning_DE = renderText({
@@ -1806,14 +1803,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				)
 				res = cbind(as.data.frame(rowData), res)
 				settings_DE$res = res
-				output$DT_DE <- DT::renderDataTable(
-          DT::datatable(
-            settings_DE$res,
-            class = 'cell-border stripe',
-            rownames = FALSE,
-            filter = 'top'
-          )
-        )
+
         output$warning_DE = renderText({"Finished"})
         
 			} else if(settings_DE$method == "limma") {
@@ -1849,19 +1839,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         setorder(res.ASE, -B)
 
 				settings_DE$res = as.data.frame(res.ASE)
-        
-				output$DT_DE <- DT::renderDataTable(
-          DT::datatable(
-            settings_DE$res,
-            class = 'cell-border stripe',
-            rownames = FALSE,
-            filter = 'top'
-          )
-        )
 
         output$warning_DE = renderText({"Finished"})
       }
-<<<<<<< HEAD
 			
 			req(settings_DE$res)
 			# save settings for current res
@@ -1885,9 +1865,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			)		
 		})
 		
+		shinyFileSave(input, "save_DE", roots = c(default_volumes, addit_volume), session = session,
+      filetypes = c("Rds"))
 		observeEvent(input$save_DE, {	
 			req(settings_DE$res)
-			req(length(settings_DE$res_settings) == 5)
+			req(length(settings_DE$res_settings) > 0)
       
 			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
 			req(selectedfile$datapath)
@@ -1949,76 +1931,19 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
   
 	
   
-=======
-		})    
-    
->>>>>>> parent of 15de7fd... Add save / load DE
 # End of server function		
   }
 
   runApp(shinyApp(ui, server))
 
 }
-
 update_data_frame <- function(existing_df, new_df) {
 	# add extra samples to existing df
 	DT1 = as.data.table(existing_df)
 	DT2 = as.data.table(new_df)
-
-  common_cols = intersect(names(DT1)[-1], names(DT2)[-1])
-  new_cols = names(DT2)[!(names(DT2) %in% names(DT1))]
-  
-  if(!all(DT2$sample %in% DT1$sample)) {
-    DT_add = DT2[!(sample %in% DT1$sample)]
-    if(length(new_cols) > 0) DT_add = DT_add[, c(new_cols) := NULL]
-    newDT = rbind(DT1, DT_add, fill = TRUE)
-  } else {
-    newDT = copy(DT1)
-  }
-  
-  if(length(new_cols) > 0) {
-    DT_tomerge = copy(DT2)
-    if(length(common_cols) > 0) {
-      DT_tomerge[, c(common_cols) := NULL]
-    }
-    newDT = merge(newDT, DT_tomerge, all = TRUE, by = "sample")
-  }
-  
-  # now update conflicting values
-  if(length(common_cols) > 0 & any(DT2$sample %in% DT1$sample)) {
-    DT_toupdate = DT2[(sample %in% DT1$sample)]
-    if(length(new_cols) > 0) DT_toupdate = DT_toupdate[, c(new_cols) := NULL]
-
-    newDT[DT_toupdate, on=.(sample), (common_cols) := mget(paste0("i.", common_cols))]
-  }
-  return(as.data.frame(newDT))
+	md1 = melt(DT1, id = "sample")
+	md2 = melt(DT2, id = "sample")
+	
+	res = unique(rbind(md1, md2), by = c("sample", "variable"), fromLast = TRUE)
+	return(as.data.frame(dcast(res, sample ~ ...)))
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
