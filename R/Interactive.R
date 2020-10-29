@@ -14,32 +14,34 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		ns <- NS(id)
 		wellPanel(
 			h5(label),	# e.g. "Filter #1"
-			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("", "Annotation", "Data")),
-			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("")),
+			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("(none)", "Annotation", "Data")),
+			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("(none)")),
       conditionalPanel(ns = ns,
         condition = "['Consistency'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("d1_1c"), "log-fold maximum", choices = seq(0.2, 5, by = 0.2), selected = 1)
+        shinyWidgets::sliderTextInput(ns("slider_cons_max"), "log-fold maximum", choices = seq(0.2, 5, by = 0.2), selected = 1)
       ),
       conditionalPanel(ns = ns,
         condition = "['Coverage'].indexOf(input.filterType) >= 0",
-        sliderInput(ns("d1_1d"), "Percent Coverage", min = 0, max = 100, value = 80)
+        sliderInput(ns("slider_cov_min"), "Percent Coverage", min = 0, max = 100, value = 80)
       ),
       conditionalPanel(ns = ns,
         condition = "['Depth'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("d1_1"), "Minimum", choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
+        shinyWidgets::sliderTextInput(ns("slider_depth_min"), 
+					"Minimum", choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
       ),
       conditionalPanel(ns = ns,
         condition = "['Depth', 'Coverage'].indexOf(input.filterType) >= 0",
         tagList(
-          shinyWidgets::sliderTextInput(ns("d1_2"), "Minimum Conditions Satisfy Criteria (-1 = ALL)", choices = seq(-1,8), selected = -1),
-          selectInput(ns("cond1"), "Condition", width = '100%',
+          shinyWidgets::sliderTextInput(ns("slider_mincond"), "Minimum Conditions Satisfy Criteria (-1 = ALL)", 
+						choices = seq(-1,8), selected = -1),
+          selectInput(ns("slider_conds"), "Condition", width = '100%',
             choices = c("")),
-          sliderInput(ns("d1_3"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
+          sliderInput(ns("slider_pcTRUE"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
         )
       ),
       conditionalPanel(ns = ns,
         condition = "['Coverage', 'Consistency'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("d1_1b"), "Signal Threshold to apply criteria", 
+        shinyWidgets::sliderTextInput(ns("slider_minDepth"), "Signal Threshold to apply criteria", 
           choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
       ),
       conditionalPanel(ns = ns,
@@ -50,11 +52,66 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		)
 	}
 
-	filterModule_server <- function(id, conditionList) {
+	filterModule_server <- function(id, filterdata, conditionList) {
 		moduleServer(
 			id,
 			function(input, output, session) {
+				final <- reactiveValues(
+          filterClass = "",
+          filterType = "",
+          filterVars = list()
+        )			
+			
 			# returns a list of filter options
+				observeEvent(filterdata() {
+					fData = filterdata()
+					req(fData)
+					if("filterClass" %in% names(fData)) {
+						updateSelectInput(session = session, inputId = "filterClass", 
+							selected = fData$filterClass)
+					}
+					if("filterType" %in% names(fData)) {
+						updateSelectInput(session = session, inputId = "filterType", 
+							selected = fData$filterType)
+					}
+					if("filterVars" %in% names(fData)) {
+						fVars = fData$filterVars
+						if("minimum" %in% names(fVars)) {
+							if(fData$filterType == "Depth")
+								shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_depth_min", 
+									selected = fVars$minimum)
+							} else  if(fData$filterType == "Coverage"){
+								updateSliderInput(session = session, inputId = "slider_cov_min", 
+									selected = fVars$minimum)							
+							}
+						}
+						if("maximum" %in% names(fVars)) {
+							shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_cons_max", 
+								selected = fVars$maximum)
+						}						
+						if("minDepth" %in% names(fVars)) {
+							updateSelectInput(session = session, inputId = "slider_minDepth", 
+								selected = fVars$minDepth)
+						}								
+						if("minCond" %in% names(fVars)) {
+							shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_mincond", 
+								selected = fVars$minCond)
+						}											
+						if("condition" %in% names(fVars)) {
+							updateSelectInput(session = session, inputId = "slider_conds", 
+								selected = fVars$condition)
+						}		
+						if("pcTRUE" %in% names(fVars)) {
+							updateSliderInput(session = session, inputId = "slider_pcTRUE", 
+								selected = fVars$pcTRUE)
+						}	
+						if("EventTypes" %in% names(fVars)) {
+							updateSelectInput(session = session, inputId = "EventType", 
+								selected = fVars$EventTypes)
+						}
+					}
+				})
+			
 				observeEvent(input$filterClass, {
 					if(input$filterClass == "Annotation") {
 						updateSelectInput(session = session, inputId = "filterType", 
@@ -64,48 +121,43 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("Depth", "Coverage", "Consistency"))
 					} else {
 						updateSelectInput(session = session, inputId = "filterType", 
-							choices = c(""))						
+							choices = c("(none)"))						
 					}
 				})
 
-
-				final <- reactiveValues(
-          filterClass = "",
-          filterType = "",
-          filterVars = list()
-        )
-
         observeEvent(input$filterType, {
-          message("Update being triggered")
-          if(input$filterType %in% c("Depth", "Coverage")) {
-          message("Update triggered")
-            updateSelectInput(session = session, inputId = "cond1", choices = conditionList())
-          }
+          if(is_valid(input$filterClass) && input$filterClass == "Data") {
+            updateSelectInput(session = session, inputId = "slider_conds", choices = c("(none)", conditionList()))
+          } else {
+            updateSelectInput(session = session, inputId = "slider_conds", choices = c("(none)"))					
+					}
         })
         
         toListen <- reactive({
           list(input$filterClass, input$filterType,
-             input$d1_1, input$d1_1b, input$d1_1c, input$d1_1d, 
-             input$d1_2, input$d1_3,
-             input$cond1, input$EventType
+             input$slider_depth_min, input$slider_minDepth, 
+						 input$slider_cons_max, input$slider_cov_min, 
+             input$slider_mincond, input$slider_pcTRUE,
+             input$slider_conds, input$EventType
           )
         })
         
         observeEvent(toListen(), {
-          final$filterClass = input$filterClass
-          final$filterType = input$filterType
-					if(final$filterType == "Depth") {
-						final$filterVars$minimum = input$d1_1
-					} else {
-						final$filterVars$minimum = input$d1_1d
-					}
-					final$filterVars$maximum = input$d1_1c
-          final$filterVars$minDepth = input$d1_1b
-          final$filterVars$minCond = input$d1_2
-          final$filterVars$condition = input$cond1
-          final$filterVars$pcTRUE = input$d1_3
-					final$filterVars$EventTypes = input$EventType
-          if(length(final$filterVars) > 0 && all(sapply(final$filterVars, is_valid))) {
+          if(is_valid(final$filterType)) {
+						final$filterClass = input$filterClass
+						final$filterType = input$filterType
+						if(final$filterType == "Depth") {
+							final$filterVars$minimum = input$slider_depth_min
+						} else if(final$filterType == "Coverage"){
+							final$filterVars$minimum = input$slider_cov_min
+						}
+						final$filterVars$maximum = input$slider_cons_max
+						final$filterVars$minDepth = input$slider_minDepth
+						final$filterVars$minCond = input$slider_mincond
+						final$filterVars$condition = input$slider_conds
+						final$filterVars$pcTRUE = input$slider_pcTRUE
+						final$filterVars$EventTypes = input$EventType
+
             final$trigger = runif(1)
           } else {
             final$trigger = NULL
@@ -1556,14 +1608,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       filters = list()
 		)
 		
-    filter1 <- filterModule_server("filter1", conditionList)
-    filter2 <- filterModule_server("filter2", conditionList)
-    filter3 <- filterModule_server("filter3", conditionList)
-    filter4 <- filterModule_server("filter4", conditionList)
-    filter5 <- filterModule_server("filter5", conditionList)
-    filter6 <- filterModule_server("filter6", conditionList)
-    filter7 <- filterModule_server("filter7", conditionList)
-    filter8 <- filterModule_server("filter8", conditionList)
+    filter1 <- filterModule_server("filter1", settings_SE$filters[[1]], conditionList)
+    filter2 <- filterModule_server("filter2", settings_SE$filters[[2]], conditionList)
+    filter3 <- filterModule_server("filter3", settings_SE$filters[[3]], conditionList)
+    filter4 <- filterModule_server("filter4", settings_SE$filters[[4]], conditionList)
+    filter5 <- filterModule_server("filter5", settings_SE$filters[[5]], conditionList)
+    filter6 <- filterModule_server("filter6", settings_SE$filters[[6]], conditionList)
+    filter7 <- filterModule_server("filter7", settings_SE$filters[[7]], conditionList)
+    filter8 <- filterModule_server("filter8", settings_SE$filters[[8]], conditionList)
 
     observe({
       settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
