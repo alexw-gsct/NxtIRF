@@ -1618,6 +1618,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		settings_DE <- shiny::reactiveValues(
 			res = NULL,
 			res_settings = list(),
+			method = NULL,
 			batchVar1 = NULL,
 			batchVar2 = NULL,
 			DE_Var = NULL,
@@ -1650,15 +1651,22 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			
 		})
-    
+
+		observeEvent(settings_DE$method, {
+			req(settings_DE$method)
+      updateSelectInput(session = session, inputId = "method_DE", selected = settings_DE$method)		
+		})    
 		observeEvent(settings_DE$DE_Var, {
-        updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
+			req(settings_DE$DE_Var)
+      updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
 		})
 		observeEvent(settings_DE$batchVar1, {
-        updateSelectInput(session = session, inputId = "batch1_DE", selected = settings_DE$batchVar1)		
+			req(settings_DE$batchVar1)
+			updateSelectInput(session = session, inputId = "batch1_DE", selected = settings_DE$batchVar1)		
 		})
 		observeEvent(settings_DE$batchVar2, {
-        updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
+			req(settings_DE$batchVar2)
+			updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
 		})
 		
     observeEvent(input$perform_DE, {
@@ -1702,8 +1710,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         updateSelectInput(session = session, inputId = "batch2_DE", 
           selected = "(none)")
 			}
+			req(input$method_DE)
+			settings_DE$method = input$method_DE
 			
-			if(input$method_DE == "DESeq2") {
+			if(settings_DE$method == "DESeq2") {
 				NxtIRF.CheckPackageInstalled("DESeq2", "1.28.0")
 				# build design
 				if(!is_valid(settings_DE$batchVar2)) {
@@ -1777,7 +1787,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
         output$warning_DE = renderText({"Finished"})
         
-			} else if(input$method_DE == "limma") {
+			} else if(settings_DE$method == "limma") {
 				NxtIRF.CheckPackageInstalled("limma", "3.44.0")
         
 				countData = cbind(SummarizedExperiment::assay(se, "Included"), 
@@ -1816,6 +1826,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			req(settings_DE$res)
 			# save settings for current res
+			settings_DE$settings$method = settings_DE$method
 			settings_DE$res_settings$DE_Var = settings_DE$DE_Var
 			settings_DE$res_settings$nom_DE = settings_DE$nom_DE
 			settings_DE$res_settings$denom_DE = settings_DE$denom_DE
@@ -1864,14 +1875,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
 			req(any(load_DE$settings$nom_DE %in% colData[,load_DE$settings$DE_Var])
 			req(any(load_DE$settings$denom_DE %in% colData[,load_DE$settings$DE_Var])
+			req(load$settings$method %in% c("DESeq2", "limma", "DSS"))
 			
 			settings_DE$res = load_DE$res
+			settings_DE$res_settings$method = load_DE$settings$method
 			settings_DE$res_settings$DE_Var = load_DE$settings$DE_Var
 			settings_DE$res_settings$nom_DE = load_DE$settings$nom_DE
 			settings_DE$res_settings$denom_DE = load_DE$settings$denom_DE
 			settings_DE$res_settings$batchVar1 = load_DE$settings$batchVar1
 			settings_DE$res_settings$batchVar2 = load_DE$settings$batchVar2
 			
+			settings_DE$method = settings_DE$res_settings$method
 			settings_DE$DE_Var = settings_DE$res_settings$DE_Var
 			settings_DE$nom_DE = settings_DE$res_settings$nom_DE
 			settings_DE$denom_DE = settings_DE$res_settings$denom_DE
