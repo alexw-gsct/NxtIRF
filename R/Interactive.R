@@ -60,10 +60,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           filterClass = "",
           filterType = "",
           filterVars = list()
-        )			
+        )
 			
 			# returns a list of filter options
-				observeEvent(filterdata() {
+				observeEvent(filterdata(), {
 					fData = filterdata()
 					req(fData)
 					if("filterClass" %in% names(fData)) {
@@ -77,7 +77,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					if("filterVars" %in% names(fData)) {
 						fVars = fData$filterVars
 						if("minimum" %in% names(fVars)) {
-							if(fData$filterType == "Depth")
+							if(fData$filterType == "Depth") {
 								shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_depth_min", 
 									selected = fVars$minimum)
 							} else  if(fData$filterType == "Coverage"){
