@@ -290,11 +290,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					conditionalPanel(
 						condition = "['Files'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_files_expr")
-					},
+					),
 					conditionalPanel(
 						condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
 						rHandsontableOutput("hot_anno_expr")
-					}
+					)
 				)	# last column
 			),
 		),
@@ -1087,16 +1087,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			df.anno = c()
 		)
 		files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
-		## Handsontable auto-updates settings_expr$df on user edit
-    observe({
-      if (!is.null(input$hot_files_expr)) {
-        settings_expr$df.files = hot_to_r(input$hot_files_expr)
+    
+    # Make sure df.anno exists when df.files exist:
+    
+    observeEvent(settings_expr$df.files, {
+      req(settings_expr$df.files)
+      if(!is_valid(settings_expr$df.anno)) {
+        DT = as.data.table(settings_expr$df.files)
+        settings_expr$df.anno = DT[, "sample"]
       }
     })
-    observe({
-      if (!is.null(input$hot_anno_expr)) {
-        settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
-      }
+    
+		## Handsontable auto-updates settings_expr$df on user edit
+    observeEvent(input$hot_files_expr,{
+      req(input$hot_files_expr)
+      settings_expr$df.files = hot_to_r(input$hot_files_expr)
+    })
+    observeEvent(input$hot_anno_expr,{
+      req(input$hot_anno_expr)
+      settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
     })
 		output$hot_files_expr <- renderRHandsontable({
 			if (!is.null(settings_expr$df.files)) {     
@@ -1152,7 +1161,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with bam paths
 			if(!is.null(temp.DT)) {
 				colnames(temp.DT)[2] = "bam_file"
-				if(!is.null(settings_expr$df.files)) {
+				if(is_valid(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1236,7 +1245,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with irfinder paths
 			if(!is.null(temp.DT)) {
 					colnames(temp.DT)[2] = "irf_file"
-				if(!is.null(settings_expr$df.files)) {
+				if(is_valid(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1306,8 +1315,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			})
 			req("sample" %in% colnames(temp.DT))
 			
-			temp.DT.files = temp.DT[, c("sample", intersect(files_header, colnames(temp.DT)))]
-			if(!is.null(settings_expr$df.files)) {
+      anno_header = names(temp.DT)[!(names(temp.DT) %in% files_header)]
+			temp.DT.files = copy(temp.DT)
+      if(length(anno_header) > 0) temp.DT.files[, c(anno_header) := NULL]
+			if(is_valid(settings_expr$df.files)) {
 				settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT.files)
 			} else {
 				DT = data.table(sample = temp.DT$sample, bam_file = "", irf_file = "",
@@ -1315,8 +1326,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				settings_expr$df.files = update_data_frame(DT, temp.DT.files)
 			}
 			
-			temp.DT.anno = temp.DT[, -intersect(files_header, colnames(temp.DT))]
-			if(!is.null(settings_expr$df.anno)) {
+			temp.DT.anno = copy(temp.DT)
+      files_header_exist = intersect(files_header, names(temp.DT))
+      if(length(files_header_exist) > 0) temp.DT.anno[, c(files_header_exist):= NULL]
+			if(is_valid(settings_expr$df.anno)) {
 				settings_expr$df.anno = update_data_frame(settings_expr$df.anno, temp.DT.anno)
 			} else {
 				settings_expr$df.anno = temp.DT.files
@@ -1358,7 +1371,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# compile experiment df with fst paths
 			if(!is.null(temp.DT)) {
 					colnames(temp.DT)[2] = "junc_file"
-				if(!is.null(settings_expr$df.files)) {
+				if(is_valid(settings_expr$df.files)) {
 			# merge with existing dataframe	
 					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
 				} else {
@@ -1424,29 +1437,35 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$loadexpr_expr, {
       selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
       req(selectedfile$datapath)
-      df = fread(selectedfile$datapath, na.strings = c("", "NA"))
-			df.header = df[1]
-			df = df[-1]
-      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% colnames(df))) {
-        if(all(is.na(df$bam_file))) df[, bam_file:=as.character(bam_file)]
-        if(all(is.na(df$irf_file))) df[, irf_file:=as.character(irf_file)]
-        if(all(is.na(df$cov_file))) df[, fst_file:=as.character(cov_file)]
-        if(all(is.na(df$junc_file))) df[, fst_file:=as.character(junc_file)]
-        settings_expr$df.files = as.data.frame(df[, c("sample", files_header)])
-				settings_expr$df.anno = as.data.frame(df[, -c(files_header)])
-				
+      DT = fread(selectedfile$datapath, na.strings = c("", "NA"))
+			DT.header = DT[sample == "(Experiment)"]
+			DT = DT[sample != "(Experiment)"]
+
+      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% names(DT)) & nrow(DT.header) == 1) {
+        if(all(is.na(DT$bam_file))) DT[, bam_file:=as.character(bam_file)]
+        if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
+        if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
+        if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
 				# offload paths from header if legit:
-				if(df.header$sample = "(Experiment)") {
-					settings_expr$bam_path = df.header$bam_file
-					settings_expr$irf_path = df.header$irf_file
-					settings_expr$collate_path = df.header$junc_file
-				}
+
+        DT.files = copy(DT)
+        anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
+        DT.files[, c(anno_col) := NULL]
+        DT.anno = copy(DT)
+        DT.anno[, c(files_header) := NULL]
+        
+        settings_expr$df.files = as.data.frame(DT.files)
+        settings_expr$df.anno = as.data.frame(DT.anno)
+
+        settings_expr$bam_path = DT.header$bam_file
+        settings_expr$irf_path = DT.header$irf_file
+        settings_expr$collate_path = DT.header$junc_file
         output$txt_run_save_expr <- renderText({
           paste(selectedfile$datapath, "loaded")
-        })
+      })
       } else {
         output$txt_run_save_expr <- renderText({
-          paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
+          paste(selecteDTile$datapath, "is not a valid NxtIRF experiment file")
         })
       }
 		})		
@@ -1460,10 +1479,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
       req(selectedfile$datapath)
       
-			df = merge(settings_expr$df.files, settings_expr$df.anno)
-			df.header = data.table(sample = "(Experiment)", bam_file = settings_expr$bam_path,
-				irf_file = settings_expr$irf_path, junc_file = settings_expr$collate_path)
-			df = merge(df.header, df, all = TRUE)
+			df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
+      df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
+      if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
+      if(is_valid(settings_expr$irf_file)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_file]
+      if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
 			fwrite(df, selectedfile$datapath)
 			output$txt_run_save_expr <- renderText({
         paste("Experiment saved to:", selectedfile$datapath)
@@ -1483,7 +1503,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			output$txt_run_save_expr <- renderText({
 				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
         colData = as.data.table(settings_expr$df.anno)
-        # colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
         validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
 				se = MakeSE(colData, settings_expr$collate_path)
 				settings_SE$se = se
@@ -1819,9 +1838,61 @@ update_data_frame <- function(existing_df, new_df) {
 	# add extra samples to existing df
 	DT1 = as.data.table(existing_df)
 	DT2 = as.data.table(new_df)
-	md1 = melt(DT1, id = "sample")
-	md2 = melt(DT2, id = "sample")
-	
-	res = unique(rbind(md1, md2), by = c("sample", "variable"), fromLast = TRUE)
-	return(as.data.frame(dcast(res, sample ~ ...)))
+
+  common_cols = intersect(names(DT1)[-1], names(DT2)[-1])
+  new_cols = names(DT2)[!(names(DT2) %in% names(DT1))]
+  
+  if(!all(DT2$sample %in% DT1$sample)) {
+    DT_add = DT2[!(sample %in% DT1$sample)]
+    if(length(new_cols) > 0) DT_add = DT_add[, c(new_cols) := NULL]
+    newDT = rbind(DT1, DT_add, fill = TRUE)
+  } else {
+    newDT = copy(DT1)
+  }
+  
+  if(length(new_cols) > 0) {
+    DT_tomerge = copy(DT2)
+    if(length(common_cols) > 0) {
+      DT_tomerge[, c(common_cols) := NULL]
+    }
+    newDT = merge(newDT, DT_tomerge, all = TRUE, by = "sample")
+  }
+  
+  # now update conflicting values
+  if(length(common_cols) > 0 & any(DT2$sample %in% DT1$sample)) {
+    DT_toupdate = DT2[(sample %in% DT1$sample)]
+    if(length(new_cols) > 0) DT_toupdate = DT_toupdate[, c(new_cols) := NULL]
+
+    newDT[DT_toupdate, on=.(sample), (common_cols) := mget(paste0("i.", common_cols))]
+  }
+  return(as.data.frame(newDT))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
