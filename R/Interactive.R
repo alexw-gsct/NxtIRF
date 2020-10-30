@@ -510,7 +510,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# seqinfo
 				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
 				if(settings$ah_genome != "") {
-					genome = FetchAH(settings$ah_genome, localHub = localHub)
+					genome = FetchAH(settings$ah_genome, localHub = offline)
 				} else {
 					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
 				}
@@ -995,13 +995,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			return(df)
 		}
 
-		output$plot_view_ref <- renderPlotly({
-			req(refresh_view == TRUE)
-			plot_view_ref_fn()
-			refresh_view = FALSE
-		})
+    observe({
+      if(settings_ViewRef$refresh_view == TRUE) {
+        settings_ViewRef$refresh_view = FALSE
+      }
 
-    plot_view_ref_fn = function() {
       view_chr = input$chr_view_ref
       view_start = suppressWarnings(as.numeric(input$start_view_ref))
       view_end = suppressWarnings(as.numeric(input$end_view_ref))
@@ -1035,43 +1033,63 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(settings_ViewRef$transcripts.DT)
       message("stuff loaded")
       
-      screen.DT = settings_ViewRef$elem.DT[seqnames == view_chr]
-      screen.DT = screen.DT[start <= data_end & end >= data_start]
-      
-      tr_list = unique(screen.DT$transcript_id)
-      message(paste(length(tr_list), " transcripts"))
-      
-      # limit transcript list
-      req(length(tr_list) < 70)
-      
-      transcripts.DT = settings_ViewRef$transcripts.DT[transcript_id %in% tr_list]
-      transcripts.DT = transcripts.DT
+      transcripts.DT = settings_ViewRef$transcripts.DT[seqnames == view_chr]
+      transcripts.DT = transcripts.DT[start <= data_end & end >= data_start]
       setorder(transcripts.DT, transcript_support_level, width)
 
+      req(nrow(transcripts.DT) <= 100)
+      message(paste(nrow(transcripts.DT), " transcripts"))
+
+      screen.DT = settings_ViewRef$elem.DT[transcript_id %in% transcripts.DT$transcript_id]
+      screen.DT = screen.DT[start <= data_end & end >= data_start]
+      
       transcripts.DT[, FOV_start := start]
       transcripts.DT[, FOV_end := end]   
       
       # apply plot_order on transcripts.DT
-      transcripts.DT$plot_level = 0
-      i = 0
-      while(any(transcripts.DT$plot_level == 0)) {
-        i = i + 1
-        remaining = which(transcripts.DT$plot_level == 0)
-        while(length(remaining) > 0) {
-          transcripts.DT$plot_level[remaining[1]] = i
-          ol.gr = GenomicRanges::reduce(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT[plot_level == i])),
-            ignore.strand = TRUE
-          )
-          OL = GenomicRanges::findOverlaps(
-            ol.gr,
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
-            ignore.strand = TRUE
-          )
-          remaining = which(transcripts.DT$plot_level == 0)
-          remaining = remaining[which(!(remaining %in% OL@to))]
+      
+      OL = GenomicRanges::findOverlaps(
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
+        ignore.strand = TRUE
+      )      
+      transcripts.DT$plot_level = 1      
+      cur_level = 1    
+      while(any(transcripts.DT$plot_level == cur_level)) {
+        j = match(cur_level, transcripts.DT$plot_level)
+        repeat {
+          bump_up_trs = unique(OL@to[OL@from == j])
+          bump_up_trs = bump_up_trs[bump_up_trs > j]
+          bump_up_trs = bump_up_trs[transcripts.DT$plot_level[bump_up_trs] == cur_level]
+          if(length(bump_up_trs) > 0) {
+            transcripts.DT[bump_up_trs, plot_level := cur_level + 1]
+          }
+          j = j + match(cur_level, transcripts.DT$plot_level[-seq_len(j)])
+          if(is.na(j)) break
         }
+        cur_level = cur_level + 1
       }
+      
+      # transcripts.DT$plot_level = 0
+      # i = 0
+      # while(any(transcripts.DT$plot_level == 0)) {
+        # i = i + 1
+        # remaining = which(transcripts.DT$plot_level == 0)
+        # while(length(remaining) > 0) {
+          # transcripts.DT$plot_level[remaining[1]] = i
+          # ol.gr = GenomicRanges::reduce(
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT[plot_level == i])),
+            # ignore.strand = TRUE
+          # )
+          # OL = GenomicRanges::findOverlaps(
+            # ol.gr,
+            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
+            # ignore.strand = TRUE
+          # )
+          # remaining = which(transcripts.DT$plot_level == 0)
+          # remaining = remaining[which(!(remaining %in% OL@to))]
+        # }
+      # }
       transcripts.DT[strand == "+", display_name := paste(transcript_name, "-", transcript_biotype, " ->>")]
       transcripts.DT[strand == "-", display_name := paste("<-- ", transcript_name, "-", transcript_biotype)]
       transcripts.DT[, disp_x := 0.5 * (start + end)]
@@ -1087,12 +1105,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
       
       p = ggplot(plot.DT, aes(text = display_name))
-      # text
-      # p = p + geom_text(data = transcripts.DT, aes(
-          # x = 0.5 * (max(start, view_start) + min(end, view_end)), y = plot_level - 0.4, label = display_name
-        # )
-      # )
-      
+
       if(nrow(subset(as.data.frame(plot.DT), type = "intron")) > 0) {
         p = p + geom_segment(data = subset(as.data.frame(plot.DT), type = "intron"), 
           aes(x = start, xend = end, y = plot_level, yend = plot_level))
@@ -1106,7 +1119,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             )
           )
       }
-      # p = p + xlim(view_start, view_end)
       
       anno = list(
         x = transcripts.DT$disp_x,
@@ -1124,17 +1136,18 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         pl = pl %>% plotly::config(editable = TRUE)
       }
       output$plot_view_ref <- renderPlotly({
+        settings_ViewRef$plot_ini = TRUE      
+      # renderPlotly({
         print(pl)
       })
-      # settings_ViewRef$plot_ini = TRUE      
-    }
+    })
     
     observeEvent(input$move_labels_view_ref, {
       settings_ViewRef$refresh_view = TRUE
     })
 
     settings_ViewRef$repan = reactive({
-      # req(settings_ViewRef$plot_ini == TRUE)
+      req(settings_ViewRef$plot_ini == TRUE)
       event_data("plotly_relayout")
     })
 
@@ -1163,7 +1176,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			new_span = round(span * (3 ^ zoom_factor))
 			if(new_span > seqmax - 1) new_span = seqmax - 1
 			
-			zoom_factor = input$zoom_view_ref - floor(log(new_span/50) / log(3)))
+			zoom_factor = input$zoom_view_ref - floor(log(new_span/50) / log(3))
 			updateSliderInput(session = session, inputId = "zoom_view_ref", 
 				value = floor(log(new_span/50) / log(3)))
 
@@ -1180,15 +1193,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       message(names(repan))
       req(length(repan) == 2)
       req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(repan)))
-      settings_ViewRef$blockView = TRUE
 
       updateTextInput(session = session, inputId = "start_view_ref", 
         value = max(1, round(repan[["xaxis.range[0]"]])))
       updateTextInput(session = session, inputId = "end_view_ref", 
         value = round(repan[["xaxis.range[1]"]]))
         
-      settings_ViewRef$blockView = FALSE
-      
     })
 
 
@@ -1205,14 +1215,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         value = gene_id_view$start[1])
       updateTextInput(session = session, inputId = "end_view_ref", 
         value = gene_id_view$end[1])
-        
-      settings_ViewRef$refresh_view = TRUE
-		})
+    })
 
     observeEvent(input$chr_view_ref, {
       req(input$chr_view_ref != "(none)")
-      settings_ViewRef$refresh_view = TRUE
+			seqInfo = settings_ViewRef$seqInfo[input$chr_view_ref]
+			seqmax = GenomeInfoDb::seqlengths(seqInfo)
+      
+			req(as.numeric(input$end_view_ref))
+      if(as.numeric(input$end_view_ref) > seqmax) {
+        updateTextInput(session = session, inputId = "end_view_ref", 
+          value = seqmax)      
+        req(as.numeric(input$start_view_ref))
+        if(seqmax - as.numeric(input$start_view_ref) < 50) {
+          updateTextInput(session = session, inputId = "end_view_ref", 
+            value = seqmax - 50)        
+        }
+      }
     })
+    
     observeEvent(input$start_view_ref, {
 			req(as.numeric(input$start_view_ref))
 			req(as.numeric(input$end_view_ref))
@@ -1221,11 +1242,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				input$end_view_ref = as.numeric(input$start_view_ref) + 50
 			}
 			# adjust zoom
-			span = input$end_view_ref - input$start_view_ref
+			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
 			cur_zoom = floor(log(span/50) / log(3))
-			updateSliderInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
+			updateTextInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
 			
-      settings_ViewRef$refresh_view = TRUE
+      # settings_ViewRef$refresh_view = TRUE
     })
     observeEvent(input$end_view_ref, {
 			req(as.numeric(input$start_view_ref))
@@ -1236,11 +1257,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				input$end_view_ref = as.numeric(input$start_view_ref) + 50
 			}
 			# adjust zoom
-			span = input$end_view_ref - input$start_view_ref
+			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
 			cur_zoom = floor(log(span/50) / log(3))
-			updateSliderInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
+			updateTextInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
 			
-      settings_ViewRef$refresh_view = TRUE
+      # settings_ViewRef$refresh_view = TRUE
     })
     
 # Design Experiment page
@@ -2264,9 +2285,70 @@ update_data_frame <- function(existing_df, new_df) {
 	# add extra samples to existing df
 	DT1 = as.data.table(existing_df)
 	DT2 = as.data.table(new_df)
-	md1 = melt(DT1, id = "sample")
-	md2 = melt(DT2, id = "sample")
-	
-	res = unique(rbind(md1, md2), by = c("sample", "variable"), fromLast = TRUE)
-	return(as.data.frame(dcast(res, sample ~ ...)))
+
+  common_cols = intersect(names(DT1)[-1], names(DT2)[-1])
+  new_cols = names(DT2)[!(names(DT2) %in% names(DT1))]
+
+  if(!all(DT2$sample %in% DT1$sample)) {
+    DT_add = DT2[!(sample %in% DT1$sample)]
+    if(length(new_cols) > 0) DT_add = DT_add[, c(new_cols) := NULL]
+    newDT = rbind(DT1, DT_add, fill = TRUE)
+  } else {
+    newDT = copy(DT1)
+  }
+
+  if(length(new_cols) > 0) {
+    DT_tomerge = copy(DT2)
+    if(length(common_cols) > 0) {
+      DT_tomerge[, c(common_cols) := NULL]
+    }
+    newDT = merge(newDT, DT_tomerge, all = TRUE, by = "sample")
+  }
+
+  # now update conflicting values
+  if(length(common_cols) > 0 & any(DT2$sample %in% DT1$sample)) {
+    DT_toupdate = DT2[(sample %in% DT1$sample)]
+    if(length(new_cols) > 0) DT_toupdate = DT_toupdate[, c(new_cols) := NULL]
+
+    newDT[DT_toupdate, on=.(sample), (common_cols) := mget(paste0("i.", common_cols))]
+  }
+  return(as.data.frame(newDT))
 }
+
+GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
+  covData = list()
+  for(i in seq_len(length(files))) {
+    cov = GetCoverage(files[i], seqname, start - 1, end, ifelse(strand == "+", 0, ifelse(strand == "-", 1, 2)))
+    view = IRanges::Views(cov, start, end)
+    view.df = as.data.frame(view[[1]])
+    covData[[i]] = view.df
+  }
+  df = do.call(cbind, covData)
+  colnames(df) = samples
+  x = start:end
+  df = cbind(x, df)
+  return(df)
+}
+
+GetCoverage_from_SE <- function(files, se, EventName, zoom_factor = 1) {
+  rowData = as.data.table(SummarizedExperiment::rowData(se))
+  region = rowData$EventRegion[match(EventName, rowData$EventName)]
+  seqname = tstrsplit(region, split=":")[[1]]
+  temp = tstrsplit(region, split=":")[[2]]
+  start = as.numeric(tstrsplit( temp , split="-")[[1]])
+  strand = tstrsplit( temp , split="/")[[2]]
+  temp2 = tstrsplit( temp , split="-")[[2]]
+  end = as.numeric(tstrsplit( temp2 , split= "/")[[1]])
+  
+  # zoom out:
+  center = round((end + start) / 2)
+  span = end - start
+  new_start = center - round(0.5 * span * 3^zoom_factor)
+  new_end = new_start + span * 3^zoom_factor
+  
+  # TODO: check that zoomed out area is within range
+  
+  df = GetCoverage_DF(colnames(se), files, seqname, new_start, new_end, strand)
+  return(df)
+}
+
