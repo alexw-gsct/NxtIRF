@@ -276,7 +276,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						div(style="display: inline-block;vertical-align:top; width: 120px;",
 							textInput("end_view_ref", label = "Right", c(""))),						
 						div(style="display: inline-block;vertical-align:top; width: 250px;",
-							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 12)),
+							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 16)),
 						div(style="display: inline-block;vertical-align:top;",
               shinyWidgets::materialSwitch("move_labels_view_ref", label = "Move transcript labels"))
 					)
@@ -506,8 +506,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             settings_loadref$loadref_path
         })
         req(settings_loadref$loadref_path)
-        settings_ViewRef$gene_list <- getGeneList()
 				
+				# seqinfo
+				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+				if(settings$ah_genome != "") {
+					genome = FetchAH(settings$ah_genome, localHub = localHub)
+				} else {
+					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+				}
+				settings_ViewRef$seqInfo = BSgenome::seqinfo(genome)
+        settings_ViewRef$gene_list <- getGeneList()
         settings_ViewRef$elem.DT <- loadViewRef()
         settings_ViewRef$transcripts.DT <- loadTranscripts()
         
@@ -925,6 +933,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 # View Ref page
 
     settings_ViewRef <- shiny::reactiveValues(
+			seqInfo = NULL,
 			gene_list = NULL,
       elem.DT = NULL,
       transcripts.DT = NULL,
@@ -934,6 +943,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       data_start = 0,
       data_end = 0,
       blockView = FALSE,
+			refresh_view = FALSE,
+			set_zoom = FALSE,
       repan = NULL,
       plot_ini = FALSE
 		)
@@ -953,8 +964,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       
       return(Transcripts.DT)
     }
-
-
 
     loadViewRef <- function() {
       req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
@@ -986,10 +995,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			return(df)
 		}
 
-    plot_view_ref_fn = function(chr, start, end) {
+		output$plot_view_ref <- renderPlotly({
+			req(refresh_view == TRUE)
+			plot_view_ref_fn()
+			refresh_view = FALSE
+		})
+
+    plot_view_ref_fn = function() {
       view_chr = input$chr_view_ref
-      view_start = as.numeric(input$start_view_ref)
-      view_end = as.numeric(input$end_view_ref)
+      view_start = suppressWarnings(as.numeric(input$start_view_ref))
+      view_end = suppressWarnings(as.numeric(input$end_view_ref))
 
       req(view_chr)
       req(view_start)
@@ -1111,18 +1126,54 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       output$plot_view_ref <- renderPlotly({
         print(pl)
       })
-      settings_ViewRef$plot_ini = TRUE      
+      # settings_ViewRef$plot_ini = TRUE      
     }
     
     observeEvent(input$move_labels_view_ref, {
-      settings_ViewRef$blockView = TRUE
-      settings_ViewRef$blockView = FALSE      
+      settings_ViewRef$refresh_view = TRUE
     })
 
     settings_ViewRef$repan = reactive({
-      req(settings_ViewRef$plot_ini == TRUE)
+      # req(settings_ViewRef$plot_ini == TRUE)
       event_data("plotly_relayout")
     })
+
+		observeEvent(input$zoom_view_ref, {
+			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+
+			# get range of current chromosome
+			view_chr = input$chr_view_ref
+			view_start = suppressWarnings(as.numeric(input$start_view_ref))
+			view_end = suppressWarnings(as.numeric(input$end_view_ref))
+
+			req(view_chr)
+			req(view_start)
+			req(view_end)
+			req(view_chr != settings_ViewRef$view_chr | view_start != settings_ViewRef$view_start | 
+				view_end != settings_ViewRef$view_end)
+
+			seqInfo = settings_ViewRef$seqInfo[input$chr_view_ref]
+			seqmax = GenomeInfoDb::seqlengths(seqInfo)
+			# get center of current range
+			center = round((view_start + view_end) / 2)
+			span = view_end - view_start
+			# zoom range is 50 * 3^z
+			cur_zoom = floor(log(span/50) / log(3))
+			zoom_factor = input$zoom_view_ref - cur_zoom
+			new_span = round(span * (3 ^ zoom_factor))
+			if(new_span > seqmax - 1) new_span = seqmax - 1
+			
+			zoom_factor = input$zoom_view_ref - floor(log(new_span/50) / log(3)))
+			updateSliderInput(session = session, inputId = "zoom_view_ref", 
+				value = floor(log(new_span/50) / log(3)))
+
+			# Only adjust zoom if current zoom is incorrect
+			if(zoom_factor != 0) {
+				input$start_view_ref = max(1, center - round(new_span / 2))
+				input$end_view_ref = input$start_view_ref + new_span
+			}
+
+		})
 
     observeEvent(settings_ViewRef$repan(), {
       repan = settings_ViewRef$repan()
@@ -1147,8 +1198,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
       gene_id_view = settings_ViewRef$gene_list[gene_display_name == input$genes_view]
 
-      settings_ViewRef$blockView = TRUE
-
       # change settings on input based on this
       updateSelectInput(session = session, inputId = "chr_view_ref", 
         selected = gene_id_view$seqnames[1])
@@ -1157,25 +1206,41 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       updateTextInput(session = session, inputId = "end_view_ref", 
         value = gene_id_view$end[1])
         
-      settings_ViewRef$blockView = FALSE
+      settings_ViewRef$refresh_view = TRUE
 		})
 
-    observeEvent(settings_ViewRef$blockView, {
-      req(settings_ViewRef$blockView == FALSE)
-      plot_view_ref_fn()      
-    })
     observeEvent(input$chr_view_ref, {
-      req(settings_ViewRef$blockView == FALSE)
       req(input$chr_view_ref != "(none)")
-      plot_view_ref_fn()
+      settings_ViewRef$refresh_view = TRUE
     })
     observeEvent(input$start_view_ref, {
-      req(settings_ViewRef$blockView == FALSE)
-      plot_view_ref_fn()
+			req(as.numeric(input$start_view_ref))
+			req(as.numeric(input$end_view_ref))
+			# adjust end if end < start
+			if(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) < 50) {
+				input$end_view_ref = as.numeric(input$start_view_ref) + 50
+			}
+			# adjust zoom
+			span = input$end_view_ref - input$start_view_ref
+			cur_zoom = floor(log(span/50) / log(3))
+			updateSliderInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
+			
+      settings_ViewRef$refresh_view = TRUE
     })
     observeEvent(input$end_view_ref, {
-      req(settings_ViewRef$blockView == FALSE)
-      plot_view_ref_fn()
+			req(as.numeric(input$start_view_ref))
+			req(as.numeric(input$end_view_ref))		
+			
+			# adjust end if end < start
+			if(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) < 50) {
+				input$end_view_ref = as.numeric(input$start_view_ref) + 50
+			}
+			# adjust zoom
+			span = input$end_view_ref - input$start_view_ref
+			cur_zoom = floor(log(span/50) / log(3))
+			updateSliderInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
+			
+      settings_ViewRef$refresh_view = TRUE
     })
     
 # Design Experiment page
