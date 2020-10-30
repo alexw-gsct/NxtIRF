@@ -50,7 +50,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
       ),
       conditionalPanel(ns = ns,
-        condition = "['Data'].indexOf(input.filterClass) >= 0",
+        condition = "['(none)'].indexOf(input.filterClass) < 0",
         selectInput(ns("EventType"), "Splice Type", width = '100%', multiple = TRUE,
           choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
       )
@@ -142,11 +142,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
         
         toListen <- reactive({
-          list(input$filterClass, input$filterType,
-             input$slider_depth_min, input$slider_minDepth, 
-						 input$slider_cons_max, input$slider_cov_min, 
-             input$slider_mincond, input$slider_pcTRUE,
-             input$slider_conds, input$EventType
+          list(
+            input$filterClass, input$filterType,
+             input$slider_depth_min, input$slider_cov_min, input$slider_TSL_min,
+						 input$slider_cons_max, input$slider_minDepth, 
+             input$slider_mincond, input$slider_conds, 
+             input$slider_pcTRUE, input$EventType
           )
         })
         

@@ -503,8 +503,6 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     Splice.Anno$down_2a = NULL
     Splice.Anno[, strand := tstrsplit(Event1a, split="/")[[2]]]
     
-    rm(candidate.introns, introns.unique)
-    gc()
 
 	# Save irf.common, Splice.Anno
   
@@ -581,6 +579,11 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
   rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_TSL := i.tsl_min]
 
   fst::write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
+
+
+    rm(candidate.introns, introns.unique)
+    gc()
+
 
   if(!is.null(shiny::getDefaultReactiveDomain())) {
     shiny::incProgress(0.15, message = "Generating NxtIRF FST files")
