@@ -204,6 +204,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         dir.create(file.path(base_output_path, basename(reference_path), "fst"))
     }
 
+    N = 9
+    
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Reading Reference Files")
+    }
     if(ah_genome != "") {
         assertthat::assert_that(substr(ah_genome,1,2) == "AH",
             msg = "Given genome AnnotationHub reference is incorrect")
@@ -266,6 +271,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     }
 
 
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Processing gtf file")
+    }
     message("Processing gtf file...", appendLF = F)
    
     # fix gene / transcript names with '/' (which breaks IRFinder code)
@@ -457,6 +465,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
     message("done\n")
 
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Processing introns")
+    }
     message("Processing introns...", appendLF = F)    
 
     candidate.introns = grlGaps(
@@ -684,6 +695,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     message("done\n")
 
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Generating IRFinder Reference")
+    }
     message("Generating ref-cover.bed ...", appendLF = F)    
 
 # Finished annotating introns, now use it to build reference:
@@ -1051,6 +1065,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
 
 # Annotate IR-NMD
+
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Annotating IR-NMD")
+    }
     misc = as.data.table(gtf.misc)
     start.DT = misc[type == "start_codon"]
     Exons.tr = as.data.table(Exons)
@@ -1065,10 +1083,33 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     Exons.tr = Exons.tr[start < end]
     
     protein.introns = candidate.introns[transcript_id %in% Exons.tr$transcript_id]
-
+    # determine here whether protein introns are CDS, 5' or 3' UTR introns
+    UTR5 = misc[type == "five_prime_utr"]
+    UTR5.introns = grlGaps(
+        GenomicRanges::split(GenomicRanges::makeGRangesFromDataFrame(as.data.frame(UTR5)), UTR5$transcript_id)
+    )
+    UTR5.introns = as.data.table(UTR5.introns)
+    UTR3 = misc[type == "three_prime_utr"]
+    UTR3.introns = grlGaps(
+        GenomicRanges::split(GenomicRanges::makeGRangesFromDataFrame(as.data.frame(UTR3)), UTR3$transcript_id)
+    )
+    UTR3.introns = as.data.table(UTR3.introns)
+    
+    CDS.introns = grlGaps(
+        GenomicRanges::split(GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exons.tr)), Exons.tr$transcript_id)
+    )
+    CDS.introns = as.data.table(CDS.introns)
+    
+    protein.introns[UTR5.introns, on = c("seqnames", "start", "end", "strand"), intron_type := "UTR5"]
+    protein.introns[UTR3.introns, on = c("seqnames", "start", "end", "strand"), intron_type := "UTR3"]    
+    protein.introns[CDS.introns, on = c("seqnames", "start", "end", "strand"), intron_type := "CDS"]
+    
     NMD.Table = DetermineNMD(Exons.tr, protein.introns, genome, 50)
+    NMD.Table[protein.introns, on = "intron_id", intron_type := i.intron_type]
     
     fst::write.fst(NMD.Table, file.path(reference_path, "fst", "IR.NMD.fst"))
+    
+    
     
 # Annotating Alternative Splicing Events
     # Massive clean-up for memory purposes
@@ -1090,6 +1131,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     gc()
         
 
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Annotating Splice Events")
+    }
     message("Annotating Splice Events\n")
 
     # candidate.introns[,intron_start := start]
@@ -1496,6 +1540,9 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     tmp_AS <- base::Filter(is_valid, tmp_AS)
     AS_Table = rbindlist(tmp_AS)    
     
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Finalising Splice Event Annotations")
+    }
     # Rename based on tsl and protein-coding ability, if applicable
     if(nrow(AS_Table) > 0) {
         candidate.introns.order = copy(candidate.introns)
@@ -1585,6 +1632,9 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     }
     gc()
     
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Translating AS Peptides")
+    }
     if(nrow(AS_Table) > 0) {
     
         message("Translating Alternate Splice Peptides...", appendLF = F)
@@ -1766,6 +1816,9 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         message("Splice Annotations finished\n")
     }
 	message("Reference build finished")
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/N, message = "Reference build finished")
+    }
   
   # create settings.csv only after everything is finalised
 	settings.list = list(fasta_file = fasta_file, gtf_file = gtf_file, 

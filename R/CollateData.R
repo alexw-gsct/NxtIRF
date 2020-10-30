@@ -532,7 +532,55 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
       dir.create(se_output_path)
   }		
 
-  fst::write.fst(rowEvent, file.path(se_output_path, "rowEvent.fst"))
+  # Annotate anything here in rowEvent.extended that allows for Annotation based filters
+  
+  # Implement filters:
+    # Is_Protein_Coding: at least one of the options is a valid protein_coding transcript
+    # Triggers_NMD: at least one isoform is pure NMD
+    # TSL: maximum TSL of either isoform
+
+  IR_NMD = as.data.table(fst::read.fst(file.path(reference_path, "fst", "IR.NMD.fst")))
+  # Splice_NMD = IR_NMD[, c("transcript_id", "splice_stop_pos", "splice_start_to_last_EJ", 
+    # "splice_stop_to_last_EJ", "splice_is_NMD")]
+  Splice.Options = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Splice.options.fst")))
+  Transcripts = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Transcripts.fst")))
+  # Splice.Options[Splice_NMD, on = "transcript_id", Is_NMD := i.splice_is_NMD]
+  Splice.Options[Splice.Anno, on = "EventID", EventName := i.EventName]
+  Splice.Options[Transcripts, on = "transcript_id", transcript_biotype := i.transcript_biotype]
+    
+  Splice.Options.Summary = copy(Splice.Options)
+  Splice.Options.Summary[, tsl_min := min(transcript_support_level), by = c("EventID", "isoform")]
+  Splice.Options.Summary[, any_is_PC := any(is_protein_coding), by = c("EventID", "isoform")]  
+  Splice.Options.Summary[, all_is_NMD := all(grepl("decay", transcript_biotype)), by = c("EventID", "isoform")]  
+
+  rowEvent.Extended = copy(rowEvent)
+  
+  rowEvent.Extended[EventType == "IR", intron_id := tstrsplit(EventName, split="/")[[2]]]
+  rowEvent.Extended[, Inc_Is_Protein_Coding := FALSE]
+  rowEvent.Extended[, Exc_Is_Protein_Coding := FALSE]
+  rowEvent.Extended[IR_NMD, on = "intron_id", Exc_Is_Protein_Coding := TRUE]
+  rowEvent.Extended[IR_NMD, on = "intron_id", Inc_Is_Protein_Coding := i.intron_type == "CDS"]
+  
+  rowEvent.Extended[Splice.Options.Summary[isoform == "A"], on = "EventName", Inc_Is_Protein_Coding := i.any_is_PC]
+  rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_Is_Protein_Coding := i.any_is_PC]
+  
+  rowEvent.Extended[, Inc_Is_NMD := FALSE]
+  rowEvent.Extended[, Exc_Is_NMD := FALSE]
+  rowEvent.Extended[IR_NMD[!is.na(splice_is_NMD)], on = "intron_id", Exc_Is_NMD := i.splice_is_NMD]
+  rowEvent.Extended[IR_NMD, on = "intron_id", Inc_Is_NMD := i.IRT_is_NMD]
+  rowEvent.Extended[EventType == "IR" & Exc_Is_Protein_Coding == FALSE, Exc_Is_NMD := NA]
+  rowEvent.Extended[EventType == "IR" & Inc_Is_Protein_Coding == FALSE, Inc_Is_NMD := NA]
+
+  rowEvent.Extended[Splice.Options.Summary[isoform == "A"], on = "EventName", Inc_Is_NMD := i.all_is_NMD]
+  rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_Is_NMD := i.all_is_NMD]
+
+  rowEvent.Extended[candidate.introns, on = "intron_id", Inc_TSL := i.transcript_support_level]
+  rowEvent.Extended[candidate.introns, on = "intron_id", Exc_TSL := i.transcript_support_level]
+
+  rowEvent.Extended[Splice.Options.Summary[isoform == "A"], on = "EventName", Inc_TSL := i.tsl_min]
+  rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_TSL := i.tsl_min]
+
+  fst::write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
 
   if(!is.null(shiny::getDefaultReactiveDomain())) {
     shiny::incProgress(0.15, message = "Generating NxtIRF FST files")
@@ -955,7 +1003,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
           sum = rowSums(depth.subset > minimum)
           sum_res = sum_res + ifelse(sum * 100 / ncol(depth.subset) >= usePC, 1, 0)
         }
-        n_TRUE = ifelse(use_cond == TRUE, filterVars$minCond, -1)
+        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
@@ -988,7 +1036,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
           sum = rowSums(cov.subset > minimum / 100)
           sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= usePC, 1, 0)
         }
-        n_TRUE = ifelse(use_cond == TRUE, filterVars$minCond, -1)
+        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
@@ -1050,7 +1098,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
           sum = 0.5 * (sum_inc + sum_exc)
           sum_res = sum_res + ifelse(sum * 100 / ncol(Up_Inc.subset) >= usePC, 1, 0)
         }
-        n_TRUE = ifelse(use_cond == TRUE, filterVars$minCond, -1)
+        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
@@ -1075,7 +1123,34 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 
     }
   } else if(filterClass == "Annotation") {
-		return(filterResult)
+    if(filterType == "Protein_Coding") {
+      # returns if any of included or excluded is protein_coding
+      rowSelected = as.data.table(rowData)
+      rowSelected = rowSelected[Inc_Is_Protein_Coding == TRUE | Exc_Is_Protein_Coding == TRUE]
+      rowSelected = rowSelected[EventType != "IR" | Inc_Is_Protein_Coding == TRUE] # filter for CDS introns
+      res = rowData$EventName %in% rowSelected$EventName
+    } else if(filterType == "NMD_Switching") {
+      rowSelected = as.data.table(rowData)
+      rowSelected = rowSelected[!is.na(Inc_Is_NMD) & !is.na(Exc_Is_NMD)]
+      rowSelected = rowSelected[Inc_Is_NMD != Exc_Is_NMD]
+      res = rowData$EventName %in% rowSelected$EventName
+    } else if(filterType == "Transcript_Support_Level") {
+      if(!("minimum" %in% names(filterVars))) {
+				minimum = 1
+			} else {
+				minimum = filterVars$minimum
+			}
+      rowSelected = as.data.table(rowData)
+      rowSelected = rowSelected[Inc_TSL != "NA" & Exc_TSL != "NA"]
+      rowSelected[, Inc_TSL := as.numeric(Inc_TSL)]
+      rowSelected[, Exc_TSL := as.numeric(Exc_TSL)]
+      rowSelected = rowSelected[Inc_TSL <= minimum & Exc_TSL <= minimum]
+      res = rowData$EventName %in% rowSelected$EventName
+    }
+    if("EventTypes" %in% names(filterVars)) {
+      res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
+    }
+    return(res)
   } else {
     return(filterResult)
   }

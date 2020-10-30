@@ -1,4 +1,4 @@
-is_valid <- function(.) !is.null(.) && . != "" && . != "(none)"
+is_valid <- function(.) !is.null(.) && length(.) > 0 && . != "" && . != "(none)"
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
@@ -17,6 +17,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("(none)", "Annotation", "Data")),
 			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("(none)")),
       conditionalPanel(ns = ns,
+        condition = "['Transcript_Support_Level'].indexOf(input.filterType) >= 0",
+        shinyWidgets::sliderTextInput(ns("slider_TSL_min"), "TSL Threshold", 
+          choices = 1:5, selected = 1)
+      ),
+      conditionalPanel(ns = ns,
         condition = "['Consistency'].indexOf(input.filterType) >= 0",
         shinyWidgets::sliderTextInput(ns("slider_cons_max"), "log-fold maximum", choices = seq(0.2, 5, by = 0.2), selected = 1)
       ),
@@ -32,8 +37,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       conditionalPanel(ns = ns,
         condition = "['Depth', 'Coverage'].indexOf(input.filterType) >= 0",
         tagList(
-          shinyWidgets::sliderTextInput(ns("slider_mincond"), "Minimum Conditions Satisfy Criteria (-1 = ALL)", 
-						choices = seq(-1,8), selected = -1),
+          shinyWidgets::sliderTextInput(ns("slider_mincond"), "Minimum Conditions Satisfy Criteria", 
+						choices = c(as.character(1:8), "All"), selected = "All"),
           selectInput(ns("slider_conds"), "Condition", width = '100%',
             choices = c("")),
           sliderInput(ns("slider_pcTRUE"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
@@ -82,6 +87,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 									selected = fVars$minimum)
 							} else  if(fData$filterType == "Coverage"){
 								updateSliderInput(session = session, inputId = "slider_cov_min", 
+									value = fVars$minimum)							
+							} else  if(fData$filterType == "Transcript_Support_Level"){
+								shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_TSL_min", 
 									selected = fVars$minimum)							
 							}
 						}
@@ -103,7 +111,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						}		
 						if("pcTRUE" %in% names(fVars)) {
 							updateSliderInput(session = session, inputId = "slider_pcTRUE", 
-								selected = fVars$pcTRUE)
+								value = fVars$pcTRUE)
 						}	
 						if("EventTypes" %in% names(fVars)) {
 							updateSelectInput(session = session, inputId = "EventType", 
@@ -115,7 +123,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				observeEvent(input$filterClass, {
 					if(input$filterClass == "Annotation") {
 						updateSelectInput(session = session, inputId = "filterType", 
-							choices = c("Filter A", "Filter B"))
+							choices = c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level"))
 					} else if(input$filterClass == "Data") {
 						updateSelectInput(session = session, inputId = "filterType", 
 							choices = c("Depth", "Coverage", "Consistency"))
@@ -143,13 +151,15 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
         
         observeEvent(toListen(), {
-          if(is_valid(final$filterType)) {
+          if(is_valid(input$filterType)) {
 						final$filterClass = input$filterClass
 						final$filterType = input$filterType
 						if(final$filterType == "Depth") {
 							final$filterVars$minimum = input$slider_depth_min
 						} else if(final$filterType == "Coverage"){
 							final$filterVars$minimum = input$slider_cov_min
+						} else if(final$filterType == "Transcript_Support_Level"){
+							final$filterVars$minimum = as.numeric(input$slider_TSL_min)
 						}
 						final$filterVars$maximum = input$slider_cons_max
 						final$filterVars$minDepth = input$slider_minDepth
@@ -788,7 +798,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					args$ah_transcriptome = data.table::tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_gtf_tmp = NULL
 				}
-				do.call(BuildReference, args)
+        withProgress(message = 'Building Reference', value = 0, {
+          do.call(BuildReference, args)
+        })
 				# If successfully created, load this reference automatically
 				if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
 					settings_loadref$loadref_path = settings_newref$newref_path
@@ -1608,14 +1620,38 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       filters = list()
 		)
 		
-    filter1 <- filterModule_server("filter1", settings_SE$filters[[1]], conditionList)
-    filter2 <- filterModule_server("filter2", settings_SE$filters[[2]], conditionList)
-    filter3 <- filterModule_server("filter3", settings_SE$filters[[3]], conditionList)
-    filter4 <- filterModule_server("filter4", settings_SE$filters[[4]], conditionList)
-    filter5 <- filterModule_server("filter5", settings_SE$filters[[5]], conditionList)
-    filter6 <- filterModule_server("filter6", settings_SE$filters[[6]], conditionList)
-    filter7 <- filterModule_server("filter7", settings_SE$filters[[7]], conditionList)
-    filter8 <- filterModule_server("filter8", settings_SE$filters[[8]], conditionList)
+    getFilterData = function(i) {
+      if(is_valid(settings_SE$filters)) {
+        return(settings_SE$filters[[i]])
+      } else {
+        return(list())
+      }
+    }
+    reactive_filter1 <- reactive({getFilterData(1)})
+    reactive_filter2 <- reactive({getFilterData(2)})
+    reactive_filter3 <- reactive({getFilterData(3)})
+    reactive_filter4 <- reactive({getFilterData(4)})
+    reactive_filter5 <- reactive({getFilterData(5)})
+    reactive_filter6 <- reactive({getFilterData(6)})
+    reactive_filter7 <- reactive({getFilterData(7)})
+    reactive_filter8 <- reactive({getFilterData(8)})
+    
+    conditionList = reactive({
+      req(settings_SE$se)
+      if(is(settings_SE$se, "SummarizedExperiment")) {
+        colnames(SummarizedExperiment::colData(settings_SE$se))
+      } else {
+        c("")
+      }
+    })
+    filter1 <- filterModule_server("filter1", reactive_filter1, conditionList)
+    filter2 <- filterModule_server("filter2", reactive_filter2, conditionList)
+    filter3 <- filterModule_server("filter3", reactive_filter3, conditionList)
+    filter4 <- filterModule_server("filter4", reactive_filter4, conditionList)
+    filter5 <- filterModule_server("filter5", reactive_filter5, conditionList)
+    filter6 <- filterModule_server("filter6", reactive_filter6, conditionList)
+    filter7 <- filterModule_server("filter7", reactive_filter7, conditionList)
+    filter8 <- filterModule_server("filter8", reactive_filter8, conditionList)
 
     observe({
       settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
@@ -1628,13 +1664,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
     })
     
-    conditionList = reactive({
-      if(is(settings_SE$se, "SummarizedExperiment")) {
-        colnames(SummarizedExperiment::colData(settings_SE$se))
-      } else {
-        c("")
-      }
-    })
+
     
     se.filterModule <- reactive({
       if(is(settings_SE$se, "SummarizedExperiment")) {
@@ -1895,7 +1925,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")
 					), parallel = TRUE, BPPARAM = BPPARAM_mod)
 				)
-				res = cbind(as.data.frame(rowData), res)
+				res = cbind(as.data.frame(rowData[,1:3]), res)
 				res = res %>% dplyr::arrange(padj)
 				settings_DE$res = res
 
@@ -1934,6 +1964,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         setorder(res.ASE, -B)
 				
 				rowData.DT = as.data.table(rowData)
+        rowData.DT = rowData.DT[, 1:3]
 				res.ASE = rowData.DT[res.ASE, on = "EventName"]
 
 				settings_DE$res = as.data.frame(res.ASE)
