@@ -392,7 +392,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						plotlyOutput("plot_filtered_Events"),
 						selectInput('graphscale_Filters', 'Y-axis Scale', width = '100%',
 							choices = c("linear", "log10")), 
-						shinySaveButton("saveAnalysis_Filters", "Save SummarizedExperiment", "Save SummarizedExperiment as...", 
+						shinySaveButton("saveAnalysis_Filters", "Save Filters", "Save Filters as...", 
 							filetype = list(RDS = "Rds")),
 					)
         )
@@ -1715,10 +1715,44 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       processFilters()
     })
     
-    observeEvent(settings_SE$filterSummary, {
+    # observeEvent(settings_SE$filterSummary, {
+      # req(settings_SE$filterSummary)
+
+      # if(is(settings_SE$se, "SummarizedExperiment")) {
+        # filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se)$EventType,
+          # keep = settings_SE$filterSummary)
+        # if(input$graphscale_Filters == "log10") {
+          # filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
+          # filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
+        # } else {
+          # filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
+          # filteredEvents.DT[, Excluded := sum(keep != TRUE) , by = "EventType"]        
+        # }
+        # filteredEvents.DT = unique(filteredEvents.DT, by = "EventType")
+        # incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
+          # dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
+        # excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%
+          # dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
+        
+        # p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
+          # geom_bar(position="stack", stat="identity")
+        # if(input$graphscale_Filters == "log10") {
+          # p = p + labs(y = "log10 Events")
+        # } else {
+          # p = p + labs(y = "Events")        
+        # }
+        # output$plot_filtered_Events <- renderPlotly({
+          # print(
+            # ggplotly(p)
+          # )
+        # })
+      # }
+    # })
+    
+    observe({
+      req(settings_SE$se)
       req(settings_SE$filterSummary)
 
-      if(is(settings_SE$se, "SummarizedExperiment")) {
         filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se)$EventType,
           keep = settings_SE$filterSummary)
         if(input$graphscale_Filters == "log10") {
@@ -1746,8 +1780,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           print(
             ggplotly(p)
           )
-        })
-      }
+        })    
     })
     
     # DE

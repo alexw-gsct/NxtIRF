@@ -983,7 +983,8 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
   } else {
     minDepth = filterVars$minDepth
   }
-	use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars), TRUE, FALSE)
+  use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars) && 
+    filterVars$condition != "(none)", TRUE, FALSE)
 	rowData = SummarizedExperiment::rowData(filterObject)
 	colData = SummarizedExperiment::colData(filterObject)
   if(filterClass == "Data") {
