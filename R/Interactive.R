@@ -603,10 +603,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				output$DT_QC <- DT::renderDataTable({
 					validate(need(settings_SE$se, "Load Experiment file first"))
 					validate(need(file.exists(
-						file.path(settings_expr$collate_path, "stats.fst")
+						file.path(settings_expr$collate_path, "se", "stats.fst")
 						), "stats.fst does not exist in given NxtIRF output directory"))
-					DT = fread(file.path(settings_expr$collate_path, "stats.fst"))
-					DT = merge(settings_expr$df.anno, DT, all = TRUE)
+					DT = as.data.table(fst::read.fst((file.path(settings_expr$collate_path, "se", "stats.fst"))))
+					DT = merge(as.data.table(settings_expr$df.anno), DT, all = TRUE)
 					DT::datatable(
 						DT,
 						class = 'cell-border stripe',
