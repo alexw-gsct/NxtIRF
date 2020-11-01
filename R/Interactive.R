@@ -411,7 +411,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		),
 		# Analyze
 		navbarMenu("Analyse",
-			tabPanel("View QC", value = "navQC"),
+			tabPanel("View QC", value = "navQC",
+				DT::dataTableOutput("DT_QC")
+			),
 			tabPanel("Filters", value = "navFilter",
 		# Takes experimental data frame, sets filters, then constructs SummarizedExperiment object
 				# Current Experiment
@@ -596,6 +598,21 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
 					)
 					settings_loadref$loadref_path
+				})
+			} else if(input$navSelection == "navQC") {
+				output$DT_QC <- DT::renderDataTable({
+					validate(need(settings_SE$se, "Load Experiment file first"))
+					validate(need(file.exists(
+						file.path(settings_expr$collate_path, "stats.fst")
+						), "stats.fst does not exist in given NxtIRF output directory"))
+					DT = fread(file.path(settings_expr$collate_path, "stats.fst"))
+					DT = merge(settings_expr$df.anno, DT, all = TRUE)
+					DT::datatable(
+						DT,
+						class = 'cell-border stripe',
+						rownames = DT$sample,
+						filter = 'top'
+					)
 				})
 			} else if(input$navSelection == "navFilter") {
 				if(!is.null(settings_SE$se)) {

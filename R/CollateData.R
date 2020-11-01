@@ -897,6 +897,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 		}
 	}
   
+	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
+	fst::write.fst(as.data.frame(df.internal), outfile)
+	
   if(!is.null(shiny::getDefaultReactiveDomain())) {
     shiny::incProgress(0.19, message = "NxtIRF Collation Finished")
   }  
