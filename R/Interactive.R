@@ -557,7 +557,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("(none)"))
 					),
 					column(10, 
-						plotlyOutput("plot_view_ref", height = "800px"),
+						plotlyOutput("plot_cov", height = "800px"),
 					)
 				)
       )
@@ -617,7 +617,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# seqinfo
 				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
 				if(settings$ah_genome != "") {
-					genome = FetchAH(settings$ah_genome, ah)
+					genome = FetchAH(settings$ah_genome, ah = ah)
 				} else {
 					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
 				}
