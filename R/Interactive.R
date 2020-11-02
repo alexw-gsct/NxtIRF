@@ -547,13 +547,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					column(2, 
 						selectInput('mode_cov', 'View', width = '100%',
 							choices = c("Individual", "By Condition")),					
-						selectInput('track1_cov', 'View', width = '100%',
+						selectizeInput('event_norm_cov', 'Normalize Event', width = '100%',
 							choices = c("(none)")),
-						selectInput('track2_cov', 'View', width = '100%',
+						selectInput('condition_cov', 'Condition', width = '100%',
+							choices = c("(none)")),							
+						selectInput('track1_cov', 'Track 1', width = '100%',
 							choices = c("(none)")),
-						selectInput('track3_cov', 'View', width = '100%',
+						selectInput('track2_cov', 'Track 2', width = '100%',
 							choices = c("(none)")),
-						selectInput('track4_cov', 'View', width = '100%',
+						selectInput('track3_cov', 'Track 3', width = '100%',
+							choices = c("(none)")),
+						selectInput('track4_cov', 'Track 4', width = '100%',
 							choices = c("(none)"))
 					),
 					column(10, 
@@ -639,7 +643,62 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					updateSelectizeInput(session = session, inputId = "genes_view", server = TRUE,
 						choices = c("(none)"), selected = "(none)") 
 				}
+			} else if(input$navSelection == "navCoverage") {
+        if(settings_loadref$loadref_path != "") {
+          load_ref()
+        }
+        output$warning_cov <- renderText({
+            validate(need(settings_loadref$loadref_path, "Please select reference path"))            
+            settings_loadref$loadref_path
+        })
+        req(settings_loadref$loadref_path)
+				
+				# seqinfo
+				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+				if(settings$ah_genome != "") {
+					genome = FetchAH(settings$ah_genome, ah = ah)
+				} else {
+					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+				}
+				settings_Cov$seqInfo = BSgenome::seqinfo(genome)
+        settings_Cov$gene_list <- getGeneList()
+        settings_Cov$elem.DT <- loadViewRef()
+        settings_Cov$transcripts.DT <- loadTranscripts()
         
+				if(!is.null(settings_Cov$gene_list)) {
+          message(paste("Populating drop-down box with", 
+            length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
+					updateSelectInput(session = session, inputId = "chr_cov", 
+						choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+						choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
+				} else {
+					updateSelectInput(session = session, inputId = "chr_cov", 
+						choices = c("(none)"), selected = "(none)")    								
+					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+						choices = c("(none)"), selected = "(none)") 
+				}
+				if(is_valid(settings_SE$se)) {
+					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
+					DT.files = na.omit(DT.files)
+					if(input$mode_cov == "By Condition") {
+						colData = SummarizedExperiment::colData(settings_SE$se)
+						colData = colData[rownames(colData) %in% DT.files$sample]
+						conditions_avail = colnames(colData)
+						updateSelectInput(session = session, inputId = "condition_cov", 
+							choices = c("(none)", conditions_avail), selected = "(none)")
+					} else if(input$mode_cov == "Individual") {
+						avail_samples = DT.files$sample
+						updateSelectInput(session = session, inputId = "track1_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track2_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track3_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track4_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+					}
+				}
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
 				updateSelectInput(session = session, inputId = "expr_Cores", 
@@ -2388,7 +2447,228 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			updateSelectInput(session = session, inputId = "denom_diag", 
 				 choices = c("(none)"), selected = "(none)")			
 		})
-  
+		
+		# RNA-seq Coverage Plots
+    settings_Cov <- shiny::reactiveValues(
+			# data
+			seqInfo = NULL,
+			gene_list = NULL,
+      elem.DT = NULL,
+      transcripts.DT = NULL,
+			# view settings
+      view_chr = "",
+      view_start = "",
+      view_end = "",
+      data_start = 0,
+      data_end = 0,
+			
+			view_strand = "*",
+
+			avail_cov = list(),	# named list of files
+
+      plotly_relayout = NULL,
+      plot_ini = FALSE
+		)
+		get_track_selection <- function(i) {
+			if(i == 1) return(input$track1_cov)
+			if(i == 2) return(input$track2_cov)
+			if(i == 3) return(input$track3_cov)
+			if(i == 4) return(input$track4_cov)
+		}
+		
+    observe({
+      view_chr = input$chr_cov
+      view_start = suppressWarnings(as.numeric(input$start_cov))
+      view_end = suppressWarnings(as.numeric(input$end_cov))
+			
+			has_movable_labels = input$move_labels_cov
+			
+      req(view_chr)
+      req(view_start)
+      req(view_end)
+
+      if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
+      if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- loadTranscripts()
+
+      req(settings_Cov$elem.DT)
+      req(settings_Cov$transcripts.DT)
+      message("stuff loaded")
+			
+			p_ref = plot_view_ref_fn(
+				view_chr, view_start, view_end, 
+				settings_Cov$transcripts.DT, settings_Cov$elem.DT,
+				has_movable_labels
+			)
+			p_track = list()
+			for(i in 1:4) {
+				track_samples = get_track_selection(i)
+				if(is_valid(track_samples)) {
+					if(is_valid(input$condition_cov) & is_valid(input$event_norm_cov)) {
+						colData = SummarizedExperiment::colData(settings_SE$se)
+						samples = rownames(colData)[unlist(colData[, input$condition_cov] == track_samples)]
+						event_norms = SummarizedExperiment::assay(settings_SE$se, "depth")[input$event_norm_cov,samples]
+						samples = samples[event_norms >= 10]
+						event_norms = event_norms[event_norms >= 10]
+						df = GetCoverage_DF(samples, avail_cov[[samples]],
+							view_chr, view_start, view_end, settings_Cov$view_strand)
+						for(todo in seq_len(length(samples))) {
+							df[, samples[todo]] = df[, samples[todo]] / event_norms[todo]
+						}
+						df$mean = rowMeans(as.matrix(df[,samples]))
+						df$ci = apply(X = df[,samples], MARGIN = 1, function(t) {
+							binom.test(x = t, n = length(t), p = 1, 
+								alternative = "two.sided", conf.level = 0.90)$conf.int
+						})
+						df$ci_lwr
+						p_track[[i]] = ggplotly(
+							ggplot(df, aes(x = x)) + 
+								geom_ribbon(alpha = 0.2,colour = NA, aes(ymin = mean - ci, ymax = mean + ci)) +
+								geom_line(aes(y = mean))
+						)						
+					} else if(input$mode_cov == "Individual") {
+						df = GetCoverage_DF(track_samples, avail_cov[[track_samples]],
+							view_chr, view_start, view_end, settings_Cov$view_strand)
+						p_track[[i]] = ggplotly(
+							ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line()
+						)
+					}
+				}
+			}
+
+      output$plot_cov <- renderPlotly({
+        settings_Cov$plot_ini = TRUE      
+        print(
+					subplot(p_ref, p_track, shareX = TRUE)
+				)
+      })
+    })
+		
+		
+    settings_Cov$plotly_relayout = reactive({
+      req(settings_Cov$plot_ini == TRUE)
+      event_data("plotly_relayout")
+    })
+    observeEvent(settings_Cov$plotly_relayout(), {
+      plotly_relayout = settings_Cov$plotly_relayout()
+      message(names(plotly_relayout))
+      req(length(plotly_relayout) == 2)
+      req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(plotly_relayout)))
+
+      updateTextInput(session = session, inputId = "start_cov", 
+        value = max(1, round(plotly_relayout[["xaxis.range[0]"]])))
+      updateTextInput(session = session, inputId = "end_cov", 
+        value = round(plotly_relayout[["xaxis.range[1]"]]))
+    })
+    observeEvent(input$zoom_out_cov, {
+      req(input$zoom_out_cov)
+			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+
+			view_chr = input$chr_cov
+			view_start = suppressWarnings(as.numeric(input$start_cov))
+			view_end = suppressWarnings(as.numeric(input$end_cov))
+
+			req(view_chr)
+			req(view_start)
+			req(view_end)
+      req(view_end - view_start > 50)
+
+			seqInfo = settings_ViewRef$seqInfo[input$chr_cov]
+			seqmax = GenomeInfoDb::seqlengths(seqInfo)
+			# get center of current range
+			center = round((view_start + view_end) / 2)
+			span = view_end - view_start
+			# zoom range is 50 * 3^z
+			cur_zoom = floor(log(span/50) / log(3))
+      
+			new_span = round(span * 3)
+			if(new_span > seqmax - 1) new_span = seqmax - 1
+
+      new_zoom = floor(log(new_span/50) / log(3))
+      
+      new_start = max(1, center - round(new_span / 2))
+      updateTextInput(session = session, inputId = "start_cov", 
+        value = new_start)
+      updateTextInput(session = session, inputId = "end_cov", 
+        value = new_start + new_span)
+    })		
+    observeEvent(input$zoom_in_cov, {
+      req(input$zoom_in_cov)
+			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+
+			view_start = suppressWarnings(as.numeric(input$start_cov))
+			view_end = suppressWarnings(as.numeric(input$end_cov))
+
+			req(view_start)
+			req(view_end)
+      req(view_end - view_start > 50)
+
+			# get center of current range
+			center = round((view_start + view_end) / 2)
+			span = view_end - view_start
+			# zoom range is 50 * 3^z
+			cur_zoom = floor(log(span/50) / log(3))
+      
+			new_span = round(span / 3)
+			if(new_span < 50) new_span = 50
+
+      new_zoom = floor(log(new_span/50) / log(3))
+      
+      new_start = max(1, center - round(new_span / 2))
+      updateTextInput(session = session, inputId = "start_cov", 
+        value = new_start)
+      updateTextInput(session = session, inputId = "end_cov", 
+        value = new_start + new_span)
+    })
+		observeEvent(input$genes_cov, {
+      req(input$genes_cov)
+      req(input$genes_cov != "(none)")
+
+      gene_id_view = settings_Cov$gene_list$gene_list[gene_display_name == input$genes_cov]
+
+      # change settings on input based on this
+      updateSelectInput(session = session, inputId = "chr_cov", 
+        selected = gene_id_view$seqnames[1])
+      updateTextInput(session = session, inputId = "start_cov", 
+        value = gene_id_view$start[1])
+      updateTextInput(session = session, inputId = "end_cov", 
+        value = gene_id_view$end[1])
+    })		
+    observeEvent(input$chr_cov, {
+      req(input$chr_cov != "(none)")
+			seqInfo = settings_Cov$seqInfo[input$chr_cov]
+			seqmax = GenomeInfoDb::seqlengths(seqInfo)
+      
+			req(as.numeric(input$end_cov))
+      if(as.numeric(input$end_cov) > seqmax) {
+        updateTextInput(session = session, inputId = "end_cov", 
+          value = seqmax)      
+        req(as.numeric(input$start_cov))
+        if(seqmax - as.numeric(input$start_cov) < 50) {
+          updateTextInput(session = session, inputId = "end_cov", 
+            value = seqmax - 50)        
+        }
+      }
+    })
+   observeEvent(input$start_cov, {
+			req(as.numeric(input$start_cov))
+			req(as.numeric(input$end_cov))
+			req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
+
+			# adjust zoom
+			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
+			cur_zoom = floor(log(span/50) / log(3))
+			output$label_zoom_cov <- renderText({cur_zoom})
+    })
+    observeEvent(input$end_cov, {
+			req(as.numeric(input$start_cov))
+			req(as.numeric(input$end_cov))		
+			req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
+
+			# adjust zoom
+			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
+			cur_zoom = floor(log(span/50) / log(3))
+			output$label_zoom_cov <- renderText({cur_zoom})
+    })
 # End of server function		
   }
 
