@@ -311,10 +311,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			tabPanel("View", value = "navRef_View",
 				fluidRow(style='height:20vh',
 					column(4, 
-            verbatimTextOutput("warning_view_ref"),
-						selectizeInput('genes_view', 'Genes', choices = "(none)"),
-						selectInput('events_view', 'Events', multiple = TRUE,
-							c("(none)"))
+						div(style="display: inline-block;vertical-align:top; width: 240px;",
+              selectizeInput('genes_view', 'Genes', choices = "(none)")
+            ),
+						div(style="display: inline-block;vertical-align:top; width: 240px;",
+              selectizeInput('events_view', 'Events', choices = c("(none)"))
+            ),
+            textOutput("warning_view_ref")
           ),
 					column(8,
 						div(style="display: inline-block;vertical-align:top; width: 80px;",
@@ -322,11 +325,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						div(style="display: inline-block;vertical-align:top; width: 120px;",
 							textInput("start_view_ref", label = "Left", c(""))),
 						div(style="display: inline-block;vertical-align:top; width: 120px;",
-							textInput("end_view_ref", label = "Right", c(""))),						
-						div(style="display: inline-block;vertical-align:top; width: 250px;",
-							sliderInput("zoom_view_ref", label = "Zoom", value = 0, min = 0, max = 16)),
-						div(style="display: inline-block;vertical-align:top;",
-              shinyWidgets::materialSwitch("move_labels_view_ref", label = "Move transcript labels"))
+							textInput("end_view_ref", label = "Right", c(""))),            
+            br(),
+            shinyWidgets::actionBttn("zoom_out_view_ref", style = "material-circle", color = "danger",
+              icon = icon("minus")),
+						div(style="display: inline-block;vertical-align:center;width: 60px;padding:20px",
+							textOutput("label_zoom_view_ref")),
+            shinyWidgets::actionBttn("zoom_in_view_ref", style = "material-circle", color = "danger",
+              icon = icon("plus")),
+            div(style="display: inline-block;vertical-align:top;padding:10px;",
+              shinyWidgets::switchInput("move_labels_view_ref", label = "Movable labels", labelWidth = "100px")
+            )  
 					)
 				),
 				fluidRow(
@@ -1037,19 +1046,22 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 			dir_path = file.path(settings_loadref$loadref_path, "fst")
 
-      exons.DT = as.data.table(fst::read.fst(file.path(dir_path, "Exons.fst")))
+      exons.DT = as.data.table(fst::read.fst(file.path(dir_path, "Exons.fst"), 
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
       exons.DT = exons.DT[transcript_id != "protein_coding"]
 
-      protein.DT = as.data.table(fst::read.fst(file.path(dir_path, "Proteins.fst")))
-      misc.DT = as.data.table(fst::read.fst(file.path(dir_path, "Misc.fst")))
-      introns.DT = as.data.table(fst::read.fst(file.path(dir_path, "junctions.fst")))
-      introns.DT[, type := "intron"]
+      protein.DT = as.data.table(fst::read.fst(file.path(dir_path, "Proteins.fst"),
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+      misc.DT = as.data.table(fst::read.fst(file.path(dir_path, "Misc.fst"),
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+      # introns.DT = as.data.table(fst::read.fst(file.path(dir_path, "junctions.fst")))
+      # introns.DT[, type := "intron"]
       
       total.DT = rbindlist(list(
         exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
         protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-        misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-        introns.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
+        misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
+        # introns.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
       ))
       return(total.DT)
     }
@@ -1095,7 +1107,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       })
     })
 
-		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, movable_labels) {
+		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, 
+      movable_labels = FALSE, condensed = FALSE) {
       data_start = view_start - (view_end - view_start)
       data_end = view_end + (view_end - view_start)
 
@@ -1103,62 +1116,121 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       transcripts.DT = transcripts.DT[start <= data_end & end >= data_start]
       setorder(transcripts.DT, transcript_support_level, width)
 
-      req(nrow(transcripts.DT) <= 100)
-      message(paste(nrow(transcripts.DT), " transcripts"))
-
-
 			# filter transcripts by criteria if applicable
 
-			# now select stuff that belongs to these transcripts
-      screen.DT = elems[transcript_id %in% transcripts.DT$transcript_id]
-      screen.DT = screen.DT[start <= data_end & end >= data_start]
+      message(paste(nrow(transcripts.DT), " transcripts"))
 
-      # apply plot_order on transcripts.DT
+      screen.DT = elems[transcript_id %in% transcripts.DT$transcript_id]
+      # screen.DT = screen.DT[start <= data_end & end >= data_start]
+      if(condensed != TRUE & nrow(transcripts.DT) <= 100) {
+        condense_this = FALSE
+        transcripts.DT[, group_id := transcript_id]
+        screen.DT[, group_id := transcript_id]
+        reduced.DT = copy(screen.DT)
+        reduced.DT[type %in% c("CDS", "start_codon", "stop_codon"), type := "CDS"]
+        reduced.DT[type != "CDS", type := "exon"]
+      } else {
+        condense_this = TRUE
+        transcripts.DT[, group_id := gene_id]     
+        screen.DT[transcripts.DT, on = "transcript_id", group_id := gene_id]
+        # reduce screen.DT 
+        reduced.gr = GenomicRanges::disjoin(
+          GenomicRanges::makeGRangesFromDataFrame(
+            as.data.frame(screen.DT)
+          )
+        )
+        reduced.gr$type = "exon"
+        OL = GenomicRanges::findOverlaps(
+          reduced.gr,
+          GenomicRanges::makeGRangesFromDataFrame(
+            as.data.frame(screen.DT)
+          )
+        )
+        reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
+        OL = GenomicRanges::findOverlaps(
+          reduced.gr,
+          GenomicRanges::makeGRangesFromDataFrame(
+            as.data.frame(screen.DT[type %in% c("CDS", "start_codon", "stop_codon")])
+          )
+        )
+        reduced.gr$type[OL@from] = "CDS"
+        
+        reduced.DT = as.data.table(reduced.gr)
+      }
+
+      # add introns to reduced.DT
+      introns.DT = as.data.table(grlGaps(
+        GenomicRanges::split(GenomicRanges::makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
+          reduced.DT$group_id)
+      ))
+      introns.DT[, type := "intron"]
+      setnames(introns.DT, "group_name", "group_id")
       
+      reduced.DT = rbind(reduced.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")], 
+        introns.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")])
+      
+      group.grl = GenomicRanges::split(
+        GenomicRanges::makeGRangesFromDataFrame(
+          as.data.frame(transcripts.DT)
+        ), transcripts.DT$group_id
+      )
+      group.DT = as.data.table(range(group.grl))
+      group.DT$group = NULL
+      setnames(group.DT, "group_name", "group_id")
+      # apply plot_order on transcripts.DT
       OL = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
-        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(transcripts.DT)),
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(group.DT)),
+        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(group.DT)),
         ignore.strand = TRUE
       )
-      transcripts.DT$plot_level = 1      
+      group.DT$plot_level = 1      
       cur_level = 1    
-      while(any(transcripts.DT$plot_level == cur_level)) {
-        j = match(cur_level, transcripts.DT$plot_level)
+      while(any(group.DT$plot_level == cur_level)) {
+        j = match(cur_level, group.DT$plot_level)
         repeat {
           bump_up_trs = unique(OL@to[OL@from == j])
           bump_up_trs = bump_up_trs[bump_up_trs > j]
-          bump_up_trs = bump_up_trs[transcripts.DT$plot_level[bump_up_trs] == cur_level]
+          bump_up_trs = bump_up_trs[group.DT$plot_level[bump_up_trs] == cur_level]
           if(length(bump_up_trs) > 0) {
-            transcripts.DT[bump_up_trs, plot_level := cur_level + 1]
+            group.DT[bump_up_trs, plot_level := cur_level + 1]
           }
-          j = j + match(cur_level, transcripts.DT$plot_level[-seq_len(j)])
+          j = j + match(cur_level, group.DT$plot_level[-seq_len(j)])
           if(is.na(j)) break
         }
         cur_level = cur_level + 1
       }
       
-      transcripts.DT[strand == "+", display_name := paste(transcript_name, "-", transcript_biotype, " ->>")]
-      transcripts.DT[strand == "-", display_name := paste("<-- ", transcript_name, "-", transcript_biotype)]
-      transcripts.DT[, disp_x := 0.5 * (start + end)]
-      transcripts.DT[start < view_start & end > view_start, disp_x := 0.5 * (view_start + end)]
-      transcripts.DT[end > view_end & start < view_end, disp_x := 0.5 * (start + view_end)]
-      transcripts.DT[start < view_start & end > view_end, disp_x := 0.5 * (view_start + view_end)]
-      transcripts.DT = transcripts.DT[end > view_start & start < view_end]
-		
-      screen.DT$transcript_id = factor(screen.DT$transcript_id, unique(transcripts.DT$transcript_id), ordered = TRUE)
-      screen.DT[transcripts.DT, on = "transcript_id", 
-        c("transcript_name", "transcript_biotype", "transcript_support_level", "display_name", "plot_level") := 
-        list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
-      
-      p = ggplot(screen.DT, aes(text = display_name))
+      if(condense_this == TRUE) {
+        group.DT[transcripts.DT, on = "group_id", c("group_name", "group_biotype") :=
+          list(i.gene_name, i.gene_biotype)]
+      } else {
+        group.DT[transcripts.DT, on = "group_id", c("group_name", "group_biotype") :=
+          list(i.transcript_name, i.transcript_biotype)]      
+      }
 
-      if(nrow(subset(as.data.frame(screen.DT), type = "intron")) > 0) {
-        p = p + geom_segment(data = subset(as.data.frame(screen.DT), type = "intron"), 
+      group.DT = group.DT[end > view_start & start < view_end]
+      group.DT[strand == "+", display_name := paste(group_name, "-", group_biotype, " ->>")]
+      group.DT[strand == "-", display_name := paste("<-- ", group_name, "-", group_biotype)]
+      group.DT[, disp_x := 0.5 * (start + end)]
+      group.DT[start < view_start & end > view_start, disp_x := 0.5 * (view_start + end)]
+      group.DT[end > view_end & start < view_end, disp_x := 0.5 * (start + view_end)]
+      group.DT[start < view_start & end > view_end, disp_x := 0.5 * (view_start + view_end)]
+		
+      reduced.DT$group_id = factor(reduced.DT$group_id, unique(group.DT$group_id), ordered = TRUE)
+      reduced.DT[group.DT, on = "group_id", 
+        plot_level := i.plot_level]
+        # c("transcript_name", "transcript_biotype", "transcript_support_level", "display_name", "plot_level") := 
+        # list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
+      
+      p = ggplot(reduced.DT)
+
+      if(nrow(subset(as.data.frame(reduced.DT), type = "intron")) > 0) {
+        p = p + geom_segment(data = subset(as.data.frame(reduced.DT), type = "intron"), 
           aes(x = start, xend = end, y = plot_level, yend = plot_level))
       }
-      if(nrow(subset(as.data.frame(screen.DT), type != "intron")) > 0) {
+      if(nrow(subset(as.data.frame(reduced.DT), type != "intron")) > 0) {
         p = p + 
-          geom_rect(data = subset(as.data.frame(screen.DT), type != "intron"), 
+          geom_rect(data = subset(as.data.frame(reduced.DT), type != "intron"), 
             aes(xmin = start, xmax = end, 
               ymin = plot_level - 0.1 - ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
               ymax = plot_level + 0.1 + ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)
@@ -1166,17 +1238,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           )
       }
       
-      anno = list(
-        x = transcripts.DT$disp_x,
-        y = transcripts.DT$plot_level - 0.4,
-        text = transcripts.DT$display_name,
-        xref = "x", yref = "y", showarrow = FALSE)
-        
+      if(condense_this == TRUE) {
+        anno = list(
+          x = group.DT$disp_x,
+          y = group.DT$plot_level - 0.5 + 0.3 * runif(rep(1, nrow(group.DT))),
+          text = group.DT$display_name,
+          xref = "x", yref = "y", showarrow = FALSE)
+      } else {
+        anno = list(
+          x = group.DT$disp_x,
+          y = group.DT$plot_level - 0.4,
+          text = group.DT$display_name,
+          xref = "x", yref = "y", showarrow = FALSE)      
+      }
+      
       pl = ggplotly(p, tooltip = "text") %>% layout(
         annotations = anno,
         dragmode = "pan",
         xaxis = list(range = c(view_start, view_end)),
-        yaxis = list(fixedrange = TRUE)
+        yaxis = list(range = c(0, 1 + max(group.DT$plot_level)), fixedrange = TRUE)
       )
       if(movable_labels == TRUE) {
         pl = pl %>% plotly::config(editable = TRUE)
@@ -1189,10 +1269,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       event_data("plotly_relayout")
     })
 
-		observeEvent(input$zoom_view_ref, {
+    observeEvent(input$zoom_out_view_ref, {
+      req(input$zoom_out_view_ref)
 			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 
-			# get range of current chromosome
 			view_chr = input$chr_view_ref
 			view_start = suppressWarnings(as.numeric(input$start_view_ref))
 			view_end = suppressWarnings(as.numeric(input$end_view_ref))
@@ -1200,8 +1280,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(view_chr)
 			req(view_start)
 			req(view_end)
-			req(view_chr != settings_ViewRef$view_chr | view_start != settings_ViewRef$view_start | 
-				view_end != settings_ViewRef$view_end)
+      req(view_end - view_start > 50)
 
 			seqInfo = settings_ViewRef$seqInfo[input$chr_view_ref]
 			seqmax = GenomeInfoDb::seqlengths(seqInfo)
@@ -1210,21 +1289,48 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			span = view_end - view_start
 			# zoom range is 50 * 3^z
 			cur_zoom = floor(log(span/50) / log(3))
-			zoom_factor = input$zoom_view_ref - cur_zoom
-			new_span = round(span * (3 ^ zoom_factor))
+      
+			new_span = round(span * 3)
 			if(new_span > seqmax - 1) new_span = seqmax - 1
-			
-			zoom_factor = input$zoom_view_ref - floor(log(new_span/50) / log(3))
-			updateSliderInput(session = session, inputId = "zoom_view_ref", 
-				value = floor(log(new_span/50) / log(3)))
 
-			# Only adjust zoom if current zoom is incorrect
-			if(zoom_factor != 0) {
-				input$start_view_ref = max(1, center - round(new_span / 2))
-				input$end_view_ref = input$start_view_ref + new_span
-			}
+      new_zoom = floor(log(new_span/50) / log(3))
+      
+      new_start = max(1, center - round(new_span / 2))
+      updateTextInput(session = session, inputId = "start_view_ref", 
+        value = new_start)
+      updateTextInput(session = session, inputId = "end_view_ref", 
+        value = new_start + new_span)
+    })
 
-		})
+    observeEvent(input$zoom_in_view_ref, {
+      req(input$zoom_in_view_ref)
+			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+
+			view_start = suppressWarnings(as.numeric(input$start_view_ref))
+			view_end = suppressWarnings(as.numeric(input$end_view_ref))
+
+			req(view_start)
+			req(view_end)
+      req(view_end - view_start > 50)
+
+			# get center of current range
+			center = round((view_start + view_end) / 2)
+			span = view_end - view_start
+			# zoom range is 50 * 3^z
+			cur_zoom = floor(log(span/50) / log(3))
+      
+			new_span = round(span / 3)
+			if(new_span < 50) new_span = 50
+
+      new_zoom = floor(log(new_span/50) / log(3))
+      
+      new_start = max(1, center - round(new_span / 2))
+      updateTextInput(session = session, inputId = "start_view_ref", 
+        value = new_start)
+      updateTextInput(session = session, inputId = "end_view_ref", 
+        value = new_start + new_span)
+    })
+
 
     observeEvent(settings_ViewRef$plotly_relayout(), {
       plotly_relayout = settings_ViewRef$plotly_relayout()
@@ -1238,7 +1344,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         value = round(plotly_relayout[["xaxis.range[1]"]]))
         
     })
-
 
 		observeEvent(input$genes_view, {
       req(input$genes_view)
@@ -1275,31 +1380,22 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$start_view_ref, {
 			req(as.numeric(input$start_view_ref))
 			req(as.numeric(input$end_view_ref))
-			# adjust end if end < start
-			if(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) < 50) {
-				input$end_view_ref = as.numeric(input$start_view_ref) + 50
-			}
+			req(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) > 50)
+
 			# adjust zoom
 			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
 			cur_zoom = floor(log(span/50) / log(3))
-			updateTextInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
-			
-      # settings_ViewRef$refresh_view = TRUE
+			output$label_zoom_view_ref <- renderText({cur_zoom})
     })
     observeEvent(input$end_view_ref, {
 			req(as.numeric(input$start_view_ref))
 			req(as.numeric(input$end_view_ref))		
-			
-			# adjust end if end < start
-			if(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) < 50) {
-				input$end_view_ref = as.numeric(input$start_view_ref) + 50
-			}
+			req(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) > 50)
+
 			# adjust zoom
 			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
 			cur_zoom = floor(log(span/50) / log(3))
-			updateTextInput(session = session, inputId = "zoom_view_ref", value = cur_zoom)
-			
-      # settings_ViewRef$refresh_view = TRUE
+			output$label_zoom_view_ref <- renderText({cur_zoom})
     })
     
 # Design Experiment page
