@@ -1,7 +1,7 @@
-FetchAH <- function(ah_record, localHub = FALSE) {
+FetchAH <- function(ah_record, localHub = FALSE, ah = AnnotationHub::AnnotationHub(localHub = localHub)) {
   # NxtIRF implementation of fetching AnnotationHub resource
   # Avoids hanging during tidyGRanges which is not necessary for use
-  ah = AnnotationHub::AnnotationHub(localHub = localHub)
+  # ah = AnnotationHub::AnnotationHub(localHub = localHub)
 
   assertthat::assert_that(substr(ah_record, 1, 2) == "AH",
     msg = paste(ah_record, "does not appear to be a valid AnnotationHub record name"))

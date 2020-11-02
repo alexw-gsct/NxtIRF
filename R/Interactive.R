@@ -339,8 +339,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
 				),
 				fluidRow(
-						plotlyOutput("plot_view_ref", height = "800px"),
-            textOutput("plotly_event")
+					plotlyOutput("plot_view_ref", height = "800px"),
 				)
       )
 		),
@@ -513,9 +512,55 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         )
       ),
 			tabPanel("Heatmaps"),
-			tabPanel("Coverage Plots")
 			
-
+			tabPanel("RNA-seq Coverage", value = "navCoverage",
+				fluidRow(style='height:20vh',
+					column(4, 
+						div(style="display: inline-block;vertical-align:top; width: 240px;",
+              selectizeInput('genes_cov', 'Genes', choices = "(none)")
+            ),
+						div(style="display: inline-block;vertical-align:top; width: 240px;",
+              selectizeInput('events_cov', 'Events', choices = c("(none)"))
+            ),
+            textOutput("warning_cov")
+          ),
+					column(8,
+						div(style="display: inline-block;vertical-align:top; width: 80px;",
+							selectInput("chr_cov", label = "Chr", c("(none)"), selected = "(none)")),
+						div(style="display: inline-block;vertical-align:top; width: 120px;",
+							textInput("start_cov", label = "Left", c(""))),
+						div(style="display: inline-block;vertical-align:top; width: 120px;",
+							textInput("end_cov", label = "Right", c(""))),            
+            br(),
+            shinyWidgets::actionBttn("zoom_out_cov", style = "material-circle", color = "danger",
+              icon = icon("minus")),
+						div(style="display: inline-block;vertical-align:center;width: 60px;padding:20px",
+							textOutput("label_zoom_cov")),
+            shinyWidgets::actionBttn("zoom_in_cov", style = "material-circle", color = "danger",
+              icon = icon("plus")),
+            div(style="display: inline-block;vertical-align:top;padding:10px;",
+              shinyWidgets::switchInput("move_labels_cov", label = "Movable labels", labelWidth = "100px")
+            )
+					)
+				),
+				fluidRow(
+					column(2, 
+						selectInput('mode_cov', 'View', width = '100%',
+							choices = c("Individual", "By Condition")),					
+						selectInput('track1_cov', 'View', width = '100%',
+							choices = c("(none)")),
+						selectInput('track2_cov', 'View', width = '100%',
+							choices = c("(none)")),
+						selectInput('track3_cov', 'View', width = '100%',
+							choices = c("(none)")),
+						selectInput('track4_cov', 'View', width = '100%',
+							choices = c("(none)"))
+					),
+					column(10, 
+						plotlyOutput("plot_view_ref", height = "800px"),
+					)
+				)
+      )
 		) # last navbar
 
 	)
@@ -572,7 +617,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				# seqinfo
 				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
 				if(settings$ah_genome != "") {
-					genome = FetchAH(settings$ah_genome, localHub = offline)
+					genome = FetchAH(settings$ah_genome, ah)
 				} else {
 					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
 				}
@@ -1108,8 +1153,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
 
 		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, 
-      movable_labels = FALSE, condensed = FALSE) {
-      data_start = view_start - (view_end - view_start)
+				movable_labels = FALSE, condensed = FALSE) {
+      
+			data_start = view_start - (view_end - view_start)
       data_end = view_end + (view_end - view_start)
 
       transcripts.DT = transcripts[seqnames == view_chr]
