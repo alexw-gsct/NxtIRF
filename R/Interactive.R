@@ -540,10 +540,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				fluidRow(style='height:20vh',
 					column(6, 
             textOutput("warning_cov"),
-						div(style="display: inline-block;vertical-align:top; width: 300px;",
+						div(style="display: inline-block;vertical-align:top; width: 250px;",
               selectizeInput('genes_cov', 'Genes', choices = "(none)")
             ),
-						div(style="display: inline-block;vertical-align:top; width: 450px;",
+						div(style="display: inline-block;vertical-align:top; width: 350px;",
               selectizeInput('events_cov', 'Events', choices = c("(none)"))
             ),
             shinyWidgets::radioGroupButtons("select_events_cov", 
@@ -595,7 +595,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("(none)")),
 						selectInput('track4_cov', 'Track 4', width = '100%',
 							choices = c("(none)")),
-            shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "150px")
+            shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "150px"),
+            shinyWidgets::switchInput("pairwise_t_cov", label = "Pairwise t-test", labelWidth = "150px")
 					),
 					column(10, 
 						plotlyOutput("plot_cov", height = "800px"),
@@ -831,7 +832,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           names(settings_Cov$avail_cov) = DT.files$sample
 					if(input$mode_cov == "By Condition") {
 						colData = SummarizedExperiment::colData(settings_SE$se)
-						colData = colData[rownames(colData) %in% DT.files$sample]
+						colData = colData[rownames(colData) %in% DT.files$sample,]
 						conditions_avail = colnames(colData)
 						updateSelectInput(session = session, inputId = "condition_cov", 
 							choices = c("(none)", conditions_avail), selected = "(none)")
@@ -2742,10 +2743,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       na.exclude = (rowSums(!is.na(mat)) == 0)
       if(any(na.exclude == TRUE)) {
         output$warning_heat <- renderText({
-          paste(
-            "The following events have been excluded due to all NA values:", 
+            cat("The following events have been excluded due to all NA values:")
             paste(rownames(mat)[which(na.exclude)])
-          )
         })
         mat = mat[-which(na.exclude),]
       }
@@ -2862,6 +2861,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       cur_zoom = floor(log((view_end - view_start)/50) / log(3))
 
       data.list = list()
+      data.t_test = NULL
+      fac = NULL
+      
       if(is_valid(input$condition_cov) & is_valid(cur_event)) {
         for(i in 1:4) {
           track_samples = get_track_selection(i)
@@ -2880,6 +2882,17 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             for(todo in seq_len(length(samples))) {
               df[, samples[todo]] = df[, samples[todo]] / event_norms[todo]
             }
+            
+            if(input$pairwise_t_cov == TRUE) {
+              if(is.null(data.t_test)) {
+                data.t_test <- as.matrix(df)
+                fac = rep(as.character(i), ncol(df) - 1)
+              } else {
+                data.t_test <- cbind(data.t_test, as.matrix(df[, -1]))
+                fac = c(fac, rep(as.character(i), ncol(df) - 1))
+              }
+            }
+            
             df$mean = rowMeans(as.matrix(df[,samples]))
             df$sd = matrixStats::rowSds(as.matrix(df[,samples]))
             n = length(samples)
@@ -2896,13 +2909,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             p_track[[1]] = ggplotly(
               ggplot(df, aes(x = x)) + 
                 geom_ribbon(alpha = 0.2, aes(y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
-                geom_line(aes(y = mean, colour = track)),
+                geom_line(aes(y = mean, colour = track)) +
+                labs(y = "Stacked Tracks Normalized Coverage"),
                 tooltip = c("x", "y", "ymin", "ymax", "colour")
             )
             p_track[[1]] = p_track[[1]] %>% layout(
               dragmode = "zoom",
-              yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
-            ) 
+              yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
+            )
           }
         } else {
           for(i in 1:4) {
@@ -2910,11 +2924,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
               p_track[[i]] = ggplotly(
                 ggplot(df, aes(x = x)) + 
                   geom_ribbon(alpha = 0.2, colour = NA, aes(y = mean, ymin = mean - ci, ymax = mean + ci)) +
-                  geom_line(aes(y = mean)),
+                  geom_line(aes(y = mean)) +
+                  labs(y = paste("Track", i, "Normalized Coverage")),
                 tooltip = c("x", "y", "ymin", "ymax")
               )						
               p_track[[i]] = p_track[[i]] %>% layout(
-                yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
+                yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
               )
             }
           }
@@ -2926,20 +2941,38 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             df = GetCoverage_DF(track_samples, settings_Cov$avail_cov[track_samples],
               view_chr, view_start, view_end, settings_Cov$view_strand)
             df = bin_df(df, max(1, 3^(cur_zoom - 5)))
+            data.list[[i]] <- as.data.table(df)
 
             p_track[[i]] = ggplotly(
-              ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line(),
+              ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line() +
+                  labs(y = paste(track_samples, " Coverage")),
                 tooltip = c("x", "y")
             )
             p_track[[i]] = p_track[[i]] %>% layout(
-              yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
+              yaxis = list(range = c(0, 1 + max(unlist(df[,track_samples]))), fixedrange = TRUE)
             )
           }
         }
       }
-      
+            
+      if(input$pairwise_t_cov == TRUE && !is.null(fac) && length(unique(fac)) == 2) {
+        fac = factor(fac)
+        t_test = genefilter::rowttests(data.t_test[, -1], fac)
+        DT = data.table(x = data.t_test[, 1])
+        DT[, t_stat := -log10(t_test$p.value)]
+        
+        p_track[[5]] = ggplotly(
+          ggplot(as.data.frame(DT), aes_string(x = "x", y = "t_stat")) + geom_line() +
+              labs(y = paste("Pairwise T-test -log10(p)")),
+            tooltip = c("x", "y")
+        )
+        p_track[[5]] = p_track[[5]] %>% layout(
+          yaxis = list(c(0, 1 + max(DT$t_stat)), fixedrange = TRUE)
+        )        
+      }
       
       plot_tracks = p_track[unlist(lapply(p_track, function(x) !is.null(x)))]
+
       plot_tracks[[length(plot_tracks) + 1]] = p_ref
 
       final_plot = subplot(plot_tracks, nrows = length(plot_tracks), shareX = TRUE)
