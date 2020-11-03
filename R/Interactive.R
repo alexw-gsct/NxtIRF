@@ -459,7 +459,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						shinySaveButton("save_DE", "Save DE", "Save DE as...", 
 							filetype = list(RDS = "Rds")),
 					),
-					column(8,	
+					column(8,
+					actionButton("clear_selected_DE", "Clear Selected Events")
             DT::dataTableOutput("DT_DE")
           )
         )
@@ -490,6 +491,25 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
         )
       ),
+			tabPanel("Volcano Plots",  value = "navVolcano",
+				fluidRow(
+					column(3,	
+						shinyWidgets::sliderTextInput(inputId = "number_events_volc", label = "Number of Top Events",
+							choices = c(100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000), 
+							selected = 10000),
+						selectInput("EventType_volc", "Splice Type", width = '100%', multiple = TRUE,
+							choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
+            shinyWidgets::switchInput("facet_volc", label = "Facet by Type", labelWidth = "150px"),
+						actionButton("clear_volc", "Clear settings"),
+						textOutput("warning_volc")
+					),
+					column(9,
+						plotlyOutput("plot_volc", height = "800px")
+					)
+        )
+      ),
+
+
 			tabPanel("Heatmaps"),
 			
 			tabPanel("RNA-seq Coverage", value = "navCoverage",
@@ -550,7 +570,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							choices = c("(none)")),
 						selectInput('track4_cov', 'Track 4', width = '100%',
 							choices = c("(none)")),
-            shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "100px")
+            shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "150px")
 					),
 					column(10, 
 						plotlyOutput("plot_cov", height = "800px"),
@@ -2431,10 +2451,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2			
     })
 		
+		observeEvent(input$clear_selected_DE, {
+			req(settings_DE$res)
+			req(input$DT_DE_rows_selected)
+			DT::dataTableProxy("DT_DE") %>% DT::selectRows(NULL)
+		})
 	# Diagonal Plots
 	
     settings_Diag = reactiveValues(
-      plot_ini = FALSE
+      plot_ini = FALSE,
+			plotly_click = NULL
     )
     
 		output$plot_diag <- renderPlotly({
@@ -2451,7 +2477,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       selected = input$DT_DE_rows_selected      
       
 			num_events = input$number_events_diag
-			res = as.data.table(settings_DE$res)
+			res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
 			if(is_valid(input$EventType_diag)) {
 				res = res[EventType %in% input$EventType_diag]
 			}
@@ -2474,6 +2500,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             geom_point() + scale_color_manual(values = c("black", "red")),
 					tooltip = "text",
           source = "plotly_diagonal"
+				) %>% layout(
+					yaxis = list(scaleanchor="x", scaleratio=1)
 				)
 			)
 		})
@@ -2538,6 +2566,88 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			updateSelectInput(session = session, inputId = "denom_diag", 
 				 choices = c("(none)"), selected = "(none)")			
 		})
+
+# Volcano Plots
+    settings_Volc = reactiveValues(
+      plot_ini = FALSE,
+			plotly_click = NULL
+    )
+
+    settings_Volc$plotly_click = reactive({
+      plot_exist = settings_Volc$plot_ini
+      if(plot_exist == TRUE) {
+        event_data("plotly_click", source = "plotly_volcano")
+      }
+    })
+  
+    observeEvent(settings_Diag$plotly_click(), {
+      req(settings_Volc$plotly_click())
+      click = settings_Volc$plotly_click()
+      print(click)
+      click.id = which(settings_DE$res$EventName == click$key)
+      req(click.id)
+      
+      selected = input$DT_DE_rows_selected
+      
+      if(click.id %in% selected) {
+        selected = selected[-which(selected == click.id)]
+      } else {
+        selected = c(selected, click.id)
+      }
+      
+      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+    })
+		
+		output$plot_volc <- renderPlotly({
+      # settings_Diag$plot_ini = FALSE
+			validate(need(settings_SE$se, "Load Experiment first"))
+			validate(need(settings_DE$res, "Load DE Analysis first"))
+			
+      selected = input$DT_DE_rows_selected      
+      
+			num_events = input$number_events_volc
+			res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
+			if(is_valid(input$EventType_diag)) {
+				res = res[EventType %in% input$EventType_volc]
+			}
+			if(num_events < nrow(res)) {
+				res = res[seq_len(num_events)]
+			}
+			if(input$method_DE == "DESeq2") {
+				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+					log2FoldChange = log2FoldChange, pvalue = pvalue, padj = padj))
+			} else {
+				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+					log2FoldChange = logFC, pvalue = P.Value, padj = adj.P.Val))	
+			}
+			
+      if(is_valid(input$DT_DE_rows_selected)) {
+        df.volc$selected = (df.volc$EventName %in% settings_DE$res$EventName[selected])
+      } else {
+        df.volc$selected = FALSE
+      }
+      settings_Volc$plot_ini = TRUE
+			
+			p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj), 
+						key = EventName, text = EventName, colour = selected)) + 
+            geom_point() + scale_color_manual(values = c("black", "red"))
+			if(input$facet_volc == TRUE) {
+				p = p + facet_wrap(vars(EventType))
+			}
+			print(
+				ggplotly(p,
+					tooltip = "text",
+          source = "plotly_volcano"
+				)
+			)
+		})
+		
+		observeEvent(input$clear_volc, {
+			updateSelectInput(session = session, "EventType_volc", selected = NULL)
+			updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
+		
+		})
+
 		
 		# RNA-seq Coverage Plots
     settings_Cov <- shiny::reactiveValues(
