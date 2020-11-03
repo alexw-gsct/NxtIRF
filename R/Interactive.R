@@ -517,19 +517,23 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
               label = "Select Events from Differential Expression Results", justified = FALSE,
               choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
               checkIcon = list(yes = icon("ok", lib = "glyphicon"))
-						)
+						),
             shinyWidgets::sliderTextInput("slider_num_events_heat", 
-              "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25)
+              "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25),
             shinyWidgets::radioGroupButtons("mode_heat", 
               label = "Mode", justified = FALSE,
-              choices = c("PSI", "Logit", "Isoform Ratio"), 
+              choices = c("PSI", "Logit", "Z-score"), 
               checkIcon = list(yes = icon("ok", lib = "glyphicon"))
-						)
-
+						),
+						selectInput('color_heat', 'Palette', 
+							c("RdBu", "BrBG", "PiYG", "PRGn", "PuOr", "RdGy", "RdYlBu", "RdYlGn", "Spectral")
+            )            
 					),
 					column(9, 
+            textOutput("warning_heat"),
 						plotlyOutput("plot_heat", height = "800px"),
 					)
+        )
 			),
 			
 			tabPanel("RNA-seq Coverage", value = "navCoverage",
@@ -2713,7 +2717,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				selected = seq_len(min(input$slider_num_events_heat, nrow(settings_DE$res)))
 			}
 
-			colData = SummarizedExperiment::colData(settings_SE$se)
+      validate(need(length(selected) > 0, "Select some Events first"))
+      
+			colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
       
 			if(input$mode_heat == "PSI") {
 				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
@@ -2723,12 +2729,33 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					rownames(colData), "logit")			
 			} else {
 				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
-					rownames(colData), "Isoform_Ratio")
+					rownames(colData), "Z-score")
 			}
 			
+      validate(need(nrow(mat) > 0 & ncol(mat) > 0, "No data after filtering results"))
+      
+      colors.df = RColorBrewer::brewer.pal.info
+      color.index = which(rownames(colors.df) == input$color_heat)
+      color = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = colors.df$maxcolors[color.index],
+        name = rownames(colors.df)[color.index])))
+        
+      na.exclude = (rowSums(!is.na(mat)) == 0)
+      if(any(na.exclude == TRUE)) {
+        output$warning_heat <- renderText({
+          paste(
+            "The following events have been excluded due to all NA values:", 
+            paste(rownames(mat)[which(na.exclude)])
+          )
+        })
+        mat = mat[-which(na.exclude),]
+      }
 			print(
-				heatmaply::heatmaply(mat)
-			)
+        # ggplotly(ggplotify::ggplotify(
+          # pheatmap::pheatmap(mat, annotation_col = colData, color = color)
+        # ))
+
+  			heatmaply::heatmaply(mat, color = color, col_side_colors = colData)        
+  		)
 		})
 
 
@@ -3196,9 +3223,11 @@ make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 1
 		mat[mat > logit_max] = logit_max
 		mat[mat < -logit_max] = -logit_max
 		return(mat)
-	} else if(method == "Isoform_Ratio") {
-		mat = inc/exc
+	} else if(method == "Z-score") {
+		mat = inc/(inc + exc)
 		mat[inc + exc < depth_threshold] = NA
+    mat = mat - rowMeans(mat)
+    mat = mat / matrixStats::rowSds(mat)
 		return(mat)
 	}
 	
