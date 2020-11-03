@@ -510,7 +510,27 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       ),
 
 
-			tabPanel("Heatmaps"),
+			tabPanel("Heatmaps", value = "navHeatmap",
+				fluidRow(
+					column(3, 
+            shinyWidgets::radioGroupButtons("select_events_heat", 
+              label = "Select Events from Differential Expression Results", justified = FALSE,
+              choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
+              checkIcon = list(yes = icon("ok", lib = "glyphicon"))
+						)
+            shinyWidgets::sliderTextInput("slider_num_events_heat", 
+              "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25)
+            shinyWidgets::radioGroupButtons("mode_heat", 
+              label = "Mode", justified = FALSE,
+              choices = c("PSI", "Logit", "Isoform Ratio"), 
+              checkIcon = list(yes = icon("ok", lib = "glyphicon"))
+						)
+
+					),
+					column(9, 
+						plotlyOutput("plot_heat", height = "800px"),
+					)
+			),
 			
 			tabPanel("RNA-seq Coverage", value = "navCoverage",
 				fluidRow(style='height:20vh',
@@ -525,7 +545,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             shinyWidgets::radioGroupButtons("select_events_cov", 
               label = "Select Events from Differential Expression Results", justified = FALSE,
               choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
-              checkIcon = list(yes = icon("ok", lib = "glyphicon")))
+              checkIcon = list(yes = icon("ok", lib = "glyphicon"))
+						)
           ),
 					column(3,
 						div(style="display: inline-block;vertical-align:top; width: 80px;",
@@ -2673,6 +2694,43 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			shinyWidgets::updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
 		
 		})
+		
+		# Heatmaps
+		
+		output$plot_heat <- renderPlotly({
+      # settings_Diag$plot_ini = FALSE
+			validate(need(settings_SE$se, "Load Experiment first"))
+			validate(need(settings_DE$res, "Load DE Analysis first"))
+			
+			if(input$select_events_heat == "Highlighted") {
+				selected = input$DT_DE_rows_selected
+			} else if(input$select_events_heat == "Top N Filtered Results") {
+				selected = input$DT_DE_rows_all
+				if(length(selected) > input$slider_num_events_heat) {
+					selected = selected[seq_len(input$slider_num_events_heat)]
+				}
+			} else {
+				selected = seq_len(min(input$slider_num_events_heat, nrow(settings_DE$res)))
+			}
+
+			colData = SummarizedExperiment::colData(settings_SE$se)
+      
+			if(input$mode_heat == "PSI") {
+				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+					rownames(colData), "PSI")
+			} else if(input$mode_heat == "Logit") {
+				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+					rownames(colData), "logit")			
+			} else {
+				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+					rownames(colData), "Isoform_Ratio")
+			}
+			
+			print(
+				heatmaply::heatmaply(mat)
+			)
+		})
+
 
 		
 		# RNA-seq Coverage Plots
@@ -3138,6 +3196,10 @@ make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 1
 		mat[mat > logit_max] = logit_max
 		mat[mat < -logit_max] = -logit_max
 		return(mat)
+	} else if(method == "Isoform_Ratio") {
+		mat = inc/exc
+		mat[inc + exc < depth_threshold] = NA
+		return(mat)
 	}
 	
 }
@@ -3211,28 +3273,6 @@ GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
   colnames(df) = samples
   x = start:end
   df = cbind(x, df)
-  return(df)
-}
-
-GetCoverage_from_SE <- function(files, se, EventName, zoom_factor = 1) {
-  rowData = as.data.table(SummarizedExperiment::rowData(se))
-  region = rowData$EventRegion[match(EventName, rowData$EventName)]
-  seqname = tstrsplit(region, split=":")[[1]]
-  temp = tstrsplit(region, split=":")[[2]]
-  start = as.numeric(tstrsplit( temp , split="-")[[1]])
-  strand = tstrsplit( temp , split="/")[[2]]
-  temp2 = tstrsplit( temp , split="-")[[2]]
-  end = as.numeric(tstrsplit( temp2 , split= "/")[[1]])
-  
-  # zoom out:
-  center = round((end + start) / 2)
-  span = end - start
-  new_start = center - round(0.5 * span * 3^zoom_factor)
-  new_end = new_start + span * 3^zoom_factor
-  
-  # TODO: check that zoomed out area is within range
-  
-  df = GetCoverage_DF(colnames(se), files, seqname, new_start, new_end, strand)
   return(df)
 }
 
