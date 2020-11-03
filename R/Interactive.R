@@ -460,7 +460,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							filetype = list(RDS = "Rds")),
 					),
 					column(8,
-					actionButton("clear_selected_DE", "Clear Selected Events")
+            actionButton("clear_selected_DE", "Clear Selected Events"),
             DT::dataTableOutput("DT_DE")
           )
         )
@@ -519,7 +519,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						div(style="display: inline-block;vertical-align:top; width: 300px;",
               selectizeInput('genes_cov', 'Genes', choices = "(none)")
             ),
-						div(style="display: inline-block;vertical-align:top; width: 360px;",
+						div(style="display: inline-block;vertical-align:top; width: 450px;",
               selectizeInput('events_cov', 'Events', choices = c("(none)"))
             ),
             shinyWidgets::radioGroupButtons("select_events_cov", 
@@ -1414,11 +1414,16 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           xref = "x", yref = "y", showarrow = FALSE)      
       }
       
+      if(nrow(group.DT) == 0) {
+        max_plot_level = 1
+      } else {
+        max_plot_level = max(group.DT$plot_level)
+      }
       pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% layout(
         annotations = anno,
         dragmode = "pan",
         xaxis = list(range = c(view_start, view_end)),
-        yaxis = list(range = c(0, 1 + max(group.DT$plot_level)), fixedrange = TRUE)
+        yaxis = list(range = c(0, 1 + max_plot_level), fixedrange = TRUE)
       )
       # if(movable_labels == TRUE) {
         # pl = pl %>% plotly::config(editable = TRUE)
@@ -2552,7 +2557,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 		observeEvent(input$clear_diag, {
 			updateSelectInput(session = session, "EventType_diag", selected = NULL)
-			updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
+			shinyWidgets::updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
 			if(is_valid(settings_SE$se)) {
 				colData = SummarizedExperiment::colData(settings_SE$se)
         updateSelectInput(session = session, inputId = "variable_diag", 
@@ -2580,7 +2585,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
     })
   
-    observeEvent(settings_Diag$plotly_click(), {
+    observeEvent(settings_Volc$plotly_click(), {
       req(settings_Volc$plotly_click())
       click = settings_Volc$plotly_click()
       print(click)
@@ -2597,17 +2602,38 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       
       DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
     })
+
+    settings_Volc$plotly_brush = reactive({
+      plot_exist = settings_Volc$plot_ini
+      if(plot_exist == TRUE) {
+        event_data("plotly_selected", source = "plotly_volcano")
+      }
+    })
+  
+    observeEvent(settings_Volc$plotly_brush(), {
+      req(settings_Volc$plotly_brush())
+      brush = settings_Volc$plotly_brush()
+      print(brush)
+      brush.id = which(settings_DE$res$EventName %in% brush$key)
+      req(brush.id)
+      
+      selected = input$DT_DE_rows_selected
+      selected = unique(c(selected, brush.id))
+      
+      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+   })
+
 		
 		output$plot_volc <- renderPlotly({
       # settings_Diag$plot_ini = FALSE
 			validate(need(settings_SE$se, "Load Experiment first"))
 			validate(need(settings_DE$res, "Load DE Analysis first"))
 			
-      selected = input$DT_DE_rows_selected      
+      selected = input$DT_DE_rows_selected  
       
 			num_events = input$number_events_volc
 			res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
-			if(is_valid(input$EventType_diag)) {
+			if(is_valid(input$EventType_volc)) {
 				res = res[EventType %in% input$EventType_volc]
 			}
 			if(num_events < nrow(res)) {
@@ -2621,7 +2647,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					log2FoldChange = logFC, pvalue = P.Value, padj = adj.P.Val))	
 			}
 			
-      if(is_valid(input$DT_DE_rows_selected)) {
+      if(is_valid(selected)) {
         df.volc$selected = (df.volc$EventName %in% settings_DE$res$EventName[selected])
       } else {
         df.volc$selected = FALSE
@@ -2638,13 +2664,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				ggplotly(p,
 					tooltip = "text",
           source = "plotly_volcano"
-				)
+				) %>% layout(dragmode = "lasso")
 			)
 		})
 		
 		observeEvent(input$clear_volc, {
 			updateSelectInput(session = session, "EventType_volc", selected = NULL)
-			updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
+			shinyWidgets::updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
 		
 		})
 
