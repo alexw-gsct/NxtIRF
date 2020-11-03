@@ -647,11 +647,30 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				junc = cbind(junc, junc.common[, c("JG_up", "JG_down")])
 				junc[, SO_L := 0]
 				junc[, SO_R := 0]
-				junc[JG_up != "" & strand == "+", SO_L := sum(count), by = "JG_up"]
-				junc[JG_down != "" & strand == "+", SO_R := sum(count), by = "JG_down"]
-				junc[JG_up != "" & strand == "-", SO_R := sum(count), by = "JG_up"]
-				junc[JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
+				junc[, SO_I := 0]
+        
+        # first overlap any junction that has non-same-island junctions
+				junc[JG_up != JG_down & JG_up != "" & strand == "+", SO_L := sum(count), by = "JG_up"]
+				junc[JG_up != JG_down & JG_down != "" & strand == "+", SO_R := sum(count), by = "JG_down"]
+				junc[JG_up != JG_down & JG_up != "" & strand == "-", SO_R := sum(count), by = "JG_up"]
+				junc[JG_up != JG_down & JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
 				
+        # Then use a simple overlap method to account for the remainder
+        junc.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc))
+        OL = GenomicRanges::findOverlaps(junc.gr, junc.gr)
+        OL = OL[OL@to %in% which(junc$JG_up == junc$JG_down) | OL@from %in% which(junc$JG_up == junc$JG_down)]
+
+        splice.overlaps.DT = data.table(from = OL@from, to = OL@to)
+        splice.overlaps.DT[, count := junc$count[OL@to]]
+        splice.overlaps.DT[, count_sum := sum(count), by = "from"]
+        splice.summa = unique(splice.overlaps.DT[, c("from", "count_sum")])        
+
+        junc[splice.summa$from, SO_I := splice.summa$count_sum]
+
+        junc[SO_L < SO_I, SO_L := SO_I]
+        junc[SO_R < SO_I, SO_R := SO_I]
+				junc[, SO_I := NULL]
+
 				fst::write.fst(as.data.frame(junc), 
 						file.path(norm_output_path, "samples", paste(block$sample[i], "junc.fst", sep=".")))
 
@@ -986,10 +1005,10 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
   } else {
     minDepth = filterVars$minDepth
   }
+	rowData = as.data.frame(SummarizedExperiment::rowData(filterObject))
+	colData = as.data.frame(SummarizedExperiment::colData(filterObject))
   use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars) && 
-    filterVars$condition != "(none)", TRUE, FALSE)
-	rowData = SummarizedExperiment::rowData(filterObject)
-	colData = SummarizedExperiment::colData(filterObject)
+    filterVars$condition %in% colnames(colData), TRUE, FALSE)
   if(filterClass == "Data") {
     if(filterType == "Depth") {
       message("Running Depth filter")

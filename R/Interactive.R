@@ -1,4 +1,4 @@
-is_valid <- function(.) !is.null(.) && length(.) > 0 && . != "" && . != "(none)"
+is_valid <- function(.) !is.null(.) && length(.) > 0 && (!is.character(.) || . != "" && . != "(none)")
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
@@ -40,7 +40,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           shinyWidgets::sliderTextInput(ns("slider_mincond"), "Minimum Conditions Satisfy Criteria", 
 						choices = c(as.character(1:8), "All"), selected = "All"),
           selectInput(ns("select_conds"), "Condition", width = '100%',
-            choices = c("")),
+            choices = c("(none)")),
           sliderInput(ns("slider_pcTRUE"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
         )
       ),
@@ -71,55 +71,24 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				observeEvent(filterdata(), {
 					final = filterdata()
 
-          if(is_valid(final$filterType)) {
-            if(final$filterType %in% c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level")) {
-              type_choices = c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level")
-              updateSelectInput(session = session, inputId = "filterType", 
-                choices = type_choices, selected = final$filterType)
-              updateSelectInput(session = session, inputId = "filterClass", 
-                choices = c("(none)", "Annotation", "Data"), selected = "Annotation")   
-            } else if(final$filterType %in% c("Depth", "Coverage", "Consistency")) {
-              type_choices = c("Depth", "Coverage", "Consistency")
-              updateSelectInput(session = session, inputId = "filterType", 
-                choices = type_choices, selected = final$filterType)
-              updateSelectInput(session = session, inputId = "filterClass", 
-                choices = c("(none)", "Annotation", "Data"), selected = "Data")               
-              if(!is_valid(final$filterVars$condition)) {
-                final$filterVars$condition = "(none)"
-              }
-            } else {
-              updateSelectInput(session = session, inputId = "filterType", 
-                choices = "(none)")            
-              updateSelectInput(session = session, inputId = "filterClass", 
-                choices = c("(none)", "Annotation", "Data"), selected = "(none)")    
-            }
-          } else {
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = "(none)")            
-            updateSelectInput(session = session, inputId = "filterClass", 
-              choices = c("(none)", "Annotation", "Data"), selected = "(none)")              
-          }
           if(is_valid(final$filterClass)) {
-            if(final$filterClass == "Data") {
+            if(final$filterClass == "Annotation") {
               type_choices = c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level")              
-            } else if(final$filterClass == "Annotation") {
+            } else if(final$filterClass == "Data") {
               type_choices = c("Depth", "Coverage", "Consistency")
             } else {
               type_choices = c("(none)")
             }
-            if(is_valid(input$filterType) && input$filterType %in% type_choices) {
-              updateSelectInput(session = session, inputId = "filterType", 
-                choices = type_choices, selected = input$filterType)
-            } else {
-              updateSelectInput(session = session, inputId = "filterType", 
-                choices = type_choices)              
-            }
           } else {
             type_choices = c("(none)")
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = type_choices)                      
           }
-
+          if(is_valid(final$filterType) && final$filterType %in% type_choices) {
+            updateSelectInput(session = session, inputId = "filterType", 
+              choices = type_choices, selected = final$filterType)
+          } else {
+            updateSelectInput(session = session, inputId = "filterType", 
+              choices = type_choices)              
+          }
           if(is_valid((final$filterVars$minimum))) {
             if(final$filterType == "Depth") {
               shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_depth_min", 
@@ -185,9 +154,19 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
         observeEvent(input$filterType, {
           final$trigger = NULL
-          req(input$filterType)
+          req(is_valid(input$filterType))
           final$filterType = input$filterType
           final$trigger = runif(1)
+          
+          if(input$filterType == "Depth") {
+            final$filterVars$minimum = input$slider_depth_min
+          }
+          if(input$filterType == "Coverage"){
+						final$filterVars$minimum = input$slider_cov_min
+          }
+          if(input$filterType == "Transcript_Support_Level"){
+            final$filterVars$minimum = as.numeric(input$slider_TSL_min)
+          }
         })
         observeEvent(input$slider_depth_min, {
           if(final$filterType == "Depth") {
@@ -335,7 +314,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
               icon = icon("plus")),
             div(style="display: inline-block;vertical-align:top;padding:10px;",
               shinyWidgets::switchInput("move_labels_view_ref", label = "Movable labels", labelWidth = "100px")
-            )  
+            )
 					)
 				),
 				fluidRow(
@@ -515,16 +494,20 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			tabPanel("RNA-seq Coverage", value = "navCoverage",
 				fluidRow(style='height:20vh',
-					column(4, 
-						div(style="display: inline-block;vertical-align:top; width: 240px;",
+					column(6, 
+            textOutput("warning_cov"),
+						div(style="display: inline-block;vertical-align:top; width: 300px;",
               selectizeInput('genes_cov', 'Genes', choices = "(none)")
             ),
-						div(style="display: inline-block;vertical-align:top; width: 240px;",
+						div(style="display: inline-block;vertical-align:top; width: 360px;",
               selectizeInput('events_cov', 'Events', choices = c("(none)"))
             ),
-            textOutput("warning_cov")
+            shinyWidgets::radioGroupButtons("select_events_cov", 
+              label = "Select Events from Differential Expression Results", justified = FALSE,
+              choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
+              checkIcon = list(yes = icon("ok", lib = "glyphicon")))
           ),
-					column(8,
+					column(3,
 						div(style="display: inline-block;vertical-align:top; width: 80px;",
 							selectInput("chr_cov", label = "Chr", c("(none)"), selected = "(none)")),
 						div(style="display: inline-block;vertical-align:top; width: 120px;",
@@ -534,21 +517,29 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             br(),
             shinyWidgets::actionBttn("zoom_out_cov", style = "material-circle", color = "danger",
               icon = icon("minus")),
-						div(style="display: inline-block;vertical-align:center;width: 60px;padding:20px",
+						div(style="display: inline-block;vertical-align:center;width: 80px;padding:35px",
 							textOutput("label_zoom_cov")),
             shinyWidgets::actionBttn("zoom_in_cov", style = "material-circle", color = "danger",
-              icon = icon("plus")),
+              icon = icon("plus"))
+					),
+          column(3,
             div(style="display: inline-block;vertical-align:top;padding:10px;",
-              shinyWidgets::switchInput("move_labels_cov", label = "Movable labels", labelWidth = "100px")
-            )
-					)
+              shinyWidgets::radioGroupButtons("graph_mode_cov",label = "Graph Mode", justified = FALSE,
+                choices = c("Pan", "Zoom", "Movable Labels"), 
+                checkIcon = list(yes = icon("ok", lib = "glyphicon")))
+              # shinyWidgets::switchInput("move_labels_cov", label = "Movable labels", labelWidth = "100px")
+            ),
+            shinyWidgets::sliderTextInput("slider_num_events_cov", 
+              "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25)       
+            
+          )
 				),
 				fluidRow(
 					column(2, 
+						selectInput('event_norm_cov', 'Normalize Event', width = '100%',
+							choices = c("(none)")),
 						selectInput('mode_cov', 'View', width = '100%',
 							choices = c("Individual", "By Condition")),					
-						selectizeInput('event_norm_cov', 'Normalize Event', width = '100%',
-							choices = c("(none)")),
 						selectInput('condition_cov', 'Condition', width = '100%',
 							choices = c("(none)")),							
 						selectInput('track1_cov', 'Track 1', width = '100%',
@@ -558,7 +549,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						selectInput('track3_cov', 'Track 3', width = '100%',
 							choices = c("(none)")),
 						selectInput('track4_cov', 'Track 4', width = '100%',
-							choices = c("(none)"))
+							choices = c("(none)")),
+            shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "100px")
 					),
 					column(10, 
 						plotlyOutput("plot_cov", height = "800px"),
@@ -643,62 +635,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					updateSelectizeInput(session = session, inputId = "genes_view", server = TRUE,
 						choices = c("(none)"), selected = "(none)") 
 				}
-			} else if(input$navSelection == "navCoverage") {
-        if(settings_loadref$loadref_path != "") {
-          load_ref()
-        }
-        output$warning_cov <- renderText({
-            validate(need(settings_loadref$loadref_path, "Please select reference path"))            
-            settings_loadref$loadref_path
-        })
-        req(settings_loadref$loadref_path)
-				
-				# seqinfo
-				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
-				if(settings$ah_genome != "") {
-					genome = FetchAH(settings$ah_genome, ah = ah)
-				} else {
-					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
-				}
-				settings_Cov$seqInfo = BSgenome::seqinfo(genome)
-        settings_Cov$gene_list <- getGeneList()
-        settings_Cov$elem.DT <- loadViewRef()
-        settings_Cov$transcripts.DT <- loadTranscripts()
-        
-				if(!is.null(settings_Cov$gene_list)) {
-          message(paste("Populating drop-down box with", 
-            length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
-					updateSelectInput(session = session, inputId = "chr_cov", 
-						choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
-					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-						choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
-				} else {
-					updateSelectInput(session = session, inputId = "chr_cov", 
-						choices = c("(none)"), selected = "(none)")    								
-					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-						choices = c("(none)"), selected = "(none)") 
-				}
-				if(is_valid(settings_SE$se)) {
-					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
-					DT.files = na.omit(DT.files)
-					if(input$mode_cov == "By Condition") {
-						colData = SummarizedExperiment::colData(settings_SE$se)
-						colData = colData[rownames(colData) %in% DT.files$sample]
-						conditions_avail = colnames(colData)
-						updateSelectInput(session = session, inputId = "condition_cov", 
-							choices = c("(none)", conditions_avail), selected = "(none)")
-					} else if(input$mode_cov == "Individual") {
-						avail_samples = DT.files$sample
-						updateSelectInput(session = session, inputId = "track1_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track2_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track3_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track4_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-					}
-				}
+
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
 				updateSelectInput(session = session, inputId = "expr_Cores", 
@@ -761,8 +698,110 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
         req(settings_SE$se)
         colData = SummarizedExperiment::colData(settings_SE$se)
-        updateSelectInput(session = session, inputId = "variable_diag", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
+        if(is_valid(input$variable_diag) && input$variable_diag %in% colnames(colData)) {
+          selected = isolate(input$variable_diag)
+          updateSelectInput(session = session, inputId = "variable_diag", 
+            choices = c("(none)", colnames(colData)), selected = selected)
+        } else {
+          updateSelectInput(session = session, inputId = "variable_diag", 
+            choices = c("(none)", colnames(colData)), selected = "(none)")
+        }
+			} else if(input$navSelection == "navCoverage") {
+        if(is_valid(settings_loadref$loadref_path)) {
+          load_ref()
+        }
+        output$warning_cov <- renderText({
+            validate(need(settings_loadref$loadref_path, "Please select reference path"))            
+            settings_loadref$loadref_path
+        })
+        req(settings_loadref$loadref_path)
+				
+				# seqinfo
+				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+				if(settings$ah_genome != "") {
+					genome = FetchAH(settings$ah_genome, ah = ah)
+				} else {
+					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+				}
+				settings_Cov$seqInfo = BSgenome::seqinfo(genome)
+        settings_Cov$gene_list <- getGeneList()
+        settings_Cov$elem.DT <- loadViewRef()
+        settings_Cov$transcripts.DT <- loadTranscripts()
+        
+        # Populate events here
+        
+        if(is_valid(settings_DE$res)) {
+          if(input$select_events_cov == "Highlighted") {
+            selected = input$DT_DE_rows_selected
+          } else if(input$select_events_cov == "Top N Filtered Results") {
+            selected = input$DT_DE_rows_all
+            if(length(selected) > input$slider_num_events_cov) {
+              selected = selected[seq_len(input$slider_num_events_cov)]
+            }
+          } else {
+            selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
+          }
+
+          if(length(selected) > 0 & is_valid(settings_DE$res)) {
+            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+              choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+              choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+          } else {
+            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+              choices = c("(none)"), selected = "(none)")    								
+            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+              choices = c("(none)"), selected = "(none)")    								    
+          }        
+        }
+        
+				if(!is.null(settings_Cov$gene_list)) {
+          message(paste("Populating drop-down box with", 
+            length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
+					updateSelectInput(session = session, inputId = "chr_cov", 
+						choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+						choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
+				} else {
+					updateSelectInput(session = session, inputId = "chr_cov", 
+						choices = c("(none)"), selected = "(none)")    								
+					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+						choices = c("(none)"), selected = "(none)") 
+				}
+				if(is_valid(settings_SE$se)) {
+          # dissect rowData ranges
+          rowData = as.data.frame(SummarizedExperiment::rowData(settings_SE$se))
+          rowData$seqnames = tstrsplit(rowData$EventRegion, split=":")[[1]]
+          temp1 = tstrsplit(rowData$EventRegion, split="/")
+          temp2 = tstrsplit(temp1[[1]], split=":")[[2]]
+          rowData$start = as.numeric(tstrsplit(temp2, split="-")[[1]])
+          rowData$end = as.numeric(tstrsplit(temp2, split="-")[[2]])
+          rowData$strand = temp1[[2]]
+          
+          settings_Cov$event.ranges = as.data.table(rowData)
+        
+					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
+					DT.files = na.omit(DT.files)
+          settings_Cov$avail_cov = DT.files$cov_file
+          names(settings_Cov$avail_cov) = DT.files$sample
+					if(input$mode_cov == "By Condition") {
+						colData = SummarizedExperiment::colData(settings_SE$se)
+						colData = colData[rownames(colData) %in% DT.files$sample]
+						conditions_avail = colnames(colData)
+						updateSelectInput(session = session, inputId = "condition_cov", 
+							choices = c("(none)", conditions_avail), selected = "(none)")
+					} else if(input$mode_cov == "Individual") {
+						avail_samples = DT.files$sample
+						updateSelectInput(session = session, inputId = "track1_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track2_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track3_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+						updateSelectInput(session = session, inputId = "track4_cov", 
+							choices = c("(none)", avail_samples), selected = "(none)")
+					}
+				}        
 			}
 		})
     
@@ -1204,15 +1243,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         print(
 					plot_view_ref_fn(
 						view_chr, view_start, view_end, 
-						settings_ViewRef$transcripts.DT, settings_ViewRef$elem.DT,
-						has_movable_labels
+						settings_ViewRef$transcripts.DT, settings_ViewRef$elem.DT
 					)
 				)
       })
     })
 
-		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, 
-				movable_labels = FALSE, condensed = FALSE) {
+		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, condensed = FALSE) {
       
 			data_start = view_start - (view_end - view_start)
       data_end = view_end + (view_end - view_start)
@@ -1357,21 +1394,21 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           xref = "x", yref = "y", showarrow = FALSE)      
       }
       
-      pl = ggplotly(p, tooltip = "text") %>% layout(
+      pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% layout(
         annotations = anno,
         dragmode = "pan",
         xaxis = list(range = c(view_start, view_end)),
         yaxis = list(range = c(0, 1 + max(group.DT$plot_level)), fixedrange = TRUE)
       )
-      if(movable_labels == TRUE) {
-        pl = pl %>% plotly::config(editable = TRUE)
-      }
+      # if(movable_labels == TRUE) {
+        # pl = pl %>% plotly::config(editable = TRUE)
+      # }
 			return(pl)			
 		}
 
     settings_ViewRef$plotly_relayout = reactive({
       req(settings_ViewRef$plot_ini == TRUE)
-      event_data("plotly_relayout")
+      event_data("plotly_relayout", source = "plotly_ViewRef")
     })
 
     observeEvent(input$zoom_out_view_ref, {
@@ -1991,9 +2028,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       message("Refreshing filters")
       if(is(settings_SE$se, "SummarizedExperiment")) {
         filterSummary = rep(TRUE, nrow(settings_SE$se))
-        for(i in 1:8) {
-          print(settings_SE$filters[[i]]$filterVars)
-          print(settings_SE$filters[[i]]$trigger)
+        if(is_valid(settings_SE$filters)) {
+          for(i in 1:8) {
+            print(settings_SE$filters[[i]]$filterVars)
+            print(settings_SE$filters[[i]]$trigger)
             if(!is.null(settings_SE$filters[[i]]$trigger)) {
               filterSummary = filterSummary & runFilter(
                 settings_SE$filters[[i]]$filterClass,
@@ -2003,8 +2041,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             } else {
               message(paste("Trigger", i, "is NULL"))
             }
+          }
         }
-        settings_SE$filterSummary = filterSummary    
+        settings_SE$filterSummary = filterSummary
+        message(sum(filterSummary == TRUE))
       }
     }
     
@@ -2076,6 +2116,15 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(settings_SE$filters)
       selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveAnalysis_Filters)
       req(selectedfile$datapath)
+
+      settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
+      settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
+      settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
+      settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
+      settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
+      settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
+      settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
+      settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
 
       final = settings_SE$filters
       saveRDS(final, selectedfile$datapath)
@@ -2384,7 +2433,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		
 	# Diagonal Plots
 	
+    settings_Diag = reactiveValues(
+      plot_ini = FALSE
+    )
+    
 		output$plot_diag <- renderPlotly({
+      # settings_Diag$plot_ini = FALSE
 			validate(need(settings_SE$se, "Load Experiment first"))
 			validate(need(settings_DE$res, "Load DE Analysis first"))
 			validate(need(input$variable_diag, "Select conditions and contrasts"))
@@ -2394,6 +2448,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			validate(need(input$nom_diag != "(none)", "Select conditions and contrasts"))
 			validate(need(input$denom_diag != "(none)", "Select conditions and contrasts"))
 			
+      selected = input$DT_DE_rows_selected      
+      
 			num_events = input$number_events_diag
 			res = as.data.table(settings_DE$res)
 			if(is_valid(input$EventType_diag)) {
@@ -2405,14 +2461,49 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			df.diag = make_diagonal(settings_SE$se, res$EventName, input$variable_diag,
 				input$nom_diag, input$denom_diag)
 			
+      if(is_valid(input$DT_DE_rows_selected)) {
+        df.diag$selected = (df.diag$EventName %in% settings_DE$res$EventName[selected])
+      } else {
+        df.diag$selected = FALSE
+      }
+      
+      settings_Diag$plot_ini = TRUE
 			print(
 				ggplotly(
-					ggplot(df.diag, aes(x = nom, y = denom, text = EventName)) + geom_point(),
-					tooltip = "text"
+					ggplot(df.diag, aes(x = nom, y = denom, key = EventName, text = EventName, colour = selected)) + 
+            geom_point() + scale_color_manual(values = c("black", "red")),
+					tooltip = "text",
+          source = "plotly_diagonal"
 				)
 			)
 		})
 		
+    settings_Diag$plotly_click = reactive({
+      plot_exist = settings_Diag$plot_ini
+      if(plot_exist == TRUE) {
+        event_data("plotly_click", source = "plotly_diagonal")
+      }
+    })
+  
+    observeEvent(settings_Diag$plotly_click(), {
+      req(settings_Diag$plotly_click())
+      click = settings_Diag$plotly_click()
+      print(click)
+      click.id = which(settings_DE$res$EventName == click$key)
+      req(click.id)
+      
+      selected = input$DT_DE_rows_selected
+      
+      if(click.id %in% selected) {
+        selected = selected[-which(selected == click.id)]
+      } else {
+        selected = c(selected, click.id)
+      }
+      
+      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+
+    })
+    
 		observeEvent(input$variable_diag, {
 			req(settings_SE$se)
 			req(input$variable_diag != "(none)")
@@ -2432,7 +2523,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
 		observeEvent(input$clear_diag, {
-			updateselectInput(session = session, "EventType_diag", selected = NULL)
+			updateSelectInput(session = session, "EventType_diag", selected = NULL)
 			updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
 			if(is_valid(settings_SE$se)) {
 				colData = SummarizedExperiment::colData(settings_SE$se)
@@ -2464,7 +2555,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			view_strand = "*",
 
-			avail_cov = list(),	# named list of files
+      event.ranges = NULL,
+			avail_cov = NULL,	# named vector of files
 
       plotly_relayout = NULL,
       plot_ini = FALSE
@@ -2476,16 +2568,62 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			if(i == 4) return(input$track4_cov)
 		}
 		
+    update_norm_events_cov <- function(view_chr, view_start, view_end, default_event = NULL) {
+      req(settings_Cov$event.ranges)
+      event.ranges.legit = settings_Cov$event.ranges[seqnames == view_chr]
+      event.ranges.legit = event.ranges.legit[end > view_start & start < view_end]
+
+      if(!is_valid(default_event) && is_valid(isolate(input$event_norm_cov))) {
+        default_event = isolate(input$event_norm_cov)
+      }
+
+      if(nrow(event.ranges.legit) == 0) {
+        # retain selected event
+        if(is_valid(default_event)) {
+          updateSelectInput(session = session, inputId = "event_norm_cov", 
+            choices = c("(none)", default_event), selected = default_event)
+          return(default_event)
+        } else {
+          updateSelectInput(session = session, inputId = "event_norm_cov", 
+            choices = c("(none)"), selected = "(none)")
+          return("(none)")
+        }
+      } else if(is_valid(default_event) && default_event %in% event.ranges.legit$EventName) {
+        updateSelectInput(session = session, inputId = "event_norm_cov", 
+          choices = c("(none)", event.ranges.legit$EventName), selected = default_event)
+        return(default_event)
+      } else if(is_valid(default_event)){
+        updateSelectInput(session = session, inputId = "event_norm_cov", 
+          choices = c("(none)", default_event, event.ranges.legit$EventName), selected = default_event)      
+        return(default_event)
+      } else {
+        updateSelectInput(session = session, inputId = "event_norm_cov", 
+          choices = c("(none)", event.ranges.legit$EventName), selected = "(none)")      
+        return("(none)")
+      }    
+    }
+    
     observe({
       view_chr = input$chr_cov
       view_start = suppressWarnings(as.numeric(input$start_cov))
       view_end = suppressWarnings(as.numeric(input$end_cov))
-			
-			has_movable_labels = input$move_labels_cov
+			graph_mode = isolate(input$graph_mode_cov)
 			
       req(view_chr)
       req(view_start)
       req(view_end)
+      req(settings_SE$se)
+      
+      selected_event = isolate(input$events_cov)
+      if(is_valid(selected_event)) {
+        cur_event = update_norm_events_cov(view_chr, view_start, view_end, selected_event)
+      } else {
+        cur_event = NULL
+      }
+      
+      # refresh in-range events here
+
+      conf.int = 0.95
 
       if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
       if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- loadTranscripts()
@@ -2496,57 +2634,174 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			p_ref = plot_view_ref_fn(
 				view_chr, view_start, view_end, 
-				settings_Cov$transcripts.DT, settings_Cov$elem.DT,
-				has_movable_labels
+				settings_Cov$transcripts.DT, settings_Cov$elem.DT
 			)
 			p_track = list()
-			for(i in 1:4) {
-				track_samples = get_track_selection(i)
-				if(is_valid(track_samples)) {
-					if(is_valid(input$condition_cov) & is_valid(input$event_norm_cov)) {
-						colData = SummarizedExperiment::colData(settings_SE$se)
-						samples = rownames(colData)[unlist(colData[, input$condition_cov] == track_samples)]
-						event_norms = SummarizedExperiment::assay(settings_SE$se, "depth")[input$event_norm_cov,samples]
-						samples = samples[event_norms >= 10]
-						event_norms = event_norms[event_norms >= 10]
-						df = GetCoverage_DF(samples, avail_cov[[samples]],
-							view_chr, view_start, view_end, settings_Cov$view_strand)
-						for(todo in seq_len(length(samples))) {
-							df[, samples[todo]] = df[, samples[todo]] / event_norms[todo]
-						}
-						df$mean = rowMeans(as.matrix(df[,samples]))
-						df$ci = apply(X = df[,samples], MARGIN = 1, function(t) {
-							binom.test(x = t, n = length(t), p = 1, 
-								alternative = "two.sided", conf.level = 0.90)$conf.int
-						})
-						df$ci_lwr
-						p_track[[i]] = ggplotly(
-							ggplot(df, aes(x = x)) + 
-								geom_ribbon(alpha = 0.2,colour = NA, aes(ymin = mean - ci, ymax = mean + ci)) +
-								geom_line(aes(y = mean))
-						)						
-					} else if(input$mode_cov == "Individual") {
-						df = GetCoverage_DF(track_samples, avail_cov[[track_samples]],
-							view_chr, view_start, view_end, settings_Cov$view_strand)
-						p_track[[i]] = ggplotly(
-							ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line()
-						)
-					}
-				}
-			}
+      
+      cur_zoom = floor(log((view_end - view_start)/50) / log(3))
 
+      data.list = list()
+      if(is_valid(input$condition_cov) & is_valid(cur_event)) {
+        for(i in 1:4) {
+          track_samples = get_track_selection(i)
+          if(is_valid(track_samples)) {
+            colData = SummarizedExperiment::colData(settings_SE$se)
+            samples = rownames(colData)[unlist(as.character(colData[, input$condition_cov]) == track_samples)]
+            event_norms = SummarizedExperiment::assay(settings_SE$se, "Depth")[cur_event,samples]
+            samples = samples[event_norms >= 10]
+            event_norms = event_norms[event_norms >= 10]
+            
+            df = as.data.frame(GetCoverage_DF(samples, settings_Cov$avail_cov[samples],
+              view_chr, view_start, view_end, settings_Cov$view_strand))
+            # bin anything with cur_zoom > 5
+            df = bin_df(df, max(1, 3^(cur_zoom - 5)))
+              
+            for(todo in seq_len(length(samples))) {
+              df[, samples[todo]] = df[, samples[todo]] / event_norms[todo]
+            }
+            df$mean = rowMeans(as.matrix(df[,samples]))
+            df$sd = matrixStats::rowSds(as.matrix(df[,samples]))
+            n = length(samples)
+            df$ci = qt((1 + conf.int)/2,df=	n-1) * df$sd / sqrt(n)
+
+            df$track = as.character(i)
+            df = df %>% dplyr::select(x, mean, ci, track)
+            data.list[[i]] <- as.data.table(df)
+          }
+        }
+        if(input$stack_tracks_cov == TRUE) {
+          df = as.data.frame(rbindlist(data.list))
+          if(nrow(df) > 0) {
+            p_track[[1]] = ggplotly(
+              ggplot(df, aes(x = x)) + 
+                geom_ribbon(alpha = 0.2, aes(y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
+                geom_line(aes(y = mean, colour = track)),
+                tooltip = c("x", "y", "ymin", "ymax", "colour")
+            )
+            p_track[[1]] = p_track[[1]] %>% layout(
+              dragmode = "zoom",
+              yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
+            ) 
+          }
+        } else {
+          for(i in 1:4) {
+            if(length(data.list) >= i && !is.null(data.list[[i]])) {
+              p_track[[i]] = ggplotly(
+                ggplot(df, aes(x = x)) + 
+                  geom_ribbon(alpha = 0.2, colour = NA, aes(y = mean, ymin = mean - ci, ymax = mean + ci)) +
+                  geom_line(aes(y = mean)),
+                tooltip = c("x", "y", "ymin", "ymax")
+              )						
+              p_track[[i]] = p_track[[i]] %>% layout(
+                yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
+              )
+            }
+          }
+        }
+      } else if(input$mode_cov == "Individual") {
+        for(i in 1:4) {
+          track_samples = get_track_selection(i)
+          if(is_valid(track_samples)) {
+            df = GetCoverage_DF(track_samples, settings_Cov$avail_cov[track_samples],
+              view_chr, view_start, view_end, settings_Cov$view_strand)
+            df = bin_df(df, max(1, 3^(cur_zoom - 5)))
+
+            p_track[[i]] = ggplotly(
+              ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line(),
+                tooltip = c("x", "y")
+            )
+            p_track[[i]] = p_track[[i]] %>% layout(
+              yaxis = list(rangemode = "nonnegative", fixedrange = TRUE)
+            )
+          }
+        }
+      }
+      
+      
+      plot_tracks = p_track[unlist(lapply(p_track, function(x) !is.null(x)))]
+      plot_tracks[[length(plot_tracks) + 1]] = p_ref
+
+      final_plot = subplot(plot_tracks, nrows = length(plot_tracks), shareX = TRUE)
+      
+      if(graph_mode == "Pan") {
+        final_plot = final_plot %>% layout(
+          dragmode = "pan"
+        )
+      } else if(graph_mode == "Zoom") {
+        final_plot = final_plot %>% layout(
+          dragmode = "zoom"
+        )   
+      } else if(graph_mode == "Movable Labels") {
+        final_plot = final_plot %>% layout(
+          dragmode = FALSE
+        ) %>% plotly::config(editable = TRUE)
+      }
+      
       output$plot_cov <- renderPlotly({
         settings_Cov$plot_ini = TRUE      
         print(
-					subplot(p_ref, p_track, shareX = TRUE)
+					final_plot
 				)
       })
     })
 		
-		
+    observeEvent(input$graph_mode_cov, {
+      req(settings_Cov$plot_ini == TRUE)
+      if(input$graph_mode_cov == "Pan") {
+        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = "pan")) %>%
+          plotlyProxyInvoke("reconfig", editable = FALSE)
+      } else if(input$graph_mode_cov == "Zoom") {
+        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = "zoom")) %>%
+          plotlyProxyInvoke("reconfig", editable = FALSE)
+      } else if(input$graph_mode_cov == "Movable Labels") {
+        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = FALSE)) %>%
+          plotlyProxyInvoke("reconfig", editable = TRUE)
+      }
+    })
+    
+		observeEvent(input$mode_cov, {
+      req(input$mode_cov)
+      req(settings_SE$se)
+      if(input$mode_cov == "By Condition") {
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        
+        updateSelectInput(session = session, inputId = "condition_cov", 
+          choices = c("(none)", colnames(colData)))      
+      } else {
+        updateSelectInput(session = session, inputId = "condition_cov", 
+          choices = c("(none)"))      
+      }
+    })
+
+		observeEvent(input$condition_cov, {
+      req(input$condition_cov)
+      req(settings_SE$se)
+      if(is_valid(input$condition_cov)) {
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        updateSelectInput(session = session, inputId = "track1_cov", 
+          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+        updateSelectInput(session = session, inputId = "track2_cov", 
+          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+        updateSelectInput(session = session, inputId = "track3_cov", 
+          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+        updateSelectInput(session = session, inputId = "track4_cov", 
+          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+      } else {
+        updateSelectInput(session = session, inputId = "track1_cov", 
+          choices = c("(none)"))     
+        updateSelectInput(session = session, inputId = "track2_cov", 
+          choices = c("(none)"))  
+        updateSelectInput(session = session, inputId = "track3_cov", 
+          choices = c("(none)"))    
+        updateSelectInput(session = session, inputId = "track4_cov", 
+          choices = c("(none)"))    
+      }
+    })
+
+    
     settings_Cov$plotly_relayout = reactive({
       req(settings_Cov$plot_ini == TRUE)
-      event_data("plotly_relayout")
+      event_data("plotly_relayout", source = "plotly_ViewRef")
     })
     observeEvent(settings_Cov$plotly_relayout(), {
       plotly_relayout = settings_Cov$plotly_relayout()
@@ -2572,7 +2827,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			req(view_end)
       req(view_end - view_start > 50)
 
-			seqInfo = settings_ViewRef$seqInfo[input$chr_cov]
+			seqInfo = settings_Cov$seqInfo[input$chr_cov]
 			seqmax = GenomeInfoDb::seqlengths(seqInfo)
 			# get center of current range
 			center = round((view_start + view_end) / 2)
@@ -2619,11 +2874,30 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       updateTextInput(session = session, inputId = "end_cov", 
         value = new_start + new_span)
     })
+		observeEvent(input$events_cov, {
+      req(input$events_cov)
+      req(input$events_cov != "(none)")
+
+      events_id_view = settings_Cov$event.ranges[EventName == input$events_cov]
+
+      # change settings on input based on this
+      updateSelectInput(session = session, inputId = "chr_cov", 
+        selected = events_id_view$seqnames[1])
+      
+      # default is zoom out by factor of 1
+      span = events_id_view$end[1] - events_id_view$start[1]
+      view_start = max(1, events_id_view$start[1] - span)
+      view_end = view_start + 3 * span
+      updateTextInput(session = session, inputId = "start_cov", 
+        value = view_start)
+      updateTextInput(session = session, inputId = "end_cov", 
+        value = view_end)
+    })		
 		observeEvent(input$genes_cov, {
       req(input$genes_cov)
       req(input$genes_cov != "(none)")
 
-      gene_id_view = settings_Cov$gene_list$gene_list[gene_display_name == input$genes_cov]
+      gene_id_view = settings_Cov$gene_list[gene_display_name == input$genes_cov]
 
       # change settings on input based on this
       updateSelectInput(session = session, inputId = "chr_cov", 
@@ -2633,6 +2907,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       updateTextInput(session = session, inputId = "end_cov", 
         value = gene_id_view$end[1])
     })		
+
     observeEvent(input$chr_cov, {
       req(input$chr_cov != "(none)")
 			seqInfo = settings_Cov$seqInfo[input$chr_cov]
@@ -2657,7 +2932,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			# adjust zoom
 			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
 			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_cov <- renderText({cur_zoom})
+			output$label_zoom_cov <- renderText({16 - cur_zoom})
     })
     observeEvent(input$end_cov, {
 			req(as.numeric(input$start_cov))
@@ -2667,8 +2942,40 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			# adjust zoom
 			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
 			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_cov <- renderText({cur_zoom})
+			output$label_zoom_cov <- renderText({16 - cur_zoom})
     })
+    
+  # DE events row selection:
+  observeEvent(input$select_events_cov, {
+    # Populate events
+    req(input$DT_DE_rows_all)
+    req(settings_DE$res)
+    
+    if(input$select_events_cov == "Highlighted") {
+      selected = input$DT_DE_rows_selected
+    } else if(input$select_events_cov == "Top N Filtered Results") {
+      selected = input$DT_DE_rows_all
+      if(length(selected) > input$slider_num_events_cov) {
+        selected = selected[seq_len(input$slider_num_events_cov)]
+      }
+    } else {
+      selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
+    }
+
+    if(length(selected) > 0 & is_valid(settings_DE$res)) {
+      updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+      updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+    } else {
+      updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+        choices = c("(none)"), selected = "(none)")    								
+      updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+        choices = c("(none)"), selected = "(none)")    								    
+    }
+  })
+    
+    
 # End of server function		
   }
 
@@ -2792,4 +3099,18 @@ GetCoverage_from_SE <- function(files, se, EventName, zoom_factor = 1) {
   df = GetCoverage_DF(colnames(se), files, seqname, new_start, new_end, strand)
   return(df)
 }
+
+bin_df <- function(df, binwidth = 3) {
+  DT = as.data.table(df)
+  brks = seq(1, nrow(DT), length = round(nrow(DT) / binwidth))
+  DT[, bin := findInterval(seq_len(nrow(DT)), brks)]
+  DT2 <- DT[, lapply(.SD, mean, na.rm = TRUE), by = bin]
+  DT2[, bin := NULL]
+  return(as.data.frame(DT2))
+}
+
+
+
+
+
 
