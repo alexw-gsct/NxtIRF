@@ -1295,7 +1295,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       })
     })
 
-		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, condensed = FALSE) {
+		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, highlight_events, condensed = FALSE) {
       
 			data_start = view_start - (view_end - view_start)
       data_end = view_end + (view_end - view_start)
@@ -1356,6 +1356,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       
       reduced.DT = rbind(reduced.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")], 
         introns.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")])
+      
+      # Highlight events here
+      if(!missing(highlight_events)) {
+      
+      }
       
       group.grl = GenomicRanges::split(
         GenomicRanges::makeGRangesFromDataFrame(
