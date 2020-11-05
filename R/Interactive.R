@@ -215,8 +215,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		),
 		tabPanel("Multithreading", value = "navThreads",
 			wellPanel(
-				selectInput('expr_Cores', 'Number of Processors to Use', width = '100%',
-					choices = 1, selected = 1),					
+				numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
+				sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
 			),
 		),		
 # Reference
@@ -684,8 +684,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
-				updateSelectInput(session = session, inputId = "expr_Cores", 
-					choices = seq(max_cores, 1), selected = max_cores)        								
+				updateSliderInput(session = session, inputId = "cores_slider", 
+					min = 1, max = max_cores, value = min(4, max_cores))
+				updateNumericInput(session = session, inputId = "cores_numeric", 
+					min = 1, max = max_cores, value = min(4, max_cores))
 			} else if(input$navSelection == "navExpr") {
 				# Determine IRFinder cores
 
@@ -851,6 +853,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			}
 		})
     
+	# Threads:
+		observeEvent(input$cores_numeric, {
+			req(input$cores_numeric)
+			updateSliderInput(session = session, inputId = "slider_cores", value = input$cores_numeric)
+		})
+		
 		observe({  
 			shinyDirChoose(input, "dir_reference_path", roots = c(default_volumes, addit_volume), session = session)
 			output$txt_reference_path <- renderText({
@@ -1711,11 +1719,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				df = settings_expr$df.files
 				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
 				if("SnowParam" %in% class(BPPARAM)) {
-					BPPARAM_mod = BiocParallel::SnowParam(input$expr_Cores)
-          message(paste("Using SnowParam", input$expr_Cores, "cores"))
+					BPPARAM_mod = BiocParallel::SnowParam(input$cores_slider)
+          message(paste("Using SnowParam", input$cores_slider, "cores"))
 				} else if("MulticoreParam" %in% class(BPPARAM)) {
-					BPPARAM_mod = BiocParallel::MulticoreParam(input$expr_Cores)
-          message(paste("Using MulticoreParam", input$expr_Cores, "cores"))
+					BPPARAM_mod = BiocParallel::MulticoreParam(input$cores_slider)
+          message(paste("Using MulticoreParam", input$cores_slider, "cores"))
 				} else {
 					BPPARAM_mod = BPPARAM
 				}
@@ -1943,8 +1951,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         "running CollateData()"
       })
 
-			cores_to_use = as.numeric(input$expr_Cores)
-			if(!is_valid(input$expr_Cores)) cores_to_use = 1
+			cores_to_use = as.numeric(input$cores_slider)
+			if(!is_valid(input$cores_slider)) cores_to_use = 1
 			withProgress(message = 'Collating IRFinder output', value = 0, {
 				CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
 			})
@@ -2342,8 +2350,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				
 				DESeq2::sizeFactors(dds) = 1
 
-        cores_to_use = as.numeric(input$expr_Cores)
-        if(!is_valid(input$expr_Cores)) cores_to_use = 1
+        cores_to_use = as.numeric(input$cores_slider)
+        if(!is_valid(input$cores_slider)) cores_to_use = 1
         
         BPPARAM = BiocParallel::bpparam()
         
