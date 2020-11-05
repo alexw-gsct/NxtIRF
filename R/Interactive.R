@@ -215,8 +215,14 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		),
 		tabPanel("Multithreading", value = "navThreads",
 			wellPanel(
-				numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
-				sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
+        tags$div(title = paste("Number of threads to run computationally-intensive operations",
+          "such as IRFinder, NxtIRF-collate, and DESeq2"),
+          numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
+        ),
+        tags$div(title = paste("Number of threads to run computationally-intensive operations",
+          "such as IRFinder, NxtIRF-collate, and DESeq2"),
+          sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
+        )
 			),
 		),		
 # Reference
@@ -226,40 +232,71 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				fluidRow(
 					column(5,
 						h4("Select Reference Directory"),
-						shinyDirButton("dir_reference_path", label = "Choose reference path", title = "Choose reference path"),
-							verbatimTextOutput("txt_reference_path"),
+            tags$div(title = "Specify (or create) a directory for NxtIRF to create its IRFinder/NxtIRF reference",
+              shinyDirButton("dir_reference_path", label = "Choose reference path", 
+                title = "Choose reference path")
+            ),
+						textOutput("txt_reference_path"),
 						br(),
 						h4("Select Ensembl Reference from AnnotationHub"),
 						selectInput('newrefAH_Species', 'Select Species', width = '100%',
 							choices = c("")),
 						selectInput('newrefAH_Version_Trans', 'Select Transcriptome Version', width = '100%',
 							choices = c("")),
-						selectInput('newrefAH_Trans', 'Select Transcriptome Reference', width = '100%',
-							choices = c("")),
+            tags$div(title = paste("Choose the source gtf file to build the reference.",
+                "Typically avoid choosing *.abinitio.gtf, '*.chr.gtf' or",
+                "'*.chr_patch_hapl_scaff.gtf' assemblies"),
+              selectInput('newrefAH_Trans', 'Select Transcriptome Reference', width = '100%',
+                choices = c(""))
+            ),
 						selectInput('newrefAH_Assembly', 'Select Genome Assembly', width = '100%',
 							choices = c("")),
 						selectInput('newrefAH_Version_Genome', 'Select Genome Version', width = '100%',
 							choices = c("")),
-						selectInput('newrefAH_Genome', 'Select Genome Reference', width = '100%',
-							choices = c("")),
+            tags$div(title = paste("Choose the source genome sequence to build the reference.",
+                "Typically choose the primary assembly, or if none, use",
+                "either the 'sm.toplevel' or 'rm.toplevel' assemblies.",
+                "Avoid using the cdna or ncrna assemblies"),
+              selectInput('newrefAH_Genome', 'Select Genome Reference', width = '100%',
+                choices = c(""))
+            ),
 						br(),
 						h4("or select Reference from File"),
 						br(),
-						shinyFilesButton("file_genome", label = "Choose genome FASTA File", title = "Choose genome FASTA File", multiple = FALSE),
-						verbatimTextOutput("txt_genome"),
-						shinyFilesButton("file_gtf", label = "Choose transcriptome GTF File", title = "Choose transcriptome GTF File", multiple = FALSE),
-						verbatimTextOutput("txt_gtf"),
+            tags$div(title = paste("Choose a user-supplied genome fasta file"),
+              shinyFilesButton("file_genome", label = "Choose genome FASTA File", title = "Choose genome FASTA File", multiple = FALSE)
+						),
+            textOutput("txt_genome"),
+            tags$div(title = paste("Choose a user-supplied transcript reference gtf file"),
+              shinyFilesButton("file_gtf", label = "Choose transcriptome GTF File", title = "Choose transcriptome GTF File", multiple = FALSE)
+            ),
+						textOutput("txt_gtf")
 					),
 					column(5,
-						selectInput('newref_genome_type', 'Select Genome Type to set Mappability and non-PolyA files (leave empty to reset)', 
-							c("hg38", "mm10", "hg19", "mm9", "other", "custom")),
-						shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion file", 
-							title = "Choose Mappability Exclusion file", multiple = FALSE),
-						verbatimTextOutput("txt_mappa"),
-						shinyFilesButton("file_NPA", label = "Choose non-PolyA BED file", title = "Choose non-PolyA BED file", multiple = FALSE),
-						verbatimTextOutput("txt_NPA"),
-						shinyFilesButton("file_bl", label = "Choose blacklist BED file", title = "Choose blacklist BED file", multiple = FALSE),
-						verbatimTextOutput("txt_bl"),
+            tags$div(title = paste("NxtIRF will auto-populate default mappability and non-polyA",
+                "reference files for hg38, hg19, mm10 and mm9 genomes"),
+              selectInput('newref_genome_type',
+                'Select Genome Type to set Mappability and non-PolyA files', 
+                c("(not specified)", "hg38", "mm10", "hg19", "mm9"))
+            ),
+            tags$div(title = paste("Select Mappability Exclusion file. This is typically a 3 columns",
+                "of values containing seqnames, start and end coordinates of low-mappability regions"),
+              shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion file", 
+                title = "Choose Mappability Exclusion file", multiple = FALSE)
+            ),
+						textOutput("txt_mappa"), actionButton("clear_mappa", "Clear"),
+            tags$div(title = paste("Select Non-PolyA reference file. This is used by IRFinder",
+                "to calculate reads from known non-polyadenylated transcripts to assess",
+                "quality of poly-A enrichment in sample QC"),
+              shinyFilesButton("file_NPA", label = "Choose non-PolyA BED file", title = "Choose non-PolyA BED file", multiple = FALSE)
+						),
+            textOutput("txt_NPA"), actionButton("clear_NPA", "Clear"),
+            tags$div(title = paste("Select Blacklist file. This is typically a 3 columns",
+                "of values containing seqnames, start and end coordinates of regions",
+                "to exclude from IRFinder analysis"),
+              shinyFilesButton("file_bl", label = "Choose blacklist BED file", title = "Choose blacklist BED file", multiple = FALSE)
+            ),
+						textOutput("txt_bl"), actionButton("clear_bl", "Clear"),
 						br(),
 						actionButton("buildRef", "Build Reference"),
 						actionButton("clearNewRef", "Clear settings"),
@@ -685,7 +722,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else if(input$navSelection == "navThreads") {	
 				max_cores = parallel::detectCores() - 2
 				updateSliderInput(session = session, inputId = "cores_slider", 
-					min = 1, max = max_cores, value = min(4, max_cores))
+					min = 1, max = max_cores, step = 1, value = min(4, max_cores))
 				updateNumericInput(session = session, inputId = "cores_numeric", 
 					min = 1, max = max_cores, value = min(4, max_cores))
 			} else if(input$navSelection == "navExpr") {
@@ -856,7 +893,11 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	# Threads:
 		observeEvent(input$cores_numeric, {
 			req(input$cores_numeric)
-			updateSliderInput(session = session, inputId = "slider_cores", value = input$cores_numeric)
+			updateSliderInput(session = session, inputId = "cores_slider", value = input$cores_numeric)
+		})
+		observeEvent(input$cores_slider, {
+			req(input$cores_slider)
+			updateNumericInput(session = session, inputId = "cores_numeric", value = input$cores_slider)
 		})
 		
 		observe({  
@@ -893,9 +934,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			}
 		})
     observeEvent(settings_newref$newref_mappa, {
-      req(settings_newref$newref_mappa)
 			output$txt_mappa <- renderText(settings_newref$newref_mappa)
     })
+    observeEvent(input$clear_mappa, {
+      req(input$clear_mappa)
+			settings_newref$newref_mappa = ""
+    })    
 		observe({  
 			shinyFileChoose(input, "file_NPA", roots = c(default_volumes, addit_volume), 
 				session = session, filetypes = c("bed", "txt", "gz"))
@@ -905,9 +949,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			}
 		})
     observeEvent(settings_newref$newref_NPA, {
-      req(settings_newref$newref_NPA)
 			output$txt_NPA <- renderText(settings_newref$newref_NPA)    
     })
+    observeEvent(input$clear_NPA, {
+      req(input$clear_NPA)
+			settings_newref$newref_NPA = ""
+    })    
 		observe({  
 			shinyFileChoose(input, "file_bl", roots = c(default_volumes, addit_volume), 
 				session = session, filetypes = c("bed", "txt", "gz"))
@@ -917,9 +964,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			}
 		})
     observeEvent(settings_newref$newref_bl, {
-      req(settings_newref$newref_bl)
 			output$txt_bl <- renderText(settings_newref$newref_bl)
     })
+    observeEvent(input$clear_bl, {
+      req(input$clear_bl)
+			settings_newref$newref_bl = ""
+    })
+    
 		observeEvent(input$newref_genome_type, {
 			if(input$newref_genome_type == "hg38") {
 				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
@@ -933,7 +984,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else if(input$newref_genome_type == "mm9")  {
 				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
         settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_mm9_v67.txt.gz", package = "NxtIRF")
-			} else if(input$newref_genome_type == "other") {
+			} else if(input$newref_genome_type == "(not specified)") {
         # do nothing. This allows user to first select the default and then change to user-defined files
 			} else {
 				settings_newref$newref_NPA = ""
@@ -1720,10 +1771,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
 				if("SnowParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::SnowParam(input$cores_slider)
-          message(paste("Using SnowParam", input$cores_slider, "cores"))
+          message(paste("Using SnowParam", input$cores_slider, "threads"))
 				} else if("MulticoreParam" %in% class(BPPARAM)) {
 					BPPARAM_mod = BiocParallel::MulticoreParam(input$cores_slider)
-          message(paste("Using MulticoreParam", input$cores_slider, "cores"))
+          message(paste("Using MulticoreParam", input$cores_slider, "threads"))
 				} else {
 					BPPARAM_mod = BPPARAM
 				}
@@ -2357,13 +2408,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         
         if("SnowParam" %in% class(BPPARAM)) {
           BPPARAM_mod = BiocParallel::SnowParam(cores_to_use)
-          message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
+          message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
         } else if("MulticoreParam" %in% class(BPPARAM)) {
           BPPARAM_mod = BiocParallel::MulticoreParam(cores_to_use)
-          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
+          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
         } else {
           BPPARAM_mod = BiocParallel::SerialParam()
-          message(paste("Using SerialParam mode with", BPPARAM_mod$workers, "cores"))
+          message(paste("Using SerialParam mode with", BPPARAM_mod$workers, "threads"))
         }
 				
 				dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
