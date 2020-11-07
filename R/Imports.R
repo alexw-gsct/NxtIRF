@@ -6,7 +6,6 @@
 #' @import shinyWidgets
 #' @import rhandsontable
 #' @import ggplot2
-#' @import plotly
 #' @importFrom Rcpp evalCpp
 #' @importFrom dplyr %>%
 #' @importFrom AnnotationHub AnnotationHub cache
@@ -23,6 +22,7 @@
 #' @importFrom heatmaply heatmaply
 #' @importFrom matrixStats rowSds
 #' @importFrom parallel detectCores
+#' @importFrom plotly config layout plotlyOutput event_data ggplotly plotlyProxy plotlyProxyInvoke
 #' @importFrom rtracklayer import export TwoBitFile
 #' @importFrom RColorBrewer brewer.pal.info
 #' @importFrom stringr str_locate
