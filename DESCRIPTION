@@ -2,7 +2,7 @@ Package: NxtIRF
 Title: User-friendly Intron Retention and Alternative Splicing analysis using the IRFinder engine
 Version: 0.98.0
 Date: 2020-11-07
-Authors@R: c(person(list("Alex", "Chit", "Hei), "Wong", email="a.wong@centenary.org.au", role=c("aut", "cre", "cph")),
+Authors@R: c(person(list("Alex", "Chit", "Hei"), "Wong", email="a.wong@centenary.org.au", role=c("aut", "cre", "cph")),
 	person("William", "Ritchie", role=c("aut", "cph")),
 	person("Dadi", "Gao", role=c("ctb")),
 	person("Ulf", "Schmitz", role=c("ctb")))    
