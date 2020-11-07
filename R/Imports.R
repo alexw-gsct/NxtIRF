@@ -13,7 +13,7 @@
 #' @importFrom BiocGenerics start end width
 #' @importFrom Biostrings getSeq readDNAStringSet DNAStringSet translate replaceAmbiguities
 #' @importFrom BiocParallel bpparam bplapply SnowParam MulticoreParam SerialParam
-#' @importFrom DT dataTableOutput renderDataTable datatable selectRows 
+#' @importFrom DT datatable selectRows 
 #' @importFrom fst read.fst write.fst
 #' @importFrom genefilter rowttests
 #' @importFrom grDevices colorRampPalette
@@ -27,6 +27,6 @@
 #' @importFrom RColorBrewer brewer.pal.info
 #' @importFrom stringr str_locate
 #' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay
-#' @importFrom S4Vectors coolcat metadata Rle new_SimpleList_from_list
+#' @importFrom S4Vectors coolcat metadata Rle
 #' @importFrom IRanges IRanges Views
 NULL
