@@ -64,13 +64,13 @@ GenerateMappabilityReads <- function(fasta = "genome.fa", gtf = "transcripts.gtf
       assert_that(substr(ah_transcriptome,1,2) == "AH",
           msg = "Given transcriptome AnnotationHub reference is incorrect")
 
-          message("Reading AnnotationHub GTF file...", appendLF = F)
+          message("Reading AnnotationHub GTF file...", appendLF = FALSE)
           gtf.gr = FetchAH(ah_transcriptome, ah = ah)
           message("done\n")
   } else {
       assert_that(file.exists(normalizePath(gtf)),
           msg = paste("Given transcriptome gtf file", normalizePath(gtf), "not found"))
-      message("Reading source GTF file...", appendLF = F)
+      message("Reading source GTF file...", appendLF = FALSE)
       gtf.gr = rtracklayer::import(gtf)
       message("done\n")
   }
@@ -79,7 +79,7 @@ GenerateMappabilityReads <- function(fasta = "genome.fa", gtf = "transcripts.gtf
     assert_that(substr(ah_genome,1,2) == "AH",
         msg = "Given transcriptome AnnotationHub reference is incorrect")
 
-    message("Reading AnnotationHub genome file file...", appendLF = F)
+    message("Reading AnnotationHub genome file file...", appendLF = FALSE)
     genome = FetchAH(ah_genome, ah = ah)
 
     # Write fasta to file
@@ -229,7 +229,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
         rtracklayer::export(genome, file.path(reference_path, "resource", "genome.2bit"), "2bit")
         message("Genome converted to Twobit file\n")
     
-        message("Connecting to genome file...", appendLF = F)
+        message("Connecting to genome file...", appendLF = FALSE)
         genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
         gc()
         
@@ -256,7 +256,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 				}
 				gtf_file = basename(gtf)
 				
-        message("Reading source GTF file...", appendLF = F)
+        message("Reading source GTF file...", appendLF = FALSE)
         gtf.gr = rtracklayer::import(gtf, "gtf")
         message("done\n")
     }
@@ -272,7 +272,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(1/N, message = "Processing gtf file")
     }
-    message("Processing gtf file...", appendLF = F)
+    message("Processing gtf file...", appendLF = FALSE)
    
     # fix gene / transcript names with '/' (which breaks IRFinder code)
     gtf.gr$gene_name = gsub("/","_",gtf.gr$gene_name)
@@ -460,7 +460,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     strand(Genes.rev) = ifelse(strand(Genes.rev) == "+", "-", 
         ifelse(strand(Genes.rev) == "-", "+", "*")) # Invert strand
     Genes.Extended = reduce(c(flank(Genes.rev, 5000), 
-        flank(Genes.rev, 1000, start = F)))
+        flank(Genes.rev, 1000, start = FALSE)))
 
     
     message("done\n")
@@ -468,7 +468,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(1/N, message = "Processing introns")
     }
-    message("Processing introns...", appendLF = F)    
+    message("Processing introns...", appendLF = FALSE)    
 
     candidate.introns = grlGaps(
         split(candidate.transcripts, candidate.transcripts$transcript_id)
@@ -705,7 +705,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(1/N, message = "Generating IRFinder Reference")
     }
-    message("Generating ref-cover.bed ...", appendLF = F)    
+    message("Generating ref-cover.bed ...", appendLF = FALSE)    
 
 # Finished annotating introns, now use it to build reference:
     # Phase unique introns by first sorting for: protein_coding, then processed_transcript, then lincRNA, then 
@@ -740,21 +740,21 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     # TODO: check mappability and blacklist are valid Bed3 formats (chr, start, end) Presume 0-based
     if(MappabilityFile != "") {
         mappability = fread(MappabilityFile)
-        mappability = mappability[,1:3]
+        mappability = mappability[,seq_len(3)]
         colnames(mappability) = c("seqnames", "start", "end")
         mappability$start = mappability$start + 1         # Presume 0-based as per bed file
         exclude.omnidirectional = makeGRangesFromDataFrame(mappability) # + merge with any blacklists
         exclude.omnidirectional = reduce(exclude.omnidirectional, min.gapwidth = 9) # merge with any gaps <= 9
         if(BlacklistFile != "") {
             blacklist = fread(BlacklistFile)
-            blacklist = blacklist[,1:3]
+            blacklist = blacklist[,seq_len(3)]
             colnames(blacklist) = c("seqnames", "start", "end")
             exclude.omnidirectional = c(exclude.omnidirectional,
                 makeGRangesFromDataFrame(blacklist))
         }
     } else if(BlacklistFile != "") {
         blacklist = fread(BlacklistFile)
-        blacklist = blacklist[,1:3]
+        blacklist = blacklist[,seq_len(3)]
         colnames(blacklist) = c("seqnames", "start", "end")
         blacklist$start = blacklist$start + 1
         exclude.omnidirectional = makeGRangesFromDataFrame(blacklist)
@@ -972,7 +972,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     message("done\n")
 
-    message("Generating ref-ROI.bed ...", appendLF = F)    
+    message("Generating ref-ROI.bed ...", appendLF = FALSE)    
  
 # ROI
     if("gene_biotype" %in% names(mcols(Transcripts))) {
@@ -993,7 +993,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     
     if(nonPolyAFile != "") {
         nonPolyA = fread(nonPolyAFile, sep="\t")
-        nonPolyA = nonPolyA[,1:3]
+        nonPolyA = nonPolyA[,seq_len(3)]
         colnames(nonPolyA) = c("seqnames", "start", "end")
         nonPolyA$name = with(nonPolyA,paste("NonPolyA", seqnames, start, end, sep="/"))
         nonPolyA$start = nonPolyA$start + 1   # 0-based conversion
@@ -1004,7 +1004,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
     AllChr = data.frame(seqnames = names(seqinfo(genome)),
         start = 1, end = seqinfo(genome)@seqlengths, names = names(seqinfo(genome)))
     AllChr = makeGRangesListFromDataFrame(AllChr, split.field = "names")
-    Genes.chr = c(Genes, flank(Genes, 10000), flank(Genes, 10000, start = F))
+    Genes.chr = c(Genes, flank(Genes, 10000), flank(Genes, 10000, start = FALSE))
     Genes.chr = reduce(Genes.chr, min.gapwidth = 1000)
     Genes.chr$chr = seqnames(Genes.chr)
     Genes.chr = split(Genes.chr, Genes.chr$chr)
@@ -1028,7 +1028,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     message("done\n")
 
-    message("Generating ref-read-continues.ref ...", appendLF = F)    
+    message("Generating ref-read-continues.ref ...", appendLF = FALSE)    
 
 # ref-read-continues.ref
     introns.unique.readcons = rbind(tmpdir.IntronCover.summa[, c("seqnames", "intron_start", "intron_end", "strand")],
@@ -1044,7 +1044,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 
     message("done\n")
 
-    message("Generating ref-sj.ref ...", appendLF = F)    
+    message("Generating ref-sj.ref ...", appendLF = FALSE)    
     
 # ref-sj.ref
     # Reload candidate introns here, as we've filtered this before
@@ -1177,7 +1177,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf", ah_geno
 	introns.skippedJn = introns.skipcoord[skip_coord %in% Event, c("gene_id","gene_name","skip_coord")]
 	introns.skippedJn = unique(introns.skippedJn)
 	
-message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
+message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = FALSE)
 
 	introns.search.MXE = introns.skipcoord[introns.skipcoord[,
 		.I[intron_number < max(intron_number)], by = transcript_id]$V1]
@@ -1206,7 +1206,7 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
 	
     if(nrow(introns.search.MXE) > 0) {
         introns.found.MXE = introns.search.MXE[ , {
-            edge1 = rep(1:.N, (.N:1) - 1L)
+            edge1 = rep(seq_len(.N), (.N:1) - 1L)
             i = 2L:(.N * (.N - 1L) / 2L + 1L)
                 o = cumsum(c(0, (.N-2L):1))
             edge2 = i - o[edge1]
@@ -1224,7 +1224,7 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
         setorder(introns.found.MXE, gene_id, transcript_name_a)
         introns.found.MXE[, EventName := paste0("MXE:", transcript_name_a, "-exon",(1 + intron_number_a),";",
                 transcript_name_b,"-exon",(1 + intron_number_b))]
-        introns.found.MXE[, EventID := paste0("MXE#", 1:.N)]
+        introns.found.MXE[, EventID := paste0("MXE#", seq_len(.N))]
         data.table::setnames(introns.found.MXE, old = "skip_coord", new = "EventRegion")
         introns.found.MXE[, EventType := "MXE"]
         introns.found.MXE = introns.found.MXE[, c("EventType","EventID","EventName","Event1a","Event1b","Event2a","Event2b",
@@ -1239,7 +1239,7 @@ message("Annotating Mutually-Exclusive-Exon Splice Events...", appendLF = F)
 	message("done\n")
     gc()
 
-message("Annotating Skipped-Exon Splice Events...", appendLF = F)
+message("Annotating Skipped-Exon Splice Events...", appendLF = FALSE)
 
 # annotate skipped junctions with two included junctions
 
@@ -1289,7 +1289,7 @@ message("Annotating Skipped-Exon Splice Events...", appendLF = F)
 	message("done\n")
     gc()
 
-message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
+message("Annotating Alternate First / Last Exon Splice Events...", appendLF = FALSE)
 
 	# AFE/ALE
 
@@ -1335,7 +1335,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.search.ALE = unique(introns.search.ALE, by = "Event")
 
 	introns.found.AFE = introns.search.AFE[ , {
-		edge1 = rep(1:.N, (.N:1) - 1L)
+		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
 			o = cumsum(c(0, (.N-2L):1))
 		edge2 = i - o[edge1]
@@ -1351,7 +1351,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.found.AFE = introns.found.AFE[!is.na(gene_id)]
 	
 	introns.found.ALE = introns.search.ALE[ , {
-		edge1 = rep(1:.N, (.N:1) - 1L)
+		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
 			o = cumsum(c(0, (.N-2L):1))
 		edge2 = i - o[edge1]
@@ -1373,7 +1373,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 			";",transcript_name_b,"-exon",intron_number_b)]
 	introns.found.AFE = introns.found.AFE[, EventType := "AFE"]
 	introns.found.AFE = introns.found.AFE[, EventRegion := Event1b]
-	introns.found.AFE[, EventID := paste0("AFE#", 1:.N)]
+	introns.found.AFE[, EventID := paste0("AFE#", seq_len(.N))]
 	introns.found.AFE = introns.found.AFE[, c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
@@ -1387,7 +1387,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 			";",transcript_name_b,"-exon",intron_number_b)]
 	introns.found.ALE = introns.found.ALE[, EventType := "ALE"]
 	introns.found.ALE = introns.found.ALE[, EventRegion := Event1b]
-	introns.found.ALE[, EventID := paste0("ALE#", 1:.N)]
+	introns.found.ALE[, EventID := paste0("ALE#", seq_len(.N))]
 	introns.found.ALE = introns.found.ALE[, c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
@@ -1397,7 +1397,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	message("done\n")
     gc()
 
-	message("Annotating Alternate 5' / 3' Splice Site Splice Events...", appendLF = F)
+	message("Annotating Alternate 5' / 3' Splice Site Splice Events...", appendLF = FALSE)
 
     # This section requires "exon groups"
     #   First we group genes into strand-specific contiguous groups of genes
@@ -1482,7 +1482,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.search.A3SS = unique(introns.search.A3SS, by = "Event")
 
 	introns.found.A5SS = introns.search.A5SS[ , {
-		edge1 = rep(1:.N, (.N:1) - 1L)
+		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
 			o = cumsum(c(0, (.N-2L):1))
 		edge2 = i - o[edge1]
@@ -1500,7 +1500,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.found.A5SS = introns.found.A5SS[!is.na(gene_id)]
 	
 	introns.found.A3SS = introns.search.A3SS[ , {
-		edge1 = rep(1:.N, (.N:1) - 1L)
+		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
 			o = cumsum(c(0, (.N-2L):1))
 		edge2 = i - o[edge1]
@@ -1529,7 +1529,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.found.A5SS = introns.found.A5SS[, EventType := "A5SS"]
 	introns.found.A5SS = introns.found.A5SS[, EventRegion := Event1b]
 	introns.found.A5SS = introns.found.A5SS[!introns.found.AFE, on = c("Event1a", "Event1b")]
-	introns.found.A5SS[, EventID := paste0("A5SS#", 1:.N)]
+	introns.found.A5SS[, EventID := paste0("A5SS#", seq_len(.N))]
 	introns.found.A5SS = introns.found.A5SS[, c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
@@ -1547,7 +1547,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 	introns.found.A3SS = introns.found.A3SS[, EventType := "A3SS"]
 	introns.found.A3SS = introns.found.A3SS[, EventRegion := Event1b]
 	introns.found.A3SS = introns.found.A3SS[!introns.found.ALE, on = c("Event1a", "Event1b")]
-	introns.found.A3SS[, EventID := paste0("A3SS#", 1:.N)]
+	introns.found.A3SS[, EventID := paste0("A3SS#", seq_len(.N))]
 	introns.found.A3SS = introns.found.A3SS[, c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
@@ -1660,7 +1660,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
     }
     if(nrow(AS_Table) > 0) {
     
-        message("Translating Alternate Splice Peptides...", appendLF = F)
+        message("Translating Alternate Splice Peptides...", appendLF = FALSE)
   phase <- transcript_id_a <- AA_seq <- AA_upstr.A <- transcript_id_b <- AA_upstr.B <- exon_number <- 
 	AA_downstr.A <- AA_downstr.B <- casette_seq <- casette_seq_extended <- phase_casette <- upstr_seq <- 
 	Downstr_seq <- AA_casette.A <- AA_casette.B <- AA_full.A <- AA_full.B <- NULL
@@ -1678,7 +1678,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         Upstream.A[, c("transcript_id", "exon_number") := list(transcript_id_a, intron_number_a)]
         # left_join with Exons
         Upstream.A = Proteins.Splice[Upstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Upstream.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Upstream.A)), keep.extra.columns = T)
+        Upstream.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Upstream.A)), keep.extra.columns = TRUE)
         Upstream.A.seq = getSeq(genome, Upstream.A.gr)
         Upstream.A[!is.na(seqnames),seq := as.character(Upstream.A.seq)]
         # Trim sequence by phase
@@ -1697,7 +1697,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         Upstream.B[, c("transcript_id", "exon_number") := list(transcript_id_b, intron_number_b)]
         # left_join with Exons
         Upstream.B = Proteins.Splice[Upstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Upstream.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Upstream.B)), keep.extra.columns = T)
+        Upstream.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Upstream.B)), keep.extra.columns = TRUE)
         Upstream.B.seq = getSeq(genome, Upstream.B.gr)
         Upstream.B[!is.na(seqnames),seq := as.character(Upstream.B.seq)]
         # Trim sequence by phase
@@ -1721,7 +1721,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         Downstream.A[EventType %in% c("AFE", "A5SS"), exon_number := exon_number + 1]
         # left_join with Exons
         Downstream.A = Proteins.Splice[Downstream.A, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Downstream.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Downstream.A)), keep.extra.columns = T)
+        Downstream.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Downstream.A)), keep.extra.columns = TRUE)
         Downstream.A.seq = getSeq(genome, Downstream.A.gr)
         Downstream.A[!is.na(seqnames),seq := as.character(Downstream.A.seq)]
         # Trim sequence by phase
@@ -1742,7 +1742,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
         Downstream.B[EventType %in% c("SE", "AFE", "A5SS"), exon_number := exon_number + 1]
         # left_join with Exons
         Downstream.B = Proteins.Splice[Downstream.B, on = c("transcript_id", "exon_number"), c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Downstream.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Downstream.B)), keep.extra.columns = T)
+        Downstream.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Downstream.B)), keep.extra.columns = TRUE)
         Downstream.B.seq = getSeq(genome, Downstream.B.gr)
         Downstream.B[!is.na(seqnames),seq := as.character(Downstream.B.seq)]
         # Trim sequence by phase
@@ -1763,7 +1763,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
         Casette.A = Proteins.Splice[Casette.A, on = c("transcript_id", "exon_number"), 
             c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Casette.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Casette.A)), keep.extra.columns = T)
+        Casette.A.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Casette.A)), keep.extra.columns = TRUE)
         Casette.A.seq = getSeq(genome, Casette.A.gr)
         Casette.A[!is.na(seqnames),casette_seq := as.character(Casette.A.seq)]
 
@@ -1798,7 +1798,7 @@ message("Annotating Alternate First / Last Exon Splice Events...", appendLF = F)
 
         Casette.B = Proteins.Splice[Casette.B, on = c("transcript_id", "exon_number"), 
             c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-        Casette.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Casette.B)), keep.extra.columns = T)
+        Casette.B.gr = makeGRangesFromDataFrame(as.data.frame(data.table::na.omit(Casette.B)), keep.extra.columns = TRUE)
         Casette.B.seq = getSeq(genome, Casette.B.gr)
         Casette.B[!is.na(seqnames),casette_seq := as.character(Casette.B.seq)]
 

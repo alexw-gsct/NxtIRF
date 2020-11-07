@@ -67,14 +67,17 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
         final_list[[i]] = S4Vectors::Rle(raw_list[[i]]$values, raw_list[[i]]$length)
       }
     }
-    final_RLE = S4Vectors:::new_SimpleList_from_list("SimpleRleList", final_list)
+    # final_RLE = S4Vectors:::new_SimpleList_from_list("SimpleRleList", final_list)
+		final_RLE = as(final_list, "RleList")
     names(final_RLE) = names(raw_list)
     return(final_RLE)
   } else if(end == 0) {
     raw_RLE = IRF_RLE_From_Cov(normalizePath(file), as.character(seqname), 0,0, as.numeric(strand))
+		final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
   } else {
     raw_RLE = IRF_RLE_From_Cov(normalizePath(file), as.character(seqname), 
-                               round(as.numeric(start)), round(as.numeric(end)), as.numeric(strand))
+			round(as.numeric(start)), round(as.numeric(end)), as.numeric(strand))
+		final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)													 
   }
-  final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)
+  
 }

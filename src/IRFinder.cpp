@@ -134,10 +134,11 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
 
 // [[Rcpp::export]]
 List IRF_gunzip_DF(std::string s_in, StringVector s_header_begin) {
+  List Final_final_list;
   
   GZReader gz_in;
   int ret = gz_in.LoadGZ(s_in, false, true);
-  if(ret != 0) return(NULL);
+  if(ret != 0) return(Final_final_list);
 	
   // std::ofstream out;
   // out.open(s_out, std::ifstream::out);
@@ -146,10 +147,8 @@ List IRF_gunzip_DF(std::string s_in, StringVector s_header_begin) {
   std::string myLine;
   std::string myEntry;
   unsigned int q = 0;
-
   char delim = '\n';
 
-  List Final_final_list;
   for(int z = 0; z < s_header_begin.size(); z++) {
     std::string header = string(s_header_begin(z));
     std::vector<std::string> columns;

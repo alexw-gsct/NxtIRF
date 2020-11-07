@@ -31,5 +31,5 @@
 #' @importFrom stringr str_locate
 #' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay
 #' @importFrom S4Vectors coolcat metadata Rle metadata<- SimpleList
-#' @importFrom IRanges IRanges Views
+#' @importFrom IRanges IRanges Views RleList
 NULL

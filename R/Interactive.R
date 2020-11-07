@@ -1775,10 +1775,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {				
 				df = settings_expr$df.files
 				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
-				if("SnowParam" %in% class(BPPARAM)) {
+				if(is(BPPARAM, "SnowParam")) {
 					BPPARAM_mod = BiocParallel::SnowParam(input$cores_slider)
           message(paste("Using SnowParam", input$cores_slider, "threads"))
-				} else if("MulticoreParam" %in% class(BPPARAM)) {
+				} else if(is(BPPARAM, "MulticoreParam")) {
 					BPPARAM_mod = BiocParallel::MulticoreParam(input$cores_slider)
           message(paste("Using MulticoreParam", input$cores_slider, "threads"))
 				} else {
@@ -2277,7 +2277,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			
 			colData = SummarizedExperiment::colData(settings_SE$se)
 			
-			if(class(colData[,input$variable_DE]) != "factor") {
+			if(!is(colData[,input$variable_DE], "factor")) {
 				output$warning_DE = renderText("Contrast must be performed on discrete categories")
         updateSelectInput(session = session, inputId = "variable_DE", 
           choices = c("(none)", colnames(colData)), selected = "(none)")
@@ -2412,10 +2412,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         
         BPPARAM = BiocParallel::bpparam()
         
-        if("SnowParam" %in% class(BPPARAM)) {
+        if(is(BPPARAM, "SnowParam")) {
           BPPARAM_mod = BiocParallel::SnowParam(cores_to_use)
           message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
-        } else if("MulticoreParam" %in% class(BPPARAM)) {
+        } else if(is(BPPARAM, "MulticoreParam")) {
           BPPARAM_mod = BiocParallel::MulticoreParam(cores_to_use)
           message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
         } else {
@@ -2639,7 +2639,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			colData = SummarizedExperiment::colData(settings_SE$se)
 			req(input$variable_diag %in% colnames(colData))
 
-			if(class(colData[,input$variable_diag]) != "factor") {
+			if(!is(colData[,input$variable_diag], "factor")) {
 				output$warning_diag = renderText("Contrast must be performed on discrete categories")
         updateSelectInput(session = session, inputId = "variable_diag", 
           choices = c("(none)", colnames(colData)), selected = "(none)")

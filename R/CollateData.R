@@ -26,7 +26,7 @@ FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
 #' @export
 CollateData <- function(Experiment, reference_path, output_path, IRMode = c("SpliceOverMax", "SpliceMax"), 
   localHub = FALSE, low_memory_mode = FALSE, samples_per_block = 16, n_threads = 1) {
-    assert_that("data.frame" %in% class(Experiment),
+    assert_that(is(Experiment, "data.frame"),
         msg = "Experiment object needs to be a data frame")
     assert_that(ncol(Experiment) >= 2,
         msg = "Experiment needs to contain two columns containing (1) sample name and (2) IRFinder output")
@@ -43,10 +43,10 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 
     BPPARAM = BiocParallel::bpparam()
     
-    if("SnowParam" %in% class(BPPARAM)) {
+    if(is(BPPARAM, "SnowParam")) {
       BPPARAM_mod = BiocParallel::SnowParam(n_threads)
       message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
-    } else if("MulticoreParam" %in% class(BPPARAM)) {
+    } else if(is(BPPARAM, "MulticoreParam")) {
       BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
       message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
     } else {
@@ -101,8 +101,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
       BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
         function(work, df.internal) {
           suppressPackageStartupMessages({
-            library(data.table)
-            library(stats)
+            requireNamespace(data.table)
+            requireNamespace(stats)
           })
           block = df.internal[work]
           for(i in seq_len(length(work))) {
@@ -162,8 +162,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
       function(work, df.internal, temp_output_path) {
         suppressPackageStartupMessages({
-          library(data.table)
-          library(stats)
+          requireNamespace(data.table)
+          requireNamespace(stats)
         })
         block = df.internal[work]
         junc.segment = NULL
@@ -201,8 +201,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
       function(work, df.internal, temp_output_path, runStranded, semi_join.DT) {
         suppressPackageStartupMessages({
-          library(data.table)
-          library(stats)
+          requireNamespace(data.table)
+          requireNamespace(stats)
         })
         block = df.internal[work]
         irf.segment = NULL
@@ -609,8 +609,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 	agg.list <- suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
 		function(x, jobs, df.internal, norm_output_path) {
 			suppressPackageStartupMessages({
-				library(data.table)
-				library(stats)
+				requireNamespace(data.table)
+				requireNamespace(stats)
 			})
   count <- neg <- pos <- total <- SO_L <- SO_R <- SO_I <- JG_up <- JG_down <- count_sum <- 
 	count_Event1a <- Event1a <- count_Event2a <- Event2a <- count_Event1b <- Event1b <- count_Event2b <- 
@@ -959,9 +959,9 @@ MakeSE = function(colData, fst_path) {
   remove_na = NULL
   if(ncol(colData) > 1) {
     for(i in seq(2, ncol(colData))) {
-      if(class(colData[,i]) == "character") {
+      if(is(colData[,i], "character")) {
         colData[,i] = factor(unlist(colData[,i]))      
-      } else if(any(class(colData[,i])=="logical")) {
+      } else if(is(colData[,i], "logical")) {
         colData[,i] <- factor(unlist(ifelse(colData[,i], "TRUE","FALSE")))				
       } else if(all(is.na(unlist(colData[,i])))) {
         remove_na = append(remove_na, i)
