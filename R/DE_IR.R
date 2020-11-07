@@ -1,25 +1,25 @@
 
 limma_DT <- function(countData, colData, test_factor, test_nom, test_denom, batch1, batch2, useASE = FALSE) {
-  assertthat::assert_that(is_valid(test_factor) & is_valid(test_nom) & is_valid(test_denom),
+  assert_that(is_valid(test_factor) & is_valid(test_nom) & is_valid(test_denom),
     msg = "test_factor, test_nom, test_denom must be defined")
-  assertthat::assert_that(test_factor %in% colnames(colData),
+  assert_that(test_factor %in% colnames(colData),
     msg = "test_factor is not a condition in colData")
-  assertthat::assert_that(any(colData[, test_factor] == test_nom),
+  assert_that(any(colData[, test_factor] == test_nom),
     msg = "test_nom is not found in any samples")
-  assertthat::assert_that(any(colData[, test_factor] == test_denom),
+  assert_that(any(colData[, test_factor] == test_denom),
     msg = "test_denom is not found in any samples")
   if(!missing(batch1)) {
-    assertthat::assert_that(batch1 %in% colnames(colData),
+    assert_that(batch1 %in% colnames(colData),
       msg = "batch1 is not a condition in colData")
-    assertthat::assert_that(test_factor != batch1, msg = "batch1 and test_factor are the same")      
+    assert_that(test_factor != batch1, msg = "batch1 and test_factor are the same")      
   }
   if(!missing(batch2)) {
-    assertthat::assert_that(batch2 %in% colnames(colData),
+    assert_that(batch2 %in% colnames(colData),
       msg = "batch1 is not a condition in colData")
-    assertthat::assert_that(test_factor != batch2, msg = "batch2 and test_factor are the same")      
+    assert_that(test_factor != batch2, msg = "batch2 and test_factor are the same")      
   }
   if(!missing(batch1) & !missing(batch2)) {
-    assertthat::assert_that(batch2 != batch1, msg = "batch1 and batch2 are the same")  
+    assert_that(batch2 != batch1, msg = "batch1 and batch2 are the same")  
   }
   
   # Contrast construction:

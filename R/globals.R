@@ -56,7 +56,7 @@ NxtIRF.CoordToInt = function(coordinates, type = "") {
 
 NxtIRF.StartBenchmarkTimer <- function(irf = NULL, handle = "1") {
 
-	assertthat::assert_that(is(irf, "NxtProject"),
+	assert_that(is(irf, "NxtProject"),
 		msg = "Valid NxtProject object required")
 
 	irf@benchmarks[[handle]] <- Sys.time()
@@ -66,7 +66,7 @@ NxtIRF.StartBenchmarkTimer <- function(irf = NULL, handle = "1") {
 
 NxtIRF.Benchmark <- function(irf = NULL, handle = "1", msg = "Time elapsed:", units = "auto") {
 
-	assertthat::assert_that(is(irf, "NxtProject"),
+	assert_that(is(irf, "NxtProject"),
 		msg = "Valid NxtProject object required")
 
 	end_time <- Sys.time()
@@ -80,7 +80,7 @@ NxtIRF.Benchmark <- function(irf = NULL, handle = "1", msg = "Time elapsed:", un
 }
 
 NxtIRF.CheckPackageInstalled <- function(package = "DESeq2", version = "1.0.0") {
-	assertthat::assert_that(
+	assert_that(
 		tryCatch(ifelse(packageVersion(package)>=version, TRUE, FALSE),
 		error = function(e) FALSE),
 		msg = paste(package, "package is not installed; and is required for this function")
@@ -88,11 +88,11 @@ NxtIRF.CheckPackageInstalled <- function(package = "DESeq2", version = "1.0.0") 
 }
 
 NxtIRF.SplitVector <- function(vector = "", n_workers = 1) {
-	assertthat::assert_that(n_workers >= 1,
+	assert_that(n_workers >= 1,
 		msg = "n_workers must be at least  1")
 	n_workers_use = as.integer(n_workers)
 	
-	assertthat::assert_that(length(vector) >= 1,
+	assert_that(length(vector) >= 1,
 		msg = "vector to split must be of length at least 1")
   
   if(n_workers_use > length(vector)) n_workers_use = length(vector)

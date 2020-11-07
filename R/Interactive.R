@@ -3,12 +3,10 @@ is_valid <- function(.) !is.null(.) && length(.) > 0 && (!is.character(.) || . !
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
-	assertthat::assert_that(interactive(),
+	assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
 
-  ah = AnnotationHub::AnnotationHub(localHub = offline)
-
-  # data.table::setDTthreads()
+  ah = AnnotationHub(localHub = offline)
 
 	filterModule_UI <- function(id, label = "Counter") {
 		ns <- NS(id)
@@ -659,7 +657,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			newref_bl = ""
 		)
 
-    default_volumes <- c("Working Directory" = getwd(), "Home" = fs::path_home(), getVolumes()())
+    default_volumes <- c("Working Directory" = getwd(), getVolumes()())
     addit_volume = c()
 
 	# tabEvent Observer
@@ -700,7 +698,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
 				}
-				settings_ViewRef$seqInfo = BSgenome::seqinfo(genome)
+				settings_ViewRef$seqInfo = seqinfo(genome)
         settings_ViewRef$gene_list <- getGeneList()
         settings_ViewRef$elem.DT <- loadViewRef()
         settings_ViewRef$transcripts.DT <- loadTranscripts()
@@ -740,7 +738,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					validate(need(file.exists(
 						file.path(settings_expr$collate_path, "se", "stats.fst")
 						), "stats.fst does not exist in given NxtIRF output directory"))
-					DT = as.data.table(fst::read.fst((file.path(settings_expr$collate_path, "se", "stats.fst"))))
+					DT = as.data.table(read.fst((file.path(settings_expr$collate_path, "se", "stats.fst"))))
 					DT = merge(as.data.table(settings_expr$df.anno), DT, all = TRUE)
 					DT::datatable(
 						DT,
@@ -808,7 +806,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				} else {
 					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
 				}
-				settings_Cov$seqInfo = BSgenome::seqinfo(genome)
+				settings_Cov$seqInfo = seqinfo(genome)
         settings_Cov$gene_list <- getGeneList()
         settings_Cov$elem.DT <- loadViewRef()
         settings_Cov$transcripts.DT <- loadTranscripts()
@@ -999,9 +997,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
 
-				queryfirst = data.table::tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+				queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
 				query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
-				choices = unlist(unique(data.table::tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+				choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
 				updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
 					choices = c("", sort(choices)))
 			} else {
@@ -1061,9 +1059,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
 				ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
 
-				queryfirst = data.table::tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+				queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
 				query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
-				choices = unlist(unique(data.table::tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+				choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
 				updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
 					choices = c("", sort(choices)))
 			} else {
@@ -1123,13 +1121,13 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			} else {        
 				args.df = as.data.frame(t(as.data.frame(args)))
 				colnames(args.df) = "value"
-				# data.table::fwrite(args.df, file.path(args$reference_path, "settings_newref.csv"), row.names = TRUE)
+				# fwrite(args.df, file.path(args$reference_path, "settings_newref.csv"), row.names = TRUE)
 				if("ah_genome_tmp" %in% names(args)) {
-					args$ah_genome = data.table::tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
+					args$ah_genome = tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_genome_tmp = NULL
 				}
 				if("ah_gtf_tmp" %in% names(args)) {
-					args$ah_transcriptome = data.table::tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
+					args$ah_transcriptome = tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
 					args$ah_gtf_tmp = NULL
 				}
         withProgress(message = 'Building Reference', value = 0, {
@@ -1173,7 +1171,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
 # Load Reference Page
-		settings_loadref <- shiny::reactiveValues(
+		settings_loadref <- reactiveValues(
 			loadref_path = "",
 			settings = c()
 		)
@@ -1257,7 +1255,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 # View Ref page
 
-    settings_ViewRef <- shiny::reactiveValues(
+    settings_ViewRef <- reactiveValues(
 			# data
 			seqInfo = NULL,
 			gene_list = NULL,
@@ -1278,7 +1276,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 			file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
       
-      Transcripts.DT = as.data.table(fst::read.fst(file_path))
+      Transcripts.DT = as.data.table(read.fst(file_path))
 
       if("transcript_support_level" %in% colnames(Transcripts.DT)) {
           Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
@@ -1294,15 +1292,15 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 			dir_path = file.path(settings_loadref$loadref_path, "fst")
 
-      exons.DT = as.data.table(fst::read.fst(file.path(dir_path, "Exons.fst"), 
+      exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
         c("seqnames", "start", "end", "strand", "type", "transcript_id")))
       exons.DT = exons.DT[transcript_id != "protein_coding"]
 
-      protein.DT = as.data.table(fst::read.fst(file.path(dir_path, "Proteins.fst"),
+      protein.DT = as.data.table(read.fst(file.path(dir_path, "Proteins.fst"),
         c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-      misc.DT = as.data.table(fst::read.fst(file.path(dir_path, "Misc.fst"),
+      misc.DT = as.data.table(read.fst(file.path(dir_path, "Misc.fst"),
         c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-      # introns.DT = as.data.table(fst::read.fst(file.path(dir_path, "junctions.fst")))
+      # introns.DT = as.data.table(read.fst(file.path(dir_path, "junctions.fst")))
       # introns.DT[, type := "intron"]
       
       total.DT = rbindlist(list(
@@ -1319,7 +1317,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
 			if(!file.exists(file_path)) return(NULL)
 			
-			df = as.data.table(fst::read.fst(file_path))
+			df = as.data.table(read.fst(file_path))
 			return(df)
 		}
 
@@ -1381,22 +1379,22 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         transcripts.DT[, group_id := gene_id]     
         screen.DT[transcripts.DT, on = "transcript_id", group_id := gene_id]
         # reduce screen.DT 
-        reduced.gr = GenomicRanges::disjoin(
-          GenomicRanges::makeGRangesFromDataFrame(
+        reduced.gr = disjoin(
+          makeGRangesFromDataFrame(
             as.data.frame(screen.DT)
           )
         )
         reduced.gr$type = "exon"
-        OL = GenomicRanges::findOverlaps(
+        OL = findOverlaps(
           reduced.gr,
-          GenomicRanges::makeGRangesFromDataFrame(
+          makeGRangesFromDataFrame(
             as.data.frame(screen.DT)
           )
         )
         reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
-        OL = GenomicRanges::findOverlaps(
+        OL = findOverlaps(
           reduced.gr,
-          GenomicRanges::makeGRangesFromDataFrame(
+          makeGRangesFromDataFrame(
             as.data.frame(screen.DT[type %in% c("CDS", "start_codon", "stop_codon")])
           )
         )
@@ -1407,7 +1405,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
       # add introns to reduced.DT
       introns.DT = as.data.table(grlGaps(
-        GenomicRanges::split(GenomicRanges::makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
+        split(makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
           reduced.DT$group_id)
       ))
       introns.DT[, type := "intron"]
@@ -1421,8 +1419,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       
       }
       
-      group.grl = GenomicRanges::split(
-        GenomicRanges::makeGRangesFromDataFrame(
+      group.grl = split(
+        makeGRangesFromDataFrame(
           as.data.frame(transcripts.DT)
         ), transcripts.DT$group_id
       )
@@ -1430,9 +1428,9 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       group.DT$group = NULL
       setnames(group.DT, "group_name", "group_id")
       # apply plot_order on transcripts.DT
-      OL = GenomicRanges::findOverlaps(
-        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(group.DT)),
-        GenomicRanges::makeGRangesFromDataFrame(as.data.frame(group.DT)),
+      OL = findOverlaps(
+        makeGRangesFromDataFrame(as.data.frame(group.DT)),
+        makeGRangesFromDataFrame(as.data.frame(group.DT)),
         ignore.strand = TRUE
       )
       group.DT$plot_level = 1      
@@ -1515,9 +1513,6 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         xaxis = list(range = c(view_start, view_end)),
         yaxis = list(range = c(0, 1 + max_plot_level), fixedrange = TRUE)
       )
-      # if(movable_labels == TRUE) {
-        # pl = pl %>% plotly::config(editable = TRUE)
-      # }
 			return(pl)			
 		}
 
@@ -3052,7 +3047,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       } else if(graph_mode == "Movable Labels") {
         final_plot = final_plot %>% layout(
           dragmode = FALSE
-        ) %>% plotly::config(editable = TRUE)
+        ) %>% config(editable = TRUE)
       }
       
       output$plot_cov <- renderPlotly({

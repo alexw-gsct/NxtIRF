@@ -23,10 +23,10 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
 #' @export
 run_Gunzip = function(infile = "", outfile) {
   file_to_read = normalizePath(infile)
-  assertthat::assert_that(file.exists(file_to_read),
+  assert_that(file.exists(file_to_read),
     msg = paste(file_to_read, "does not exist"))
     
-  assertthat::assert_that(dir.exists(dirname(outfile)),
+  assert_that(dir.exists(dirname(outfile)),
     msg = paste(dirname(outfile), "does not exist"))
     
   IRF_gunzip(file_to_read, outfile)
@@ -35,7 +35,7 @@ run_Gunzip = function(infile = "", outfile) {
 #' @export
 get_multi_DT_from_gz = function(infile = "", block_headers = c("Header1", "Header2")) {
   file_to_read = normalizePath(infile)
-  assertthat::assert_that(file.exists(file_to_read),
+  assert_that(file.exists(file_to_read),
     msg = paste(file_to_read, "does not exist"))
 
 
@@ -55,9 +55,9 @@ get_multi_DT_from_gz = function(infile = "", block_headers = c("Header1", "Heade
 
 #' @export
 GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
-  assertthat::assert_that(as.numeric(strand) %in% c(0,1,2),
+  assert_that(as.numeric(strand) %in% c(0,1,2),
                           msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
-  assertthat::assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
+  assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
                           msg = "Null or negative regions not allowed")
   if(seqname == "") {
     raw_list = IRF_RLEList_From_Cov(normalizePath(file), strand)

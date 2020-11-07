@@ -1,6 +1,6 @@
 #' @export
 FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
-    assertthat::assert_that(dir.exists(sample_path),
+    assert_that(dir.exists(sample_path),
         msg = "Given path does not exist")
     
     files_found = list.files(pattern = paste0("\\", suffix, "$"),
@@ -26,19 +26,19 @@ FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
 #' @export
 CollateData <- function(Experiment, reference_path, output_path, IRMode = c("SpliceOverMax", "SpliceMax"), 
   localHub = FALSE, low_memory_mode = FALSE, samples_per_block = 16, n_threads = 1) {
-    assertthat::assert_that("data.frame" %in% class(Experiment),
+    assert_that("data.frame" %in% class(Experiment),
         msg = "Experiment object needs to be a data frame")
-    assertthat::assert_that(ncol(Experiment) >= 2,
+    assert_that(ncol(Experiment) >= 2,
         msg = "Experiment needs to contain two columns containing (1) sample name and (2) IRFinder output")
 
-    assertthat::assert_that(file.exists(file.path(reference_path, "settings.Rds")),
+    assert_that(file.exists(file.path(reference_path, "settings.Rds")),
         msg = paste(file.path(reference_path, "settings.Rds"), "does not exist"))
 
     IRMode = match.arg(IRMode)
-    assertthat::assert_that(IRMode != "",
+    assert_that(IRMode != "",
       msg = "IRMode must be either 'SpliceOverMax' (default) or 'SpliceMax'")
 
-    assertthat::assert_that(n_threads <= (parallel::detectCores() - 2),
+    assert_that(n_threads <= (parallel::detectCores() - 2),
       msg = "NxtIRF does not support more threads than parallel::detectCores() - 2") 
 
     BPPARAM = BiocParallel::bpparam()
@@ -178,7 +178,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
               junc.segment = merge(junc.segment, junc[,1:4], all = TRUE)
           }
         # Write temp file
-            fst::write.fst(as.data.frame(junc), 
+            write.fst(as.data.frame(junc), 
                 file.path(temp_output_path, paste(block$sample[i], "junc.fst.tmp", sep=".")))        
         }
         return(junc.segment)
@@ -222,7 +222,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
           } else {
               irf.segment = semi_join.DT(irf.segment, irf[,1:6], by = colnames(irf.segment))
           }
-          fst::write.fst(as.data.frame(irf), 
+          write.fst(as.data.frame(irf), 
             file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
         }
         return(irf.segment)
@@ -250,7 +250,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     }  
     message("Tidying up splice junctions and intron retentions")
     
-    candidate.introns = as.data.table(fst::read.fst(file.path(reference_path, "fst", "junctions.fst")))
+    candidate.introns = as.data.table(read.fst(file.path(reference_path, "fst", "junctions.fst")))
 
     junc.strand = unique(candidate.introns[, c("seqnames", "start", "end", "strand")])
 
@@ -259,13 +259,13 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     junc.common = merge(junc.common, junc.strand, all = TRUE, by = c("seqnames", "start", "end"))
     junc.common[is.na(strand), strand := "*"]
 
-    left.gr = GenomicRanges::GRanges(seqnames = junc.common$seqnames, 
-        ranges = IRanges::IRanges(start = junc.common$start, end = junc.common$start + 1), strand = "+")
-    right.gr = GenomicRanges::GRanges(seqnames = junc.common$seqnames, 
-        ranges = IRanges::IRanges(start = junc.common$end - 1, end = junc.common$end), strand = "+")
+    left.gr = GRanges(seqnames = junc.common$seqnames, 
+        ranges = IRanges(start = junc.common$start, end = junc.common$start + 1), strand = "+")
+    right.gr = GRanges(seqnames = junc.common$seqnames, 
+        ranges = IRanges(start = junc.common$end - 1, end = junc.common$end), strand = "+")
         
-    left.seq = BSgenome::getSeq(genome, left.gr)
-    right.seq = BSgenome::getSeq(genome, right.gr)
+    left.seq = getSeq(genome, left.gr)
+    right.seq = getSeq(genome, right.gr)
 
     junc.common$motif_pos = paste0(as.character(left.seq), as.character(right.seq))
     junc.common$motif_infer_strand = "n"
@@ -280,15 +280,15 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     junc.common$motif_infer_strand = NULL
     
     # Should splicing across gene groups be allowed? Exclude
-    Genes = GenomicRanges::makeGRangesFromDataFrame(
-        fst::read.fst(file.path(reference_path, "fst", "Genes.fst"))
+    Genes = makeGRangesFromDataFrame(
+        read.fst(file.path(reference_path, "fst", "Genes.fst"))
     )
 
     # Exclude distant splice events:
 
     # Genes.Group.stranded = as.data.table(
-        # GenomicRanges::reduce(c(Genes, GenomicRanges::flank(Genes, 5000),
-        # GenomicRanges::flank(Genes, 5000, start = FALSE))
+        # reduce(c(Genes, flank(Genes, 5000),
+        # flank(Genes, 5000, start = FALSE))
     # ))
     # setorder(Genes.Group.stranded, seqnames, start, strand)
     # Genes.Group.stranded[, gene_group_stranded := .I]
@@ -297,9 +297,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     # junc.common.left[, start := start - 1]
     # junc.common.left[, end := start + 1]
     # OL = suppressWarnings(
-        # GenomicRanges::findOverlaps(
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        # findOverlaps(
+            # makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            # makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
         # )
     # )
     # junc.common$gene_group_left[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
@@ -308,9 +308,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     # junc.common.right[, end := end + 1]
     # junc.common.right[, start := end - 1]
     # OL = suppressWarnings(
-        # GenomicRanges::findOverlaps(
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
-            # GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
+        # findOverlaps(
+            # makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            # makeGRangesFromDataFrame(as.data.frame(Genes.Group.stranded))
         # )
     # )
     # junc.common$gene_group_right[OL@from] = Genes.Group.stranded$gene_group_stranded[OL@to]
@@ -343,8 +343,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
         on = c("seqnames", "start", "end", "strand")]
     
     # Use Exon Groups file to designate exon groups to all junctions
-    Exon.Groups = GenomicRanges::makeGRangesFromDataFrame(
-        fst::read.fst(file.path(reference_path, "fst", "Exons.groups.fst")),
+    Exon.Groups = makeGRangesFromDataFrame(
+        read.fst(file.path(reference_path, "fst", "Exons.groups.fst")),
         keep.extra.columns = TRUE)
     
     # Always calculate stranded for junctions
@@ -353,15 +353,15 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     # } else {
         # Exon.Groups = Exon.Groups[strand(Exon.Groups) != "*"]    
     # }
-    Exon.Groups.S = Exon.Groups[GenomicRanges::strand(Exon.Groups) != "*"]    
+    Exon.Groups.S = Exon.Groups[strand(Exon.Groups) != "*"]    
     
     junc.common.left = copy(junc.common)
     junc.common.left[, start := start - 1]
     junc.common.left[, end := start + 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(junc.common.left)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     junc.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -371,9 +371,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     junc.common.right[, end := end + 1]
     junc.common.right[, start := end - 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(junc.common.right)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     junc.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -399,9 +399,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     irf.common.left[, start := start - 1]
     irf.common.left[, end := start + 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -411,9 +411,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     irf.common.right[, end := end + 1]
     irf.common.right[, start := end - 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -436,17 +436,17 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     irf.common$exon_group_right = NULL
     
     if(!runStranded) {
-        Exon.Groups = Exon.Groups[GenomicRanges::strand(Exon.Groups) == "*"]
+        Exon.Groups = Exon.Groups[strand(Exon.Groups) == "*"]
     } else {
-        Exon.Groups = Exon.Groups[GenomicRanges::strand(Exon.Groups) != "*"]    
+        Exon.Groups = Exon.Groups[strand(Exon.Groups) != "*"]    
     }
     irf.common.left = copy(irf.common)
     irf.common.left[, start := start - 1]
     irf.common.left[, end := start + 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(irf.common.left)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -456,9 +456,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     irf.common.right[, end := end + 1]
     irf.common.right[, start := end - 1]
     OL = suppressWarnings(
-        GenomicRanges::findOverlaps(
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
-            GenomicRanges::makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
+        findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(irf.common.right)), 
+            makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
     irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
@@ -481,7 +481,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 
     irf.common[, EventRegion := paste0(seqnames, ":", start, "-", end, "/", strand)]
 
-    Splice.Anno = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Splice.fst")))
+    Splice.Anno = as.data.table(read.fst(file.path(reference_path, "fst", "Splice.fst")))
     candidate.introns[, Event1a := Event]
     candidate.introns[, Event2a := Event]
     Splice.Anno[candidate.introns, on = "Event1a", up_1a := paste(i.gene_group_stranded, 
@@ -510,9 +510,9 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
       dir.create(file.path(norm_output_path, "annotation"))
   }		  
   
-	fst::write_fst(as.data.frame(junc.common), file.path(norm_output_path, "annotation", "Junc.fst"))
-	fst::write_fst(as.data.frame(irf.common), file.path(norm_output_path, "annotation", "IR.fst"))
-	fst::write_fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "annotation", "Splice.fst"))
+	write.fst(as.data.frame(junc.common), file.path(norm_output_path, "annotation", "Junc.fst"))
+	write.fst(as.data.frame(irf.common), file.path(norm_output_path, "annotation", "IR.fst"))
+	write.fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "annotation", "Splice.fst"))
 
 	# make rowEvent here
 	irf.anno.brief = irf.common[, c("Name", "EventRegion")]
@@ -537,11 +537,11 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     # Triggers_NMD: at least one isoform is pure NMD
     # TSL: maximum TSL of either isoform
 
-  IR_NMD = as.data.table(fst::read.fst(file.path(reference_path, "fst", "IR.NMD.fst")))
+  IR_NMD = as.data.table(read.fst(file.path(reference_path, "fst", "IR.NMD.fst")))
   # Splice_NMD = IR_NMD[, c("transcript_id", "splice_stop_pos", "splice_start_to_last_EJ", 
     # "splice_stop_to_last_EJ", "splice_is_NMD")]
-  Splice.Options = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Splice.options.fst")))
-  Transcripts = as.data.table(fst::read.fst(file.path(reference_path, "fst", "Transcripts.fst")))
+  Splice.Options = as.data.table(read.fst(file.path(reference_path, "fst", "Splice.options.fst")))
+  Transcripts = as.data.table(read.fst(file.path(reference_path, "fst", "Transcripts.fst")))
   # Splice.Options[Splice_NMD, on = "transcript_id", Is_NMD := i.splice_is_NMD]
   Splice.Options[Splice.Anno, on = "EventID", EventName := i.EventName]
   Splice.Options[Transcripts, on = "transcript_id", transcript_biotype := i.transcript_biotype]
@@ -578,7 +578,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
   rowEvent.Extended[Splice.Options.Summary[isoform == "A"], on = "EventName", Inc_TSL := i.tsl_min]
   rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_TSL := i.tsl_min]
 
-  fst::write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
+  write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
 
 
     rm(candidate.introns, introns.unique)
@@ -602,10 +602,10 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 			})
       
       # Read this from fst file
-      rowEvent = as.data.table(fst::read.fst(file.path(norm_output_path, "se", "rowEvent.fst")))
-      junc.common = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
-      irf.common = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation","IR.fst")))
-      Splice.Anno = as.data.table(fst::read.fst(file.path(norm_output_path, "annotation","Splice.fst")))
+      rowEvent = as.data.table(read.fst(file.path(norm_output_path, "se", "rowEvent.fst")))
+      junc.common = as.data.table(read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
+      irf.common = as.data.table(read.fst(file.path(norm_output_path, "annotation","IR.fst")))
+      Splice.Anno = as.data.table(read.fst(file.path(norm_output_path, "annotation","Splice.fst")))
       
 			work = jobs[[x]]
 			block = df.internal[work]
@@ -623,7 +623,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 			
 			for(i in seq_len(length(work))) {
 				junc = as.data.table(
-						fst::read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
+						read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
 				)
 				junc[, start := start + 1]
 				junc$strand = NULL
@@ -656,8 +656,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				junc[JG_up != JG_down & JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
 				
         # Then use a simple overlap method to account for the remainder
-        junc.gr = GenomicRanges::makeGRangesFromDataFrame(as.data.frame(junc))
-        OL = GenomicRanges::findOverlaps(junc.gr, junc.gr)
+        junc.gr = makeGRangesFromDataFrame(as.data.frame(junc))
+        OL = findOverlaps(junc.gr, junc.gr)
         OL = OL[OL@to %in% which(junc$JG_up == junc$JG_down) | OL@from %in% which(junc$JG_up == junc$JG_down)]
 
         splice.overlaps.DT = data.table(from = OL@from, to = OL@to)
@@ -671,7 +671,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
         junc[SO_R < SO_I, SO_R := SO_I]
 				junc[, SO_I := NULL]
 
-				fst::write.fst(as.data.frame(junc), 
+				write.fst(as.data.frame(junc), 
 						file.path(norm_output_path, "samples", paste(block$sample[i], "junc.fst", sep=".")))
 
 				splice = copy(Splice.Anno)
@@ -719,7 +719,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				splice[EventType %in% c("AFE", "A5SS"), coverage := cov_down]
 				
 				irf = as.data.table(
-						fst::read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
+						read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
 				)
 				irf[, start := start + 1]
 				irf = irf[irf.common, on = colnames(irf.common)[1:6], EventRegion := i.EventRegion]
@@ -763,10 +763,10 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				splice[irf, on = "EventRegion", TotalDepth := i.TotalDepth]
 				splice[splice.no_region, on = "EventName", TotalDepth := i.Depth]
 
-				fst::write.fst(as.data.frame(splice), 
+				write.fst(as.data.frame(splice), 
 						file.path(norm_output_path, "samples", paste(block$sample[i], "splice.fst", sep=".")))
 				
-				fst::write.fst(as.data.frame(irf),
+				write.fst(as.data.frame(irf),
 						file.path(norm_output_path, "samples", paste(block$sample[i], "irf.fst", sep=".")))
 						
 				file.remove(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
@@ -899,7 +899,7 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				file.remove(file.path(file.path(norm_output_path, "temp"), file.DT$file[x]))
 			}
 			outfile = file.path(se_output_path, paste(item, "fst", sep="."))
-			fst::write.fst(as.data.frame(mat), outfile)
+			write.fst(as.data.frame(mat), outfile)
 		}
   } else {
 		item.DTList = list()
@@ -912,12 +912,12 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				}
 			}
 			outfile = file.path(se_output_path, paste(item, "fst", sep="."))
-			fst::write.fst(as.data.frame(item.DTList[[item]]), outfile)
+			write.fst(as.data.frame(item.DTList[[item]]), outfile)
 		}
 	}
   
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
-	fst::write.fst(as.data.frame(df.internal), outfile)
+	write.fst(as.data.frame(df.internal), outfile)
 	
   if(!is.null(shiny::getDefaultReactiveDomain())) {
     shiny::incProgress(0.19, message = "NxtIRF Collation Finished")
@@ -931,7 +931,7 @@ MakeSE = function(colData, fst_path) {
   item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
     "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
   files.todo = file.path(normalizePath(fst_path), "se", paste(item.todo, "fst", sep="."))
-  assertthat::assert_that(all(file.exists(files.todo)),
+  assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
   colData = as.data.frame(colData)
@@ -952,16 +952,16 @@ MakeSE = function(colData, fst_path) {
 		colData = colData[,-remove_na]
 	}
   
-  rowData = fst::read.fst(files.todo[1])
-  Included = as.matrix(fst::read.fst(files.todo[2], columns = colData$sample))
-  Excluded = as.matrix(fst::read.fst(files.todo[3], columns = colData$sample))
-  Depth = as.matrix(fst::read.fst(files.todo[4], columns = colData$sample))
-  Coverage = as.matrix(fst::read.fst(files.todo[5], columns = colData$sample))
-  minDepth = as.matrix(fst::read.fst(files.todo[6], columns = colData$sample))
-  Up_Inc = as.matrix(fst::read.fst(files.todo[7], columns = colData$sample))
-  Down_Inc = as.matrix(fst::read.fst(files.todo[8], columns = colData$sample))
-  Up_Exc = as.matrix(fst::read.fst(files.todo[9], columns = colData$sample))
-  Down_Exc = as.matrix(fst::read.fst(files.todo[10], columns = colData$sample))
+  rowData = read.fst(files.todo[1])
+  Included = as.matrix(read.fst(files.todo[2], columns = colData$sample))
+  Excluded = as.matrix(read.fst(files.todo[3], columns = colData$sample))
+  Depth = as.matrix(read.fst(files.todo[4], columns = colData$sample))
+  Coverage = as.matrix(read.fst(files.todo[5], columns = colData$sample))
+  minDepth = as.matrix(read.fst(files.todo[6], columns = colData$sample))
+  Up_Inc = as.matrix(read.fst(files.todo[7], columns = colData$sample))
+  Down_Inc = as.matrix(read.fst(files.todo[8], columns = colData$sample))
+  Up_Exc = as.matrix(read.fst(files.todo[9], columns = colData$sample))
+  Down_Exc = as.matrix(read.fst(files.todo[10], columns = colData$sample))
 
   rownames(Up_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
   rownames(Down_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
