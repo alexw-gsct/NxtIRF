@@ -245,6 +245,13 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 
 # Reassign +/- based on junctions.fst annotation
     # Annotate junctions
+  motif_pos <- motif_infer_strand <- Event <- transcript_biotype_2 <- transcript_biotype <- 
+	transcript_support_level <- JG_up <- JG_down <- gene_group_left <- exon_group_left <- gene_group_right <- 
+	exon_group_right <- IRG_up <- IRG_down <- EventRegion <- Event1a <- Event2a <- up_1a <- 
+	i.gene_group_stranded <- i.exon_group_stranded_upstream <- down_1a <- i.exon_group_stranded_downstream <- 
+	down_2a <- EventType <- EventName <- i.EventName <- i.transcript_biotype <- NULL
+	
+	
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(0.15, message = "Tidying up splice junctions and intron retentions")
     }  
@@ -531,7 +538,12 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
   }		
 
   # Annotate anything here in rowEvent.extended that allows for Annotation based filters
-  
+  tsl_min <- any_is_PC <- is_protein_coding <- all_is_NMD <- intron_id <- Inc_Is_Protein_Coding <- 
+	Exc_Is_Protein_Coding <- i.intron_type <- isoform <- i.any_is_PC <- Inc_Is_NMD <- Exc_Is_NMD <- 
+	splice_is_NMD <- i.splice_is_NMD <- i.IRT_is_NMD <- i.all_is_NMD <- Inc_TSL <- i.transcript_support_level <- 
+	Exc_TSL <- i.tsl_min <- NULL
+	
+	
   # Implement filters:
     # Is_Protein_Coding: at least one of the options is a valid protein_coding transcript
     # Triggers_NMD: at least one isoform is pure NMD
@@ -600,7 +612,14 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
 				library(data.table)
 				library(stats)
 			})
-      
+  count <- neg <- pos <- total <- SO_L <- SO_R <- SO_I <- JG_up <- JG_down <- count_sum <- 
+	count_Event1a <- Event1a <- count_Event2a <- Event2a <- count_Event1b <- Event1b <- count_Event2b <- 
+	Event2b <- count_JG_up <- count_JG_down <- partic_up <- partic_down <- cov_up <- cov_down <- coverage <- 
+	EventRegion <- i.EventRegion <- SpliceMax <- SpliceLeft <- SpliceRight <- SpliceOverLeft <- 
+	SpliceOverRight <- SpliceOverMax <- IROratio <- IntronDepth <- TotalDepth <- Depth1a <- Depth2a <- 
+	Depth1b <- Depth2b <- DepthA <- DepthB <- i.TotalDepth <- i.Depth <- ExonToIntronReadsLeft <- 
+	ExonToIntronReadsRight <- NULL      
+			
       # Read this from fst file
       rowEvent = as.data.table(read.fst(file.path(norm_output_path, "se", "rowEvent.fst")))
       junc.common = as.data.table(read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
@@ -885,7 +904,8 @@ CollateData <- function(Experiment, reference_path, output_path, IRMode = c("Spl
     shiny::incProgress(0.20, message = "Building Final SummarizedExperiment Object")
   }  
   message("Building Final SummarizedExperiment Object")
-  
+  index <- NULL
+	
 	if(low_memory_mode) {
 		for(item in item.todo) {
 			file.DT = data.table(file = list.files(pattern = item, path = file.path(norm_output_path, "temp")))
@@ -993,6 +1013,9 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
         # - Coverage: 1-minimum, 1a-minDepth, 2-minCond, 3-pcTRUE
         # - Consistency: 1-maximum, 1a-minDepth, 2-minCond, 3-pcTRUE
 						# - for Consistency, maximum is the max(abs(log2_delta)) between comparison and calculated value
+	
+	Inc_Is_Protein_Coding <- Exc_Is_Protein_Coding <- EventType <- Inc_Is_NMD <- Exc_Is_NMD <- Inc_TSL <- 
+	Exc_TSL <- NULL
 	
 	filterResult = rep(TRUE, nrow(filterObject))
   if(!("pcTRUE" %in% names(filterVars))) {

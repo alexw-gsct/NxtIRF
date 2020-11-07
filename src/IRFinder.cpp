@@ -116,8 +116,9 @@ List IRF_RLEList_From_Cov(std::string s_in, int strand) {
 int IRF_gunzip(std::string s_in, std::string s_out) {
   
   GZReader gz_in;
-  gz_in.LoadGZ(s_in, true);
-  
+  int ret = gz_in.LoadGZ(s_in, true);
+  if(ret != 0) return(ret);
+	
   std::ofstream out;
   out.open(s_out, std::ofstream::binary);
   std::string myLine;
@@ -135,8 +136,9 @@ int IRF_gunzip(std::string s_in, std::string s_out) {
 List IRF_gunzip_DF(std::string s_in, StringVector s_header_begin) {
   
   GZReader gz_in;
-  gz_in.LoadGZ(s_in, false, true);
-  
+  int ret = gz_in.LoadGZ(s_in, false, true);
+  if(ret != 0) return(NULL);
+	
   // std::ofstream out;
   // out.open(s_out, std::ifstream::out);
   
@@ -231,8 +233,9 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string s_out
     Rcout << "Reading reference file\n";
     
     GZReader gz_in;
-    gz_in.LoadGZ(reference_file, true);
-
+    int ret = gz_in.LoadGZ(reference_file, true);
+		if(ret != 0) return(-1);
+		
     std::string myLine;
     std::string myBuffer;
     

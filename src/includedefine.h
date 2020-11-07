@@ -1,7 +1,7 @@
 #ifndef INCLUDEDEFINE_DEF
 #define INCLUDEDEFINE_DEF
 
-#pragma GCC diagnostic ignored "-Wpedantic"
+// #pragma GCC diagnostic ignored "-Wpedantic"
 
 #include <cstring>
 #include <time.h>

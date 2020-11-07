@@ -16,6 +16,7 @@ BuildReference(
   BlacklistRef = "",
   FilterIRByProcessedTranscript = FALSE,
   localHub = FALSE,
+  ah = AnnotationHub(localHub = localHub),
   BPPARAM = BiocParallel::bpparam()
 )
 }

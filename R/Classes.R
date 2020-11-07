@@ -11,8 +11,6 @@
 #' @field Introns Introns (data.table). Contains duplicate introns for each transcripts that share the same genomic interval. For unique introns, use Introns_dedup
 #' @field Introns_dedup Introns, unique for each genomic interval (data.table).
 #' @field Splice Splice annotations (data.table)
-#' @importFrom GenomicRanges GRanges
-#' @importFrom data.table data.table
 setClass("NxtAnnotation",
     slots = c(RefPath = "character",
         RefFasta = "character",
@@ -57,7 +55,6 @@ setMethod("show", "NxtAnnotation",
 #' @field Data list, contains compiled raw data loaded into memory.
 #' @field nds list, contains refined countData with accompanying colData, for parsing onto other package methods for differential analysis such as DESeq2, edgeR or limma
 #' @field benchmarks list, contains system times for benchmark purposes
-#' @importFrom S4Vectors metadata metadata<- SimpleList
 setClass("NxtProject",
     slots = c(metadata = "SimpleList",
 		metrics = "SimpleList",

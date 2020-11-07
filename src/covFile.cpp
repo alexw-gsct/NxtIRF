@@ -186,14 +186,16 @@ int covFile::ReadBuffer() {
     }
 
     stream_uint16 u16;
-
+		int ret = 0;
+		
     char GzipCheck[bamGzipHeadLength];
     IN->read(GzipCheck, bamGzipHeadLength);
 
      if(strncmp(bamGzipHead, GzipCheck, bamGzipHeadLength) != 0) {
         std::ostringstream oss;
         oss << "Exception during BAM decompression - BGZF header corrupt: (at " << IN->tellg() << " bytes) ";
-        throw(std::runtime_error(oss.str()));
+        // throw(std::runtime_error(oss.str()));
+				return(-1);
     }
 
     IN->read(u16.c, 2);
@@ -212,17 +214,19 @@ int covFile::ReadBuffer() {
     stream_uint32 u32;
     memcpy(u32.c, &compressed_buffer[u16.u + 1 - 2 - bamGzipHeadLength - 8],4);
 
-    int ret = inflateInit2(&zs, -15);
+    ret = inflateInit2(&zs, -15);
     if(ret != Z_OK) {
         std::ostringstream oss;
         oss << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        // throw(std::runtime_error(oss.str()));
+				return(ret);
     }
     ret = inflate(&zs, Z_FINISH);
     if(ret != Z_OK && ret != Z_STREAM_END) {
         std::ostringstream oss;
         oss << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        // throw(std::runtime_error(oss.str()));
+				return(ret);
     }
     ret = inflateEnd(&zs);
     
@@ -234,7 +238,8 @@ int covFile::ReadBuffer() {
     if(u32.u != crc) {
         std::ostringstream oss;
         oss << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
-        throw(std::runtime_error(oss.str()));
+        // throw(std::runtime_error(oss.str()));
+				return(ret);
     }
     bufferPos = 0;
     
@@ -245,9 +250,11 @@ int covFile::read(char * dest, unsigned int len) {
     
     unsigned int remaining_bytes = 0;
     unsigned int dest_pos = 0;
+		int ret = 0;
     // Read next block if buffer empty or if pos is at end of buffer
     if(bufferMax == 0 || bufferPos == bufferMax) {
-        ReadBuffer();        
+        ret = ReadBuffer();
+				if(ret != 0) return(ret);
     }
     
     if (len <= bufferMax - bufferPos) {
@@ -260,7 +267,8 @@ int covFile::read(char * dest, unsigned int len) {
         dest_pos += bufferMax - bufferPos;
         bufferMax = 0;
         bufferPos = 0;
-        ReadBuffer();
+        ret = ReadBuffer();
+				if(ret != 0) return(ret);
 
         while(remaining_bytes > bufferMax) {
             memcpy(&dest[dest_pos], &buffer[0], bufferMax);
@@ -268,7 +276,8 @@ int covFile::read(char * dest, unsigned int len) {
             dest_pos += bufferMax;
             bufferMax = 0;
             bufferPos = 0;
-            ReadBuffer();
+						ret = ReadBuffer();
+						if(ret != 0) return(ret);
         }
         
         memcpy(&dest[dest_pos], &buffer[bufferPos], remaining_bytes);
@@ -413,6 +422,7 @@ int covFile::ReadHeader() {
     std::string s_cov_header = "COV\x01";
     if(strncmp(cov_header, s_cov_header.c_str(), 4) != 0) {
         Rcout << "COV file has incorrect header!";
+				return(-1);
     }
     
     stream_uint32 n_ref;

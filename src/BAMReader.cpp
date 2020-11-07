@@ -83,13 +83,15 @@ int BAMReader::LoadBuffer() {
     if(ret != Z_OK) {
         std::ostringstream oss;
         Rcout << "Exception during BAM decompression - inflateInit2() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        return(ret);
+				// throw(std::runtime_error(oss.str()));
     }
     ret = inflate(&zs, Z_FINISH);
     if(ret != Z_OK && ret != Z_STREAM_END) {
         std::ostringstream oss;
         Rcout << "Exception during BAM decompression - inflate() fail: (" << ret << ") ";
-        throw(std::runtime_error(oss.str()));
+        return(ret);
+				// throw(std::runtime_error(oss.str()));
     }
     ret = inflateEnd(&zs);
     
@@ -101,7 +103,8 @@ int BAMReader::LoadBuffer() {
     if(u32.u != crc) {
         std::ostringstream oss;
         Rcout << "CRC fail during BAM decompression: (at " << IN->tellg() << " bytes) ";
-        throw(std::runtime_error(oss.str()));
+        return(ret);
+				// throw(std::runtime_error(oss.str()));
     }
     bufferPos = 0;
 

@@ -14,7 +14,8 @@ GenerateMappabilityReads(
   read_stride = 10,
   error_pos = 35,
   verbose = FALSE,
-  localHub = FALSE
+  localHub = FALSE,
+  ah = AnnotationHub(localHub = localHub)
 )
 }
 \description{

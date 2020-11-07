@@ -1,3 +1,5 @@
+globalVariables(c(":=","."))
+
 is.nan.data.frame <- function(x) do.call(cbind, lapply(x, is.nan))
 
 NxtIRF.gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){

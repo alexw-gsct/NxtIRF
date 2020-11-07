@@ -1,4 +1,4 @@
-is_valid <- function(.) !is.null(.) && length(.) > 0 && (!is.character(.) || . != "" && . != "(none)")
+is_valid <- function(x) !is.null(x) && length(x) > 0 && (!is.character(x) || x != "" && x != "(none)")
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
@@ -646,6 +646,12 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 	server = function(input, output, session) {
 
+	# nullify NSEs to define as local variable
+  gene_display_name <- bam_file <- i.bam_file <- irf_file <- i.irf_file <- junc_file <- i.junc_file <- 
+	bam_file <- irf_file <- cov_file <- junc_file <- Included <- keep <- Excluded <- EventType <- 
+	Events <- filtered <- padj <- i.logFC <- i.AveExpr <- i.t <- i.P.Value <- i.adj.P.Val <- i.B <- B <- 
+	nom <- denom <- EventName <- log2FoldChange <- x <- ci <- track <- t_stat <- NULL
+
 		settings_newref <- shiny::reactiveValues(
 			newref_path = "",
 			newref_fasta = "",
@@ -864,7 +870,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_Cov$event.ranges = as.data.table(rowData)
         
 					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
-					DT.files = na.omit(DT.files)
+					DT.files = data.table::na.omit(DT.files)
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
 					if(input$mode_cov == "By Condition") {
@@ -1289,7 +1295,8 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     }
 
     loadViewRef <- function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
+			transcript_id <- NULL
 			dir_path = file.path(settings_loadref$loadref_path, "fst")
 
       exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
@@ -1354,6 +1361,10 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, highlight_events, condensed = FALSE) {
       
+   transcript_support_level <- transcript_id <- group_id <- type <- gene_id <- plot_level <- 
+	 i.gene_name <- i.gene_biotype <- i.transcript_name <- i.transcript_biotype <- display_name <- 
+	 group_name <- group_biotype <- disp_x <- i.plot_level <- NULL		
+			
 			data_start = view_start - (view_end - view_start)
       data_end = view_end + (view_end - view_start)
 
@@ -1409,7 +1420,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           reduced.DT$group_id)
       ))
       introns.DT[, type := "intron"]
-      setnames(introns.DT, "group_name", "group_id")
+      data.table::setnames(introns.DT, "group_name", "group_id")
       
       reduced.DT = rbind(reduced.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")], 
         introns.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")])
@@ -1426,7 +1437,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       )
       group.DT = as.data.table(range(group.grl))
       group.DT$group = NULL
-      setnames(group.DT, "group_name", "group_id")
+      data.table::setnames(group.DT, "group_name", "group_id")
       # apply plot_order on transcripts.DT
       OL = findOverlaps(
         makeGRangesFromDataFrame(as.data.frame(group.DT)),
@@ -1969,7 +1980,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		observeEvent(input$addcolumn_expr, {
       df <- isolate(settings_expr$df.anno)
       newcolumn <- eval(parse(text=sprintf('%s(nrow(df))', isolate(input$type_newcol_expr))))
-      settings_expr$df.anno <- setNames(cbind(df, newcolumn, stringsAsFactors=FALSE), 
+      settings_expr$df.anno <- data.table::setnames(cbind(df, newcolumn, stringsAsFactors=FALSE), 
 				c(names(df), isolate(input$newcolumnname_expr)))
     })
  		# Remove column
@@ -1986,7 +1997,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df.files)
 
-      Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
+      Experiment = data.table::na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
       reference_path = settings_loadref$loadref_path
       output_path = settings_expr$collate_path
       # BPPARAM = BPPARAM_mod
@@ -3334,16 +3345,16 @@ make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_thr
 
 	# use logit method to calculate geometric mean
 
-	mat.nom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
-	mat.denom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
+	mat.nom = logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
+	mat.denom = logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
 	
 	mat.nom[mat.nom > logit_max] = logit_max
 	mat.denom[mat.denom > logit_max] = logit_max
 	mat.nom[mat.nom < -logit_max] = -logit_max
 	mat.denom[mat.denom < -logit_max] = -logit_max
 			
-	df = data.frame(EventName = event_list, nom = boot::inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
-		denom = boot::inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
+	df = data.frame(EventName = event_list, nom = inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
+		denom = inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
 	
 	return(df)
 }
@@ -3400,6 +3411,7 @@ GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
 bin_df <- function(df, binwidth = 3) {
   DT = as.data.table(df)
   brks = seq(1, nrow(DT), length = round(nrow(DT) / binwidth))
+	bin <- NULL
   DT[, bin := findInterval(seq_len(nrow(DT)), brks)]
   DT2 <- DT[, lapply(.SD, mean, na.rm = TRUE), by = bin]
   DT2[, bin := NULL]

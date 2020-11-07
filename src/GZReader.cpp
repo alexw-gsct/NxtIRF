@@ -64,7 +64,8 @@ int GZReader::GetBuffer() {
       if (err) {
         std::ostringstream oss;
         oss << "Exception during zlib decompression: (" << err << ") " << error_string;
-        throw(std::runtime_error(oss.str()));
+        // throw(std::runtime_error(oss.str()));
+				return(err);
       }
     }
   }
@@ -87,7 +88,7 @@ int GZReader::GetBuffer() {
   }
 }
 
-void GZReader::LoadGZ(std::string s_filename, bool asStream, bool lazy) {
+int GZReader::LoadGZ(std::string s_filename, bool asStream, bool lazy) {
   gz_in = gzopen(s_filename.c_str(), "r");
   
   if(lazy == false) {
@@ -115,7 +116,8 @@ void GZReader::LoadGZ(std::string s_filename, bool asStream, bool lazy) {
           if (err) {
             std::ostringstream oss;
             oss << "Exception during zlib decompression: (" << err << ") " << error_string;
-            throw(std::runtime_error(oss.str()));
+            // throw(std::runtime_error(oss.str()));
+						return(err);
           }
         }
       }
@@ -132,6 +134,7 @@ void GZReader::LoadGZ(std::string s_filename, bool asStream, bool lazy) {
   } else {
     // lazy load just opens the file
   }
+	return(0);
 }
 
 void GZReader::read(char * dest, const unsigned long len) {

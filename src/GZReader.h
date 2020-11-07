@@ -13,7 +13,7 @@ private:
 public:
   GZReader();
   ~GZReader();
-  void LoadGZ(std::string s_filename, bool asStream = false, bool lazy = false);
+  int LoadGZ(std::string s_filename, bool asStream = false, bool lazy = false);
   int getline(std::string & s_myLine, const char delim);
 
   void read(char * dest, const unsigned long len);

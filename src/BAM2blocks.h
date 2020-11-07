@@ -34,7 +34,7 @@ class BAM2blocks {
 			int32_t next_refID;
 			int32_t next_pos;
 			int32_t tlen;
-		  }; // anonymous struct to allow easy access to members.
+		  } core; // anonymous struct is now named.
 		};
 		char read_name[256];
 		union {
@@ -48,7 +48,7 @@ class BAM2blocks {
 		struct {
 		  char magic[4];
 		  int32_t l_text;
-		};
+		} magic;
 	};
 
 	union stream_int32 {
