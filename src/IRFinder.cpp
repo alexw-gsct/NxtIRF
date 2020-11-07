@@ -148,7 +148,7 @@ List IRF_gunzip_DF(std::string s_in, StringVector s_header_begin) {
   char delim = '\n';
 
   List Final_final_list;
-  for(unsigned int z = 0; z < s_header_begin.size(); z++) {
+  for(int z = 0; z < s_header_begin.size(); z++) {
     std::string header = string(s_header_begin(z));
     std::vector<std::string> columns;
     while(!gz_in.eof()) {

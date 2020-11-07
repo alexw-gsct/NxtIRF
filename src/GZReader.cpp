@@ -36,9 +36,9 @@ int GZReader::getline(std::string & s_myLine, const char delim) {
         delete[] str_ptr;
       }
       bufferPos = i + 1;
-      return(ret);
     }
   }
+	return(ret);
 }
 
 int GZReader::GetBuffer() {
