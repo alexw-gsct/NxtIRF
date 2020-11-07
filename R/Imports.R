@@ -1,5 +1,4 @@
 #' @useDynLib NxtIRF, .registration = TRUE 
-#' @import zlibbioc
 #' @import data.table
 #' @import shiny
 #' @import shinyFiles

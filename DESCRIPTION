@@ -1,10 +1,11 @@
 Package: NxtIRF
-Type: Package
 Title: User-friendly Intron Retention and Alternative Splicing analysis using the IRFinder engine
 Version: 0.98.0
-Date: 2020-09-04
-Author: Alex C H Wong
-Maintainer: Alex C H Wong <a.wong@centenary.org.au>
+Date: 2020-11-07
+Authors@R: c(person("Alex", "Wong", email="a.wong@centenary.org.au", role=c("aut", "cre", "cph")),
+	person("William", "Ritchie", role=c("aut", "cph")),
+	person("Dadi", "Gao", role=c("ctb")),
+	person("Ulf", "Schmitz", role=c("ctb")))    
 Description: NxtIRF is the next evolution for Intron Retention detection for RNA-seq 
     data. NxtIRF is now fully compatible with Windows and Mac as well as Linux. In addition
     to analysis of bam files aligned to the genome using a splice-aware aligner (e.g. STAR),
@@ -17,8 +18,40 @@ Description: NxtIRF is the next evolution for Intron Retention detection for RNA
     - (TODO) Downstream analysis (currently uses DESeq2 or DSS)
     - (TODO) Visualisation of splice events, differential RNA-seq coverage across conditions, etc
 License: MIT
-Imports: Rcpp (>= 1.0.5), zlibbioc (>= 1.32.0), RcppProgress (>= 0.4.2)
+Imports:
+	Rcpp (>= 1.0.5),
+	data.table,
+	shiny,
+	shinyFiles,
+	shinyWidgets,
+	rhandsontable,
+	ggplot2,
+	dplyr,
+	AnnotationHub,
+	assertthat,
+	BiocGenerics,
+	Biostrings,
+	BiocParallel,
+	DT,
+	fst,
+	genefilter,
+	grDevices,
+	GenomeInfoDb,
+	GenomicRanges,
+	heatmaply,
+	matrixStats,
+	parallel,
+	plotly,
+	rtracklayer,
+	RColorBrewer,
+	stringr,
+	SummarizedExperiment,
+	S4Vectors,
+	IRanges
+Suggests: DESeq2, limma
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
+biocViews: Software, Transcriptomics, RNAseq, AlternativeSplicing, Coverage, DifferentialSplicing
+SystemRequirements: C++11
 Collate: Imports.R
 	RcppExports.R
 	Classes.R
@@ -28,4 +61,7 @@ Collate: Imports.R
 	DE_IR.R
 	CollateData.R
 	Interactive.R
+Encoding: UTF-8
 RoxygenNote: 7.1.1
+URL: https://github.com/alexw-gsct/NxtIRF
+BugReports: https://support.bioconductor.org/
