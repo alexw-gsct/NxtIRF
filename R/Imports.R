@@ -1,6 +1,7 @@
 #' @useDynLib NxtIRF, .registration = TRUE 
 #' @import data.table
 #' @import shiny
+#' @import shinydashboard
 #' @import shinyFiles
 #' @import shinyWidgets
 #' @import rhandsontable
