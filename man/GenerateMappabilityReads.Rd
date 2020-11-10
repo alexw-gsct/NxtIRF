@@ -6,10 +6,8 @@
 \usage{
 GenerateMappabilityReads(
   fasta = "genome.fa",
-  gtf = "transcripts.gtf",
   ah_genome = "",
-  ah_transcriptome = "",
-  reference_path = "./Reference",
+  reference_path,
   read_len = 70,
   read_stride = 10,
   error_pos = 35,

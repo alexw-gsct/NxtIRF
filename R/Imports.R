@@ -14,7 +14,7 @@
 #' @importFrom dplyr %>%
 #' @importFrom AnnotationHub AnnotationHub cache
 #' @importFrom assertthat assert_that
-#' @importFrom BiocGenerics start end width
+#' @importFrom BiocGenerics start end width strand
 #' @importFrom Biostrings getSeq readDNAStringSet DNAStringSet translate replaceAmbiguities
 #' @importFrom BiocParallel bpparam bplapply SnowParam MulticoreParam SerialParam
 #' @importFrom DT datatable selectRows 
