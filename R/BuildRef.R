@@ -556,7 +556,8 @@ gen_irf <- function(reference_path, extra_files, genome) {
 
     # Generating IRFinder-base references
     Genes = makeGRangesFromDataFrame(
-        read.fst(file.path(reference_path,"fst","Genes.fst"))
+        read.fst(file.path(reference_path,"fst","Genes.fst")),
+        keep.extra.columns = TRUE
     )
     Genes.rev = Genes
     strand(Genes.rev) = ifelse(strand(Genes.rev) == "+", "-", 
