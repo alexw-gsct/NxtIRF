@@ -224,7 +224,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                         QC$Value[QC$QC == "Intergenic Reads"] / 
                             block$depth[i]
                     block$rRNA_Fraction[i] =    
-                        QC$Value[QC$QC == "rRNA Reads"]] / 
+                        QC$Value[QC$QC == "rRNA Reads"] / 
                             block$depth[i]
                     block$NonPolyA_Fraction[i] =
                         QC$Value[QC$QC == "NonPolyA Reads"] / 
