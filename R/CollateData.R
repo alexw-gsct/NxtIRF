@@ -240,7 +240,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                         QC$Value[QC$QC == "Annotated Junctions"] / 
                         block$depth[i]
                     block$Fraction_Span_Reads[i] =
-                        QC$Value[QC$QC == "Spans Junctions"] / 
+                        QC$Value[QC$QC == "Spans Reads"] / 
                             block$depth[i]
                 }
                 return(block)
