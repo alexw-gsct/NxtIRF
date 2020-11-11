@@ -568,10 +568,12 @@ gen_irf <- function(reference_path, extra_files, genome) {
         read.fst(file.path(reference_path,"fst","junctions.fst"))
     )
     Exons = makeGRangesFromDataFrame(
-        read.fst(file.path(reference_path,"fst","Exons.fst"))
+        read.fst(file.path(reference_path,"fst","Exons.fst")),
+        keep.extra.columns = TRUE
     )
     Transcripts = makeGRangesFromDataFrame(
-        read.fst(file.path(reference_path,"fst","Transcripts.fst"))
+        read.fst(file.path(reference_path,"fst","Transcripts.fst")),
+        keep.extra.columns = TRUE
     )
     
     tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
