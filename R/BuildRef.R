@@ -46,11 +46,15 @@ parse_valid_file <- function(file, msg) {
         message(paste(file, "not found.",
             "Reference generated without", msg))
         return("")
-    } else if(!is_valid(file) == 0) {
+    } else if(!is_valid(file)) {
+        message(paste(
+            "Reference generated without", msg))
          return("")  
     } else if (file.exists(file)) {
         return(file)
     } else {
+        message(paste(
+            "Reference generated without", msg))
         return("")
     }
 }
