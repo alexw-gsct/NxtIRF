@@ -327,34 +327,49 @@ int IRF_main(std::string bam_file, std::string reference_file, std::string s_out
   outGZ.writestring(myLine);
   outGZ.writeline("");
 
-  oFragmentsInROI.WriteOutput(myLine);
-  outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
-  outGZ.writestring(myLine);
-  outGZ.writeline("");
-  
-  oJuncCount.WriteOutput(myLine);
-  outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
-  outGZ.writestring(myLine);
-  outGZ.writeline("");
+// Generate output but save this to strings:
+std::string myLine_ROI;
+std::string myLine_JC;
+std::string myLine_SP;
+std::string myLine_Chr;
+std::string myLine_ND;
+std::string myLine_Dir;
+std::string myLine_QC;
 
-  oSpansPoint.WriteOutput(myLine);
+  oFragmentsInROI.WriteOutput(myLine_ROI, myLine_QC);
+	oJuncCount.WriteOutput(myLine_JC, myLine_QC);
+	oSpansPoint.WriteOutput(myLine_SP, myLine_QC);
+	oFragmentsInChr.WriteOutput(myLine_Chr, myLine_QC);
+	oCoverageBlocks.WriteOutput(myLine_ND, myLine_QC, oJuncCount, oSpansPoint);
+  if (directionality != 0) {
+    oCoverageBlocks.WriteOutput(myLine_Dir, myLine_QC, oJuncCount, oSpansPoint, directionality); // Directional.
+	}
+
+  outGZ.writeline("QC\tValue");
+  outGZ.writestring(myLine_QC);
+  outGZ.writeline("");
+	
+  outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
+  outGZ.writestring(myLine_ROI);
+  outGZ.writeline("");
+  
+  outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
+  outGZ.writestring(myLine_JC);
+  outGZ.writeline("");
+  
   outGZ.writeline("SP_seqname\tpos\ttotal\tpos\tneg");
-  outGZ.writestring(myLine);
+  outGZ.writestring(myLine_SP);
   outGZ.writeline("");
   
-  oFragmentsInChr.WriteOutput(myLine);
   outGZ.writeline("ChrCoverage_seqname\ttotal\tpos\tneg");
-  outGZ.writestring(myLine);
+  outGZ.writestring(myLine_Chr);
   outGZ.writeline("");
   
-  oCoverageBlocks.WriteOutput(myLine, oJuncCount, oSpansPoint);
-  outGZ.writestring(myLine);
+  outGZ.writestring(myLine_ND);
   outGZ.writeline("");
   
   if (directionality != 0) {
-    std::ostringstream outCoverageBlocks_dir;
-    oCoverageBlocks.WriteOutput(myLine, oJuncCount, oSpansPoint, directionality); // Directional.
-    outGZ.writestring(myLine);
+    outGZ.writestring(myLine_Dir);
     outGZ.writeline("");
   }
   outGZ.flush(true);

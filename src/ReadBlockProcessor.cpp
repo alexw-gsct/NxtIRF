@@ -90,11 +90,18 @@ void JunctionCount::ProcessBlocks(const FragmentBlocks &blocks) {
 	}
 }
 
-int JunctionCount::WriteOutput(std::string& output) const {
-    std::ostringstream oss;
+int JunctionCount::WriteOutput(std::string& output, std::string& QC) const {
+  std::ostringstream oss; std::ostringstream oss_qc; 
+	int junc_anno = 0;
+	int junc_unanno = 0;
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		string chr = itChr->first;
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
+			if((itJuncs->second)[2] == 2) {
+				junc_anno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
+			} else {
+				junc_unanno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
+			}
 			oss << chr << "\t" << itJuncs->first.first << "\t" << itJuncs->first.second
 				<< "\t" << ( (itJuncs->second)[2] == 1 ? "-" : (itJuncs->second)[2] == 2 ? "+" : "." )
 				<< "\t" << ((itJuncs->second)[1] + (itJuncs->second)[0])
@@ -102,7 +109,11 @@ int JunctionCount::WriteOutput(std::string& output) const {
 				<< "\t" << (itJuncs->second)[0] << "\n";
 		}
 	}
-    output = oss.str();
+	oss_qc << "Annotated Junctions" << "\t" << junc_anno << "\n"
+		<< "Unannotated Junctions" << "\t" << junc_unanno << "\n";
+	
+  output = oss.str();
+	QC.append(oss_qc.str());
 	return 0;
 }
 
@@ -216,8 +227,9 @@ unsigned int JunctionCount::lookupRight(std::string ChrName, unsigned int right)
 
 
 
-int SpansPoint::WriteOutput(std::string& output) const {
-    std::ostringstream oss;
+int SpansPoint::WriteOutput(std::string& output, std::string& QC) const {
+  std::ostringstream oss; std::ostringstream oss_qc; 
+	int spans_reads = 0;	
 	for (auto itChrPos=chrName_pos.begin(); itChrPos!=chrName_pos.end(); itChrPos++) {
 		string chr = itChrPos->first;
 
@@ -226,12 +238,15 @@ int SpansPoint::WriteOutput(std::string& output) const {
 
 		
 		for (auto itPosition=itChrPos->second.begin(); itPosition!=itChrPos->second.end(); ++itPosition) {
+			spans_reads += (*itCountPos + *itCountNeg);
 			oss << chr << "\t" << *itPosition << "\t" << (*itCountPos + *itCountNeg) << "\t" << *itCountPos << "\t" << *itCountNeg << "\n";
 			++itCountPos;
 			++itCountNeg;
 		}
 	}
+	oss_qc << "Spans Reads\t" << spans_reads << "\n";
     output = oss.str();
+		QC.append(oss_qc.str());
 	return 0;
 }
 
@@ -366,13 +381,32 @@ void FragmentsInROI::ChrMapUpdate(const std::vector<std::string> &chrmap) {
 	}
 }
 
-int FragmentsInROI::WriteOutput(std::string& output) const {
-	std::ostringstream oss;
-    for (std::map<string, unsigned long>::const_iterator itID=RegionID_counter[1].begin(); itID!=RegionID_counter[1].end(); ++itID) {
-		oss << itID->first << "\t" << (itID->second + RegionID_counter[0].at(itID->first)) << "\t" << itID->second << "\t" << RegionID_counter[0].at(itID->first) << "\n";
+int FragmentsInROI::WriteOutput(std::string& output, std::string& QC) const {
+	std::ostringstream oss; std::ostringstream oss_QC;
+	int count_Intergenic = 0; int count_rRNA = 0; int count_NonPolyA = 0;
+	for (std::map<string, unsigned long>::const_iterator itID=RegionID_counter[1].begin(); 
+			itID!=RegionID_counter[1].end(); ++itID) {
+		std::istringstream iss;
+		iss.str(itID->first);
+		string ROI_type;
+		getline(iss, ROI_type, '/');
+		if(ROI_type.compare(0, 10, "Intergenic") == 0) {
+			count_Intergenic += (itID->second + RegionID_counter[0].at(itID->first));
+		} else if(ROI_type.compare(0, 4, "rRNA") == 0) {
+			count_rRNA += (itID->second + RegionID_counter[0].at(itID->first));
+		} else if(ROI_type.compare(0, 8, "NonPolyA") == 0) {
+			count_NonPolyA += (itID->second + RegionID_counter[0].at(itID->first));	
+		}
+		oss << itID->first << "\t" << (itID->second + RegionID_counter[0].at(itID->first)) << "\t" 
+			<< itID->second << "\t" << RegionID_counter[0].at(itID->first) << "\n";
 		//Outputs tab separated: ROIname, total hits, positive-strand hits, negative-strand hits.
 	}
     output = oss.str();
+		
+		oss_QC << "Intergenic Reads\t" << count_Intergenic << "\n"
+			<< "rRNA Reads\t" << count_rRNA << "\n"
+			<< "NonPolyA Reads\t" << count_NonPolyA << "\n";
+		QC.append(oss_QC.str());
 	return 0;
 }
 
@@ -461,15 +495,26 @@ void FragmentsInChr::ChrMapUpdate(const std::vector<string> &chrmap) {
 	}
 }
 
-int FragmentsInChr::WriteOutput(std::string& output) const {
-	std::ostringstream oss;
+int FragmentsInChr::WriteOutput(std::string& output, std::string& QC) const {
+	std::ostringstream oss; std::ostringstream oss_QC;
+	int count_Mito = 0; int count_ERCC = 0;
     for (auto itChr=chrName_count.begin(); itChr!=chrName_count.end(); itChr++) {
+		string chr = itChr->first;
+		if(chr.compare(0, 1, "M") == 0 || chr.compare(0, 2, "MT") == 0) {
+			count_Mito += ((itChr->second)[1] + (itChr->second)[0]);
+		} else if(chr.compare(0, 4, "ERCC") == 0) {
+			count_ERCC += ((itChr->second)[1] + (itChr->second)[0]);
+		}		
 		oss << itChr->first << "\t"
 			<< ((itChr->second)[1] + (itChr->second)[0]) << "\t"
 			<< (itChr->second)[1] << "\t"
 			<< (itChr->second)[0] << "\n";
 	}
     output = oss.str();
+		oss_QC << "Mitochondrial Reads\t" << count_Mito << "\n"
+			<< "ERCC Reads\t" << count_ERCC << "\n";
+
+		QC.append(oss_QC.str());
 	return 0;
 }
 

@@ -328,22 +328,28 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 				tabItem(tabName = "navRef_Load",
 					fluidRow(
-						column(9,
+						box(
 							h4("Select Reference Directory"),
 							shinyDirButton("dir_reference_path_load", label = "Choose reference path", title = "Choose reference path"),
-								textOutput("txt_reference_path_load"),
-							br(),
-							actionButton("clearLoadRef", "Clear settings"), # TODO
-							br(),
-							textOutput("loadRef_field1"), br(),
-							textOutput("loadRef_field2"), br(),
-							textOutput("loadRef_field3"), br(),
-							textOutput("loadRef_field4"), br(),
-							textOutput("loadRef_field5"), br(),
-							textOutput("loadRef_field6"), br(),
-							textOutput("loadRef_field7"),						
-						)
-					)			
+							textOutput("txt_reference_path_load"),                        
+                        ),
+                        box(
+							actionButton("clearLoadRef", "Clear settings"), # TODO                        
+                        )
+
+					),
+                    conditionalPanel(
+                        condition = "output.txt_reference_path_load != ''",
+                        fluidRow(
+                            infoBoxOutput("fasta_source_infobox"),
+                            infoBoxOutput("gtf_source_infobox")
+                        ),
+                        fluidRow(
+                            infoBoxOutput("mappa_source_infobox"),
+                            infoBoxOutput("NPA_source_infobox"),
+                            infoBoxOutput("BL_source_infobox")
+                        )
+                    )
 				),
 
 				tabItem(tabName = "navRef_View",
@@ -456,7 +462,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				),
 				
 				tabItem(tabName = "navQC",
-					DT::dataTableOutput("DT_QC")
+                    div(style = 'overflow-x: scroll',  DT::dataTableOutput('DT_QC'))
 				),
 
 				tabItem(tabName = "navFilter",
@@ -702,8 +708,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           load_ref()
         }
         output$txt_reference_path_load <- renderText({
-            validate(need(settings_loadref$loadref_path, "Please select reference path"))
-            settings_loadref$loadref_path
+            # validate(need(settings_loadref$loadref_path, "Please select reference path"))
+            if(!is_valid(settings_loadref$loadref_path)) {
+                ""
+            } else {
+                settings_loadref$loadref_path
+            }
         })
 			} else if(input$navSelection == "navRef_View") {
         if(settings_loadref$loadref_path != "") {
@@ -888,7 +898,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_Cov$event.ranges = as.data.table(rowData)
         
 					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
-					DT.files = data.table::na.omit(DT.files)
+					DT.files = na.omit(DT.files)
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
 					if(input$mode_cov == "By Condition") {
@@ -1205,67 +1215,116 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       settings_loadref$loadref_path = parseDirPath(c(default_volumes, addit_volume), 
 				input$dir_reference_path_load)
     })
-		load_ref = function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
-			settings_loadref$settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
-      if("reference_path" %in% names(settings_loadref$settings)) {
+    load_ref = function() {
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
+        settings_loadref$settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+        if("reference_path" %in% names(settings_loadref$settings)) {
         if("ah_genome" %in% names(settings_loadref$settings)) {
-          output$loadRef_field1 <- renderText({
-            paste("AnnotationHub genome:",
-              settings_loadref$settings$ah_genome, "\n",
-              ah$description[which(names(ah) == settings_loadref$settings$ah_genome)], "\n",
-              ah$sourceurl[which(names(ah) == settings_loadref$settings$ah_genome)]
-            )
-          })
+            output$fasta_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Genome - AnnotationHub", "",
+                    basename(
+                        ah$sourceurl[
+                            which(names(ah) == settings_loadref$settings$ah_genome)
+                        ]
+                    ),
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = "green"
+                )
+            })      
+        } else if("fasta_file" %in% names(settings_loadref$settings)) {
+            output$fasta_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Genome - User FASTA",  "",
+                    basename(settings_loadref$settings$fasta_file), 
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = "green"
+                )
+            })          
+        } else {
+            output$fasta_source_infobox <- renderInfoBox(NULL)
         }
         if("ah_transcriptome" %in% names(settings_loadref$settings)) {
-          output$loadRef_field2 <- renderText({
-            paste("AnnotationHub gene annotations:",
-              settings_loadref$settings$ah_transcriptome, "\n",
-              ah$description[which(names(ah) == settings_loadref$settings$ah_transcriptome)], "\n",
-              ah$sourceurl[which(names(ah) == settings_loadref$settings$ah_transcriptome)]
-            )
-          })
-        }
-        if("fasta_file" %in% names(settings_loadref$settings)) {
-          output$loadRef_field3 <- renderText({
-            paste("Genome FASTA file (user):",
-              settings_loadref$settings$fasta_file
-            )
-          })					
-        }
-        if("gtf_file" %in% names(settings_loadref$settings)) {
-          output$loadRef_field4 <- renderText({
-            paste("Annotation GTF file (user):",
-              settings_loadref$settings$gtf_file
-            )
-          })					
+            output$gtf_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Gene Annotation - AnnotationHub",  "",
+                    basename(
+                        ah$sourceurl[
+                            which(names(ah) == 
+                                settings_loadref$settings$ah_transcriptome)
+                        ]
+                    ),
+                    icon = icon("book-medical", lib = "font-awesome"),
+                    color = "orange"
+                )
+            })               
+        } else if("gtf_file" %in% names(settings_loadref$settings)) {
+            output$gtf_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Gene Annotation - User GTF",  "",
+                    basename(settings_loadref$settings$gtf_file), 
+                    icon = icon("book-medical", lib = "font-awesome"),
+                    color = "orange"
+                )
+            })
+        } else {
+            output$gtf_source_infobox <- renderInfoBox(NULL)
         }
         if("MappabilityRef" %in% names(settings_loadref$settings)) {
-          output$loadRef_field5 <- renderText({
-            paste("Mappability Exclusion file:",
-              settings_loadref$settings$MappabilityRef
-            )
-          })					
+            output$mappa_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Mappability",  "",
+                    basename(settings_loadref$settings$MappabilityRef), 
+                    icon = icon("map", lib = "font-awesome"),
+                    color = "blue"
+                )
+            })  			
+        } else {
+            output$mappa_source_infobox <- renderInfoBox(NULL)
         }
         if("nonPolyARef" %in% names(settings_loadref$settings)) {
-          output$loadRef_field6 <- renderText({
-            paste("Non-PolyA file:",
-              settings_loadref$settings$nonPolyARef
-            )
-          })					
+            output$NPA_source_infobox <- renderInfoBox({
+                infoBox(
+                    "Non-PolyA",  "",
+                    basename(settings_loadref$settings$nonPolyARef), 
+                    icon = icon("font", lib = "font-awesome"),
+                    color = "purple"
+                )
+            })  			
+        } else {
+            output$NPA_source_infobox <- renderInfoBox(NULL)
         }
         if("BlacklistRef" %in% names(settings_loadref$settings)) {
-          output$loadRef_field7 <- renderText({
-            paste("Blacklist Exclusion file:",
-              settings_loadref$settings$BlacklistRef
-            )
-          })					
+            output$BL_source_infobox <- renderInfoBox({
+                infoBox(
+                    "BlackList",  "",
+                    basename(settings_loadref$settings$BlacklistRef), 
+                    icon = icon("list-alt", lib = "font-awesome"),
+                    color = "red"
+                )
+            })  			
+        } else {
+            output$BL_source_infobox <- renderInfoBox(NULL)
         }
-      } else {
-        settings_loadref$loadref_path = ""
-      }
-		}
+
+        } else {
+            settings_loadref$loadref_path = ""
+            output$fasta_source_infobox <- renderInfoBox(NULL)
+            output$gtf_source_infobox <- renderInfoBox(NULL)
+            output$mappa_source_infobox <- renderInfoBox(NULL)
+            output$NPA_source_infobox <- renderInfoBox(NULL)
+            output$BL_source_infobox <- renderInfoBox(NULL)
+        }
+    }
+        
+        observeEvent(input$clearLoadRef,{
+            settings_loadref$loadref_path = ""
+            output$fasta_source_infobox <- renderInfoBox(NULL)
+            output$gtf_source_infobox <- renderInfoBox(NULL)
+            output$mappa_source_infobox <- renderInfoBox(NULL)
+            output$NPA_source_infobox <- renderInfoBox(NULL)
+            output$BL_source_infobox <- renderInfoBox(NULL)            
+        })
 
 		observeEvent(settings_loadref$loadref_path,{
       req(settings_loadref$loadref_path)
@@ -1273,8 +1332,11 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				load_ref()
 			}
 			output$txt_reference_path_load <- renderText({
-					validate(need(settings_loadref$loadref_path, "Please select reference path"))
-					settings_loadref$loadref_path
+                if(!is_valid(settings_loadref$loadref_path)) {
+                    ""
+                } else {
+                    settings_loadref$loadref_path
+                }
 			})
 		})
 # View Ref page
@@ -2015,7 +2077,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df.files)
 
-      Experiment = data.table::na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
+      Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
       reference_path = settings_loadref$loadref_path
       output_path = settings_expr$collate_path
       # BPPARAM = BPPARAM_mod

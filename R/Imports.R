@@ -8,7 +8,7 @@
 #' @import ggplot2
 #' @importFrom boot logit inv.logit
 #' @importFrom methods as is
-#' @importFrom stats as.formula model.matrix qt runif
+#' @importFrom stats as.formula model.matrix qt runif na.omit
 #' @importFrom utils download.file packageVersion setTxtProgressBar txtProgressBar
 #' @importFrom Rcpp evalCpp
 #' @importFrom dplyr %>%

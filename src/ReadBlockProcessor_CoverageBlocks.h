@@ -60,7 +60,7 @@ class CoverageBlocks : public ReadBlockProcessor {
 
 class CoverageBlocksIRFinder : public CoverageBlocks {
 	public:
-		int WriteOutput(std::string& output, const JunctionCount &JC, const SpansPoint &SP, int directionality = 0) const;
+		int WriteOutput(std::string& output, std::string& QC, const JunctionCount &JC, const SpansPoint &SP, int directionality = 0) const;
 };
 
 

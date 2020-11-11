@@ -300,7 +300,7 @@ int CoverageBlocks::WriteOutput(std::string& output) const {
 }
 
 
-int CoverageBlocksIRFinder::WriteOutput(std::string& output, const JunctionCount &JC, const SpansPoint &SP, int directionality) const {
+int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, const JunctionCount &JC, const SpansPoint &SP, int directionality) const {
     std::ostringstream oss;
 	// Custom output function - related to the IRFinder needs
   if(directionality == 0) {

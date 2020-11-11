@@ -1,7 +1,6 @@
-#' @export
 FetchAH <- function(ah_record_name, localHub = FALSE, 
     ah = AnnotationHub(localHub = localHub), verbose = FALSE) {
-################################################################################
+
     assert_that(substr(ah_record_name, 1, 2) == "AH", msg = 
         paste(ah_record_name,
         "does not appear to be a valid AnnotationHub record name"))
@@ -2487,10 +2486,6 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
   message("done\n")
   
   return(final)
-}
-
-annotateIntronGroups <- function(candidate.introns, Exons.Group, stranded = TRUE) {
-
 }
 
 grlGaps<-function(grl) {
