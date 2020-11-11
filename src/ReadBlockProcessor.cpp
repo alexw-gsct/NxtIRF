@@ -97,7 +97,7 @@ int JunctionCount::WriteOutput(std::string& output, std::string& QC) const {
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		string chr = itChr->first;
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
-			if((itJuncs->second)[2] == 0) {
+			if((itJuncs->second)[2] != 0) {
 				junc_anno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
 			} else {
 				junc_unanno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
