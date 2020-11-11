@@ -22,7 +22,8 @@ FetchAH <- function(ah_record_name, localHub = FALSE,
     if(ah.record$rdataclass == "GRanges") {
         if(verbose) message("Importing to memory as GRanges object...", 
             appendLF = FALSE)
-        gtf = rtracklayer::import(cache_loc, "gtf", genome = ah.record$genome)
+        # gtf = rtracklayer::import(cache_loc, "gtf", genome = ah.record$genome)
+        gtf = rtracklayer::import(cache_loc, "gtf")
         if(verbose) message("done")
         return(gtf)
     } else if(ah.record$rdataclass == "TwoBitFile") {
