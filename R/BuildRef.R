@@ -970,7 +970,7 @@ gen_irf <- function(reference_path, extra_files, genome) {
         Intergenic = as.data.frame(Intergenic)
         Intergenic = Intergenic[,c("seqnames", "start", "end")]
         Intergenic$name = paste("Intergenic", Intergenic$seqnames, sep="/")
-        Intergenic$start = Intergenic$start - 1
+        # Intergenic$start = Intergenic$start - 1
     } else {
         Intergenic = c()
     }
