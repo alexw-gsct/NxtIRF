@@ -172,6 +172,12 @@ CollateData <- function(Experiment, reference_path, output_path,
     df.internal$Unanno_Jn_Fraction = 0
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
+    
+    n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
+    jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
+	n_jobs = length(jobs)
+
+    
 ################################################################################
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(0.01, message = "Compiling Sample Stats")
@@ -179,12 +185,13 @@ CollateData <- function(Experiment, reference_path, output_path,
     message("Compiling Sample Stats")
     df.internal = suppressWarnings(rbindlist(
         BiocParallel::bplapply(
-            NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
-            function(work, df.internal) {
+            seq_len(n_jobs),
+            function(x, jobs, df.internal) {
                 suppressPackageStartupMessages({
                     requireNamespace("data.table")
                     requireNamespace("stats")
                 })
+                work = jobs[[x]]
                 block = df.internal[work]
                 for(i in seq_len(length(work))) {
                     data.list = get_multi_DT_from_gz(
@@ -244,7 +251,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                             block$depth[i]
                 }
                 return(block)
-            }, df.internal = df.internal, BPPARAM = BPPARAM_mod
+            }, jobs = jobs, df.internal = df.internal, BPPARAM = BPPARAM_mod
         )
     ))
     
@@ -260,12 +267,14 @@ CollateData <- function(Experiment, reference_path, output_path,
     }
     message("Compiling Junction List")       
     # Compile junc.common via merge
-    junc.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
-      function(work, df.internal, temp_output_path) {
+    junc.list = suppressWarnings(BiocParallel::bplapply(
+        seq_len(n_jobs),
+      function(x, jobs, df.internal, temp_output_path) {
         suppressPackageStartupMessages({
           requireNamespace("data.table")
           requireNamespace("stats")
         })
+        work = jobs[[x]]
         block = df.internal[work]
         junc.segment = NULL
         for(i in seq_len(length(work))) {
@@ -283,7 +292,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                 file.path(temp_output_path, paste(block$sample[i], "junc.fst.tmp", sep=".")))        
         }
         return(junc.segment)
-      }, df.internal = df.internal, temp_output_path = temp_output_path, BPPARAM = BPPARAM_mod
+      }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, BPPARAM = BPPARAM_mod
     ))
     junc.common = NULL
     for(i in seq_len(length(junc.list))) {
@@ -299,12 +308,14 @@ CollateData <- function(Experiment, reference_path, output_path,
       shiny::incProgress(0.15, message = "Compiling Intron Retention List")
     }  
     message("Compiling Intron Retention List")    
-    irf.list = suppressWarnings(BiocParallel::bplapply(NxtIRF.SplitVector(seq_len(nrow(df.internal)), BPPARAM_mod$workers),
-      function(work, df.internal, temp_output_path, runStranded, semi_join.DT) {
+    irf.list = suppressWarnings(BiocParallel::bplapply(
+        seq_len(n_jobs),
+      function(x, jobs, df.internal, temp_output_path, runStranded, semi_join.DT) {
         suppressPackageStartupMessages({
           requireNamespace("data.table")
           requireNamespace("stats")
         })
+        work = jobs[[x]]
         block = df.internal[work]
         irf.segment = NULL
         for(i in seq_len(length(work))) {
@@ -327,7 +338,7 @@ CollateData <- function(Experiment, reference_path, output_path,
             file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
         }
         return(irf.segment)
-      }, df.internal = df.internal, temp_output_path = temp_output_path, 
+      }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, 
         runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM_mod
     ))
     irf.common = NULL
@@ -703,9 +714,9 @@ CollateData <- function(Experiment, reference_path, output_path,
   }  
   message("Generating NxtIRF FST files")
 	
-  n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
-  jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
-	n_jobs = length(jobs)
+  # n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
+  # jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
+	# n_jobs = length(jobs)
   
 	agg.list <- suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
 		function(x, jobs, df.internal, norm_output_path) {
