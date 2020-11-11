@@ -189,14 +189,15 @@ CollateData <- function(Experiment, reference_path, output_path,
                 for(i in seq_len(length(work))) {
                     data.list = get_multi_DT_from_gz(
                         normalizePath(block$path[i]), 
-                        c("BAM", "Directionality", "ROIname",
-                        "ChrCoverage", "JC_seqname"))
+                        c("BAM", "Directionality", "QC")) 
+                        # "ROIname", "ChrCoverage", "JC_seqname"))
 
                     stats = data.list$BAM
                     direct = data.list$Directionality
-                    ROI = data.list$ROIname
-                    ChrCov = data.list$ChrCoverage
-                    junc = data.list$JC_seqname
+                    QC = data.list$QC
+                    # ROI = data.list$ROIname
+                    # ChrCov = data.list$ChrCoverage
+                    # junc = data.list$JC_seqname
 
                     if(stats$Value[3] == 0 & stats$Value[4] > 0) {
                         block$paired[i] = TRUE
@@ -219,30 +220,28 @@ CollateData <- function(Experiment, reference_path, output_path,
 
                     # QC
                     block$directionality_strength[i] = direct$Value[8]
-                    ROI$type = tstrsplit(ROI$ROIname, split="/")[[1]]
                     block$Intergenic_Fraction[i] =
-                        sum(ROI$total_hits[ROI$type == "Intergenic"]) / 
+                        QC$Value[QC$QC == "Intergenic Reads"] / 
                             block$depth[i]
                     block$rRNA_Fraction[i] =    
-                        sum(ROI$total_hits[ROI$type == "rRNA"]) / 
+                        QC$Value[QC$QC == "rRNA Reads"]] / 
                             block$depth[i]
                     block$NonPolyA_Fraction[i] =
-                        sum(ROI$total_hits[ROI$type == "NonPolyA"]) / 
+                        QC$Value[QC$QC == "NonPolyA Reads"] / 
                             block$depth[i]
                     block$Mitochondrial_Fraction[i] =
-                        sum(ChrCov$total[
-                            ChrCov$ChrCoverage_seqname %in% c("M", "MT")
-                        ]) / block$depth[i]
+                        QC$Value[QC$QC == "Mitochondrial Reads"] / 
+                            block$depth[i]
                     block$Unanno_Jn_Fraction[i] =
-                        sum(junc$total[junc$strand == "."]) / 
-                            sum(junc$total)
+                        QC$Value[QC$QC == "Unannotated Junctions"] / 
+                        (QC$Value[QC$QC == "Unannotated Junctions"] +
+                        QC$Value[QC$QC == "Annotated Junctions"])
                     block$Fraction_Splice_Reads[i] =
-                        sum(junc$total) / block$depth[i]
-
-                    spans = suppressWarnings(
-                        fread(block$path[i], skip = "SP_seqname"))        
+                        QC$Value[QC$QC == "Annotated Junctions"] / 
+                        block$depth[i]
                     block$Fraction_Span_Reads[i] =
-                        sum(spans$total) / block$depth[i]
+                        QC$Value[QC$QC == "Spans Junctions"] / 
+                            block$depth[i]
                 }
                 return(block)
             }, df.internal = df.internal, BPPARAM = BPPARAM_mod
