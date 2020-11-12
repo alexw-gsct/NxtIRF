@@ -48,6 +48,7 @@ LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 SystemRequirements: C++11
 Collate: Imports.R
+	data.R
 	RcppExports.R
 	Classes.R
 	globals.R
@@ -55,6 +56,7 @@ Collate: Imports.R
 	BuildRef.R
 	DE_IR.R
 	CollateData.R
+	filterModules_shiny.R
 	Interactive.R
 	dash.R
 Encoding: UTF-8

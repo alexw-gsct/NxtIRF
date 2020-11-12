@@ -5,214 +5,16 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
 
-  ah = AnnotationHub(localHub = offline)
+    ah = AnnotationHub(localHub = offline)
 	
-	filterModule_UI <- function(id, label = "Counter") {
-		ns <- NS(id)
-		wellPanel(
-			h5(label),	# e.g. "Filter #1"
-			selectInput(ns("filterClass"), "Filter Class", width = '100%', choices = c("(none)", "Annotation", "Data")),
-			selectInput(ns("filterType"), "Filter Type", width = '100%', choices = c("(none)")),
-      conditionalPanel(ns = ns,
-        condition = "['Transcript_Support_Level'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("slider_TSL_min"), "TSL Threshold", 
-          choices = 1:5, selected = 1)
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['Consistency'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("slider_cons_max"), "log-fold maximum", choices = seq(0.2, 5, by = 0.2), selected = 1)
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['Coverage'].indexOf(input.filterType) >= 0",
-        sliderInput(ns("slider_cov_min"), "Percent Coverage", min = 0, max = 100, value = 80)
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['Depth'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("slider_depth_min"), 
-					"Minimum", choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['Depth', 'Coverage'].indexOf(input.filterType) >= 0",
-        tagList(
-          shinyWidgets::sliderTextInput(ns("slider_mincond"), "Minimum Conditions Satisfy Criteria", 
-						choices = c(as.character(1:8), "All"), selected = "All"),
-          selectInput(ns("select_conds"), "Condition", width = '100%',
-            choices = c("(none)")),
-          sliderInput(ns("slider_pcTRUE"), "Percent samples per condition satisfying criteria", min = 0, max = 100, value = 80)
-        )
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['Coverage', 'Consistency'].indexOf(input.filterType) >= 0",
-        shinyWidgets::sliderTextInput(ns("slider_minDepth"), "Signal Threshold to apply criteria", 
-          choices = c(1,2,3,5,10,20,30,50,100,200,300,500), selected = 20),
-      ),
-      conditionalPanel(ns = ns,
-        condition = "['(none)'].indexOf(input.filterClass) < 0",
-        selectInput(ns("EventType"), "Splice Type", width = '100%', multiple = TRUE,
-          choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS"))
-      )
-		)
-	}
 
-	filterModule_server <- function(id, filterdata, conditionList) {
-		moduleServer(
-			id,
-			function(input, output, session) {
-				final <- reactiveValues(
-          filterClass = "",
-          filterType = "",
-          filterVars = list()
-        )
-
-				# inputs from final -> UI			
-				observeEvent(filterdata(), {
-					final = filterdata()
-
-          if(is_valid(final$filterClass)) {
-            if(final$filterClass == "Annotation") {
-              type_choices = c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level")              
-            } else if(final$filterClass == "Data") {
-              type_choices = c("Depth", "Coverage", "Consistency")
-            } else {
-              type_choices = c("(none)")
-            }
-          } else {
-            type_choices = c("(none)")
-          }
-          if(is_valid(final$filterType) && final$filterType %in% type_choices) {
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = type_choices, selected = final$filterType)
-          } else {
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = type_choices)              
-          }
-          if(is_valid((final$filterVars$minimum))) {
-            if(final$filterType == "Depth") {
-              shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_depth_min", 
-                selected = final$filterVars$minimum)
-            } else  if(final$filterType == "Coverage"){
-              updateSliderInput(session = session, inputId = "slider_cov_min", 
-                value = final$filterVars$minimum)							
-            } else  if(final$filterType == "Transcript_Support_Level"){
-              shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_TSL_min", 
-                selected = final$filterVars$minimum)							
-            }
-          }
-          if(is_valid(final$filterVars$maximum)) {
-            shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_cons_max", 
-              selected = final$filterVars$maximum)
-          }
-          if(is_valid(final$filterVars$minDepth)) {
-            updateSelectInput(session = session, inputId = "slider_minDepth", 
-              selected = final$filterVars$minDepth)
-          }
-          if(is_valid(final$filterVars$minCond)) {
-            shinyWidgets::updateSliderTextInput(session = session, inputId = "slider_mincond", 
-              selected = final$filterVars$minCond)
-          }
-          if(is_valid(final$filterVars$condition)) {
-            choices_conds = c("(none)", conditionList())
-            if(final$filterVars$condition %in% choices_conds) {
-              updateSelectInput(session = session, inputId = "select_conds", 
-                choices = choices_conds, selected = final$filterVars$condition)
-            }
-          }
-          if(is_valid(final$filterVars$pcTRUE)){
-            updateSliderInput(session = session, inputId = "slider_pcTRUE", 
-              value = final$filterVars$pcTRUE)
-          }
-          if(is_valid(final$filterVars$EventTypes)) {
-            updateSelectInput(session = session, inputId = "EventType", 
-              selected = final$filterVars$EventTypes)
-          } else {
-            updateSelectInput(session = session, inputId = "EventType", 
-              selected = NULL)          
-          }
-        })
-        
-        # outputs from UI -> final
-				observeEvent(input$filterClass, {
-          final$filterClass = input$filterClass
-          if(final$filterClass == "Annotation") {
-            type_choices = c("Protein_Coding", "NMD_Switching", "Transcript_Support_Level")
-          } else if(final$filterClass == "Data") {
-            type_choices = c("Depth", "Coverage", "Consistency")
-          } else {
-            type_choices = "(none)"
-          }
-          cur_choice = isolate(input$filterType)
-          if(is_valid(cur_choice) && cur_choice %in% type_choices) {
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = type_choices, selected = cur_choice)                    
-          } else {
-            updateSelectInput(session = session, inputId = "filterType", 
-              choices = type_choices)          
-          }
-        })
-        observeEvent(input$filterType, {
-          final$trigger = NULL
-          req(is_valid(input$filterType))
-          final$filterType = input$filterType
-          final$trigger = runif(1)
-          
-          if(input$filterType == "Depth") {
-            final$filterVars$minimum = input$slider_depth_min
-          }
-          if(input$filterType == "Coverage"){
-						final$filterVars$minimum = input$slider_cov_min
-          }
-          if(input$filterType == "Transcript_Support_Level"){
-            final$filterVars$minimum = as.numeric(input$slider_TSL_min)
-          }
-        })
-        observeEvent(input$slider_depth_min, {
-          if(final$filterType == "Depth") {
-            final$filterVars$minimum = input$slider_depth_min
-          }
-        })
-        observeEvent(input$slider_cov_min, {
-          if(final$filterType == "Coverage"){
-						final$filterVars$minimum = input$slider_cov_min
-          }
-        })
-        observeEvent(input$slider_TSL_min,{        
-          if(final$filterType == "Transcript_Support_Level"){
-            final$filterVars$minimum = as.numeric(input$slider_TSL_min)
-          }
-        })
-        observeEvent(input$slider_cons_max,{        
-          final$filterVars$maximum = input$slider_cons_max
-        })
-        observeEvent(input$slider_minDepth,{        
-          final$filterVars$minDepth = input$slider_minDepth
-        })
-        observeEvent(input$slider_mincond,{        
-          final$filterVars$minCond = input$slider_mincond
-        })
-        observeEvent(input$select_conds,{        
-          final$filterVars$condition = input$select_conds
-        })
-        observeEvent(input$slider_pcTRUE,{        
-          final$filterVars$pcTRUE = input$slider_pcTRUE
-        })
-        observeEvent(input$EventType,{        
-          final$filterVars$EventTypes = input$EventType
-        })
-        
-				# Returns filter list from module
-				return(final)
-			}
-		)
-	}	
 	
 	ui_dash <- dashboardPage(
 		dashboardHeader(title = "NxtIRF"),
 		dashboardSidebar(
 			sidebarMenu(id = "navSelection",
 				menuItem("About", tabName = "navTitle"),
-				menuItem("System",
-					 menuSubItem("Multi-threading", tabName = "navThreads")
-				)	,
+				menuItem("System", tabName = "navSystem"),
 				menuItem("Reference",
 					 menuSubItem("New Reference", tabName = "navRef_New"),
 					 menuSubItem("Load Reference", tabName = "navRef_Load"),
@@ -237,7 +39,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				tabItem(tabName = "navTitle",
 					img(src="https://pbs.twimg.com/profile_images/1310789966293655553/7HawCItY_400x400.jpg")		
 				),
-				tabItem(tabName = "navThreads",
+				tabItem(tabName = "navSystem",
 					box(
 						tags$div(title = paste("Number of threads to run computationally-intensive operations",
 							"such as IRFinder, NxtIRF-collate, and DESeq2"),
@@ -388,26 +190,81 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				),
 
 				tabItem(tabName = "navExpr",
+                    fluidRow(
+                        infoBoxOutput("ref_expr_infobox"),
+                        infoBoxOutput("bam_expr_infobox"),
+                        infoBoxOutput("irf_expr_infobox"),
+                        infoBoxOutput("nxt_expr_infobox"),
+                        infoBoxOutput("se_expr_infobox")
+                    ),
 					fluidRow(
 						column(4,
-							textOutput("txt_reference_path_expr"), # done
-							br(),
-							
-							shinyDirButton("dir_bam_path_load", 
-								label = "Choose BAM path", title = "Choose BAM path"), # done
-							textOutput("txt_bam_path_expr"),
-							br(),
-							
-							shinyDirButton("dir_irf_path_load", 
-								label = "Choose IRFinder output path", title = "Choose IRFinder output path"), # done					
-							textOutput("txt_irf_path_expr"),
-							br(),
-							actionButton("run_irf_expr", "Run IRFinder on selected bam files"), # TODO
-							textOutput("txt_run_irf_expr"),
-							br(),
+                            shinyWidgets::dropdownButton(
+                                tags$h4("Set Paths"),
+                                shinyDirButton("dir_bam_path_load", 
+                                    label = "Choose BAM path", 
+                                    title = "Choose BAM path"), # done
+                                textOutput("txt_bam_path_expr"),
+                                shinyDirButton("dir_irf_path_load", 
+                                
+                                    label = "Choose IRFinder output path", 
+                                    title = "Choose IRFinder output path"), # done					
+                                textOutput("txt_irf_path_expr"),
+
+                                shinyDirButton("dir_collate_path_load", 
+                                    label = "Choose NxtIRF FST output path", 
+                                    title = "Choose NxtIRF FST output path"), # done
+                                textOutput("txt_collate_path_expr"), # done
+                            
+                                circle = TRUE, status = "danger",
+                                icon = icon("gear"), width = "300px"                              
+                            ), br(),
+
+                            shinyWidgets::dropdownButton(
+                                tags$h4("Construct Experiment"),
+                                shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
+                                    title = "Load Experiment Data Frame", multiple = FALSE), # done
+                                shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
+                                    filetype = list(dataframe = "csv")),
+                                actionButton("clear_expr", "Clear Experiment"),
+                                textOutput("txt_run_save_expr"),
+                                br(),
+                                shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
+                                    title = "Choose Sample Annotation Table", multiple = FALSE), # done
+                                textOutput("txt_sample_anno_expr"), # done
+                                br(),
+                                actionButton("build_expr", "Build SummarizedExperiment"),
+                            
+                                circle = TRUE, status = "danger",
+                                icon = icon("gear"), width = "300px"                           
+                            ), br(),
+
+
+                            shinyWidgets::dropdownButton(
+                                tags$h4("Run IRFinder on Selected BAMs"),
+                                actionButton("run_irf_expr", 
+                                    "Run IRFinder"), # TODO
+                                textOutput("txt_run_irf_expr"),
+                            
+                                circle = TRUE, status = "danger",
+                                icon = icon("gear"), width = "300px"                               
+                            ), br(),
+
+
+                            shinyWidgets::dropdownButton(
+                                tags$h4("Run NxtIRF CollateData on IRFinder output"),
+                                actionButton("run_collate_expr", 
+                                    "Compile NxtIRF FST files"),
+                                textOutput("txt_run_col_expr"),
+                            
+                                circle = TRUE, status = "danger",
+                                icon = icon("gear"), width = "300px"                           
+                            ), br(),
+                            
 							conditionalPanel(
 								condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
-								wellPanel(
+                                shinyWidgets::dropdownButton(
+                                    tags$h4("Annotation Columns"),
 									uiOutput("newcol_expr"), # done
 									div(class='row',
 										div(class= "col-sm-6",
@@ -417,32 +274,13 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 											actionButton("addcolumn_expr", "Add"), br(),  # done
 											actionButton("removecolumn_expr", "Remove") # done
 										)
-									)
+									),
+                                    circle = TRUE, status = "danger",
+                                    icon = icon("gear"), width = "300px"                                      
 								)
 							),
-
-							shinyDirButton("dir_collate_path_load", 
-								label = "Choose NxtIRF FST output path", title = "Choose NxtIRF FST output path"), # done
-							textOutput("txt_collate_path_expr"), # done
-							br(),
-							
-							actionButton("run_collate_expr", "Compile NxtIRF FST files"),
-							textOutput("txt_run_col_expr")
 						),
 						column(8,
-							shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
-								title = "Load Experiment Data Frame", multiple = FALSE), # done
-							shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
-								filetype = list(dataframe = "csv")),
-							actionButton("clear_expr", "Clear Experiment"),
-							textOutput("txt_run_save_expr"),
-							br(),
-							shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
-								title = "Choose Sample Annotation Table", multiple = FALSE), # done
-							textOutput("txt_sample_anno_expr"), # done
-							br(),
-							actionButton("build_expr", "Build SummarizedExperiment"),
-
 							shinyWidgets::radioGroupButtons(
 								 inputId = "hot_switch_expr",
 								 label = "Experiment Display",
@@ -495,7 +333,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							shinySaveButton("saveAnalysis_Filters", "Save Filters", "Save Filters as...", 
 								filetype = list(RDS = "Rds")),
 							shinyFilesButton("loadAnalysis_Filters", label = "Load Filters", 
-								title = "Load Filters from Rds", multiple = FALSE)
+								title = "Load Filters from Rds", multiple = FALSE),
+							actionButton("loadDefault_Filters", "Load Default Filters"),
 								
 						)
 					)
@@ -518,8 +357,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 							selectInput('batch2_DE', 'Batch Factor 2', 
 								c("(none)")),
 							actionButton("perform_DE", "Perform DE"),
-						shinyFilesButton("load_DE", label = "Load DE", 
-								title = "Load DE from RDS", multiple = FALSE),
+                            shinyFilesButton("load_DE", label = "Load DE", 
+                                    title = "Load DE from RDS", multiple = FALSE),
 							shinySaveButton("save_DE", "Save DE", "Save DE as...", 
 								filetype = list(RDS = "Rds")),
 						),
@@ -676,6 +515,23 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	Events <- filtered <- padj <- i.logFC <- i.AveExpr <- i.t <- i.P.Value <- i.adj.P.Val <- i.B <- B <- 
 	nom <- denom <- EventName <- log2FoldChange <- x <- ci <- track <- t_stat <- NULL
 
+        settings_system <- reactiveValues(
+            # online = FALSE,
+            threads_initialized = FALSE,
+            n_threads = 1
+        )
+
+        # observeEvent(input$online_system, {
+            # settings_system$online = input$online_system
+        # })
+
+        observeEvent(settings_system$n_threads, {
+            updateSliderInput(session = session, 
+                inputId = "cores_slider", value = settings_system$n_threads)
+            updateNumericInput(session = session, 
+                inputId = "cores_numeric", value = settings_system$n_threads)
+        })
+        
 		settings_newref <- shiny::reactiveValues(
 			newref_path = "",
 			newref_fasta = "",
@@ -751,21 +607,28 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						choices = c("(none)"), selected = "(none)") 
 				}
 
-			} else if(input$navSelection == "navThreads") {	
-				max_cores = parallel::detectCores() - 2
-				updateSliderInput(session = session, inputId = "cores_slider", 
-					min = 1, max = max_cores, step = 1, value = min(4, max_cores))
-				updateNumericInput(session = session, inputId = "cores_numeric", 
-					min = 1, max = max_cores, value = min(4, max_cores))
-			} else if(input$navSelection == "navExpr") {
-				# Determine IRFinder cores
+			} else if(input$navSelection == "navSystem") {
+                if(settings_system$threads_initialized == FALSE) {
+                    settings_system$threads_initialized = TRUE
+                    max_cores = parallel::detectCores() - 2
+                    updateSliderInput(session = session, inputId = "cores_slider", 
+                        min = 1, max = max_cores, step = 1, value = min(4, max_cores))
+                    updateNumericInput(session = session, inputId = "cores_numeric", 
+                        min = 1, max = max_cores, value = min(4, max_cores))                    
+                }
 
-				output$txt_reference_path <- renderText({
-					validate(
-						need(settings_loadref$loadref_path, "Please Reference->Load and select reference path")
-					)
-					settings_loadref$loadref_path
-				})
+			} else if(input$navSelection == "navExpr") {
+                output$se_expr_infobox <- renderInfoBox({
+                    infoBox(
+                        title = "SummarizedExperiment Object", 
+                        value = ifelse(is_valid(settings_SE$se),
+                            "LOADED", "MISSING"),
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = ifelse(is_valid(settings_SE$se),
+                            "green", "red")
+                    )
+                })
+        
 			} else if(input$navSelection == "navQC") {
 				output$DT_QC <- DT::renderDataTable({
 					validate(need(settings_SE$se, "Load Experiment file first"))
@@ -925,11 +788,11 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	# Threads:
 		observeEvent(input$cores_numeric, {
 			req(input$cores_numeric)
-			updateSliderInput(session = session, inputId = "cores_slider", value = input$cores_numeric)
+			settings_system$n_threads = input$cores_numeric
 		})
 		observeEvent(input$cores_slider, {
 			req(input$cores_slider)
-			updateNumericInput(session = session, inputId = "cores_numeric", value = input$cores_slider)
+			settings_system$n_threads = input$cores_slider
 		})
 		
 		observe({  
@@ -1787,11 +1650,21 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
 		})
 		
-		observeEvent(settings_expr$expr_path, {
-      output$txt_reference_path_expr <- renderText({
-				paste("Root folder:", settings_expr$expr_path)
-			})
-		})
+    observeEvent(settings_loadref$loadref_path, {
+        output$ref_expr_infobox <- renderInfoBox({
+            infoBox(
+                title = "Reference", 
+                value = ifelse(is_valid(settings_loadref$loadref_path),
+                    "LOADED", "MISSING"),
+                subtitle = ifelse(is_valid(settings_loadref$loadref_path),
+                    settings_loadref$loadref_path, ""),
+                icon = icon("dna", lib = "font-awesome"),
+                color = ifelse(is_valid(settings_loadref$loadref_path),
+                    "green", "red")
+            )
+        }) 
+    })
+
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
 			output$txt_bam_path_expr <- renderText({
@@ -1801,46 +1674,61 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			})
     })
     Expr_Load_BAMs = function() {
-		# First assume bams are named by subdirectory names
-			temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
-			if(!is.null(temp.DT)) {
-        temp.DT = as.data.table(temp.DT)
-				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-					# Assume subdirectory names designate sample names
-				} else {
-					temp.DT = as.data.table(FindSamples(
-						settings_expr$bam_path, suffix = ".bam", use_subdir = FALSE))
-					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-				# Else assume bam names designate sample names					
-					} else {
-						output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")							
-						settings_expr$bam_path = ""
-						temp.DT = NULL
-					}
-				}
-			} else {
-				output$txt_bam_path_expr <- renderText("No bam files found in given path")
-				settings_expr$bam_path = ""
-				temp.DT = NULL
-			}
-		# compile experiment df with bam paths
-			if(!is.null(temp.DT)) {
-				colnames(temp.DT)[2] = "bam_file"
-				if(is_valid(settings_expr$df.files)) {
-			# merge with existing dataframe	
-					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
-				} else {
-			# start anew
-					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
-					DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
-					settings_expr$df.files = as.data.frame(DT)
-				}
-			}    
+    # First assume bams are named by subdirectory names
+        if(!is_valid(settings_expr$bam_path)) return(-1)
+        temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
+        if(!is.null(temp.DT)) {
+            temp.DT = as.data.table(temp.DT)
+            if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+                # Assume subdirectory names designate sample names
+            } else {
+                temp.DT = as.data.table(FindSamples(
+                    settings_expr$bam_path, suffix = ".bam", use_subdir = FALSE))
+                if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+            # Else assume bam names designate sample names					
+                } else {
+                    output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")							
+                    settings_expr$bam_path = ""
+                    temp.DT = NULL
+                }
+            }
+        } else {
+            output$txt_bam_path_expr <- renderText("No bam files found in given path")
+            # settings_expr$bam_path = ""
+            temp.DT = NULL
+        }
+    # compile experiment df with bam paths
+        if(!is.null(temp.DT)) {
+            colnames(temp.DT)[2] = "bam_file"
+            if(is_valid(settings_expr$df.files)) {
+        # merge with existing dataframe	
+                settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
+            } else {
+        # start anew
+                DT = data.table(sample = temp.DT$sample,
+                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+                DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
+                settings_expr$df.files = as.data.frame(DT)
+            }
+            return(0)
+        } else {
+            return(-1)
+        }
     }
 		observeEvent(settings_expr$bam_path,{
-      req(settings_expr$bam_path)
-      Expr_Load_BAMs()
+            ret = Expr_Load_BAMs()
+            output$bam_expr_infobox <- renderInfoBox({
+                infoBox(
+                    title = "bam path", 
+                    value = ifelse(!is_valid(settings_expr$bam_path),
+                        "MISSING", ifelse(ret == 0, "LOADED", "No BAMs found")),
+                    subtitle = ifelse(is_valid(settings_expr$bam_path),
+                        settings_expr$bam_path, ""),
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = ifelse(!is_valid(settings_expr$bam_path),
+                        "red", ifelse(ret == 0, "green", "yellow"))
+                )
+            })
 		})
     
 		# Run IRFinder
@@ -1878,80 +1766,102 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       req(input$dir_irf_path_load)
       settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load)
     })
-    observeEvent(settings_expr$irf_path, {
-      output$txt_irf_path_expr <- renderText({
-        validate(need(settings_expr$irf_path, "Please select path where IRFinder output should be kept"))
-        settings_expr$expr_path = dirname(settings_expr$irf_path)
-        settings_expr$irf_path
-      })    
-    })
+
     Expr_Load_IRFs = function() {
+        if(!is_valid(settings_expr$irf_path)) return(-1)
 				# merge irfinder paths
-			temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
-			if(!is.null(temp.DT)) {
-        temp.DT = as.data.table(temp.DT)
-				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-					# Assume output names designate sample names
-				} else {
-					temp.DT = as.data.table(FindSamples(
-						settings_expr$irf_path, suffix = ".txt.gz", use_subdir = TRUE))
-					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-				# Else assume subdirectory names designate sample names					
-					} else {
-						output$txt_irf_path_expr <- renderText("IRFinder file names (or its path names) must be unique")							
-						settings_expr$irf_path = ""
-						temp.DT = NULL
-					}
-				}
-			} else {
-				temp.DT = NULL
-			}
-			
-		# compile experiment df with irfinder paths
-			if(!is.null(temp.DT)) {
-					colnames(temp.DT)[2] = "irf_file"
-				if(is_valid(settings_expr$df.files)) {
-			# merge with existing dataframe	
-					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
-				} else {
-			# start anew
-					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
-					DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
-					settings_expr$df.files = as.data.frame(DT)      
-				}   
-			}
-			
-			# Attempt to find Coverage files
-			temp.DT = FindSamples(settings_expr$irf_path, suffix = ".cov", use_subdir = FALSE)
-			if(!is.null(temp.DT)) {
-        temp.DT = as.data.table(temp.DT)
-				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-					# Assume output names designate sample names
-				} else {
-					temp.DT = as.data.table(FindSamples(
-						settings_expr$irf_path, suffix = ".cov", use_subdir = TRUE))
-					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-				# Else assume subdirectory names designate sample names					
-					} else {
-						temp.DT = NULL
-					}
-				}
-			} else {
-				temp.DT = NULL
-			}
-			
-		# compile experiment df with irfinder paths
-			if(!is.null(temp.DT)) {
-				colnames(temp.DT)[2] = "cov_file"
-			# merge with existing dataframe	
-					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
-			}			
+        temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
+        if(!is.null(temp.DT)) {
+            temp.DT = as.data.table(temp.DT)
+            if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+                # Assume output names designate sample names
+            } else {
+                temp.DT = as.data.table(FindSamples(
+                    settings_expr$irf_path, suffix = ".txt.gz", use_subdir = TRUE))
+                if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+            # Else assume subdirectory names designate sample names					
+                } else {
+                    output$txt_irf_path_expr <- renderText("IRFinder file names (or its path names) must be unique")							
+                    # settings_expr$irf_path = ""
+                    temp.DT = NULL
+                }
+            }
+        } else {
+            temp.DT = NULL
+        }
+        
+    # compile experiment df with irfinder paths
+        if(!is.null(temp.DT)) {
+                colnames(temp.DT)[2] = "irf_file"
+            if(is_valid(settings_expr$df.files)) {
+        # merge with existing dataframe	
+                settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
+            } else {
+        # start anew
+                DT = data.table(sample = temp.DT$sample,
+                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+                DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
+                settings_expr$df.files = as.data.frame(DT)      
+            }   
+        }
+        
+        # Attempt to find Coverage files
+        temp.DT2 = FindSamples(settings_expr$irf_path, suffix = ".cov", use_subdir = FALSE)
+        if(!is.null(temp.DT2)) {
+            temp.DT2 = as.data.table(temp.DT2)
+            if(length(unique(temp.DT2$sample)) == nrow(temp.DT2)) {
+                # Assume output names designate sample names
+            } else {
+                temp.DT2 = as.data.table(FindSamples(
+                    settings_expr$irf_path, suffix = ".cov", use_subdir = TRUE))
+                if(length(unique(temp.DT2$sample)) == nrow(temp.DT2)) {
+            # Else assume subdirectory names designate sample names					
+                } else {
+                    temp.DT2 = NULL
+                }
+            }
+        } else {
+            temp.DT2 = NULL
+        }
+        
+    # compile experiment df with irfinder paths
+        if(!is.null(temp.DT2)) {
+            colnames(temp.DT2)[2] = "cov_file"
+        # merge with existing dataframe	
+            settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT2)
+        }			
+        
+        if(!is.null(temp.DT)) {
+            return(0)
+        } else {
+            return(-1)
+        }  
     }
 		
 		observeEvent(settings_expr$irf_path,{
-      req(settings_expr$irf_path)
-      Expr_Load_IRFs()
+            ret = Expr_Load_IRFs()
+            output$irf_expr_infobox <- renderInfoBox({
+                infoBox(
+                    title = "irfinder output", 
+                    value = ifelse(!is_valid(settings_expr$irf_path),
+                        "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
+                    subtitle = ifelse(is_valid(settings_expr$irf_path),
+                        settings_expr$irf_path, ""),
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = ifelse(!is_valid(settings_expr$irf_path),
+                        "red", ifelse(ret == 0, "green", "yellow"))
+                )
+            })
+            if(ret == 0 && !is_valid(settings_expr$bam_path)) {
+                output$bam_expr_infobox <- renderInfoBox({
+                    infoBox(
+                        title = "bam path", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }
 		})
 
 		# Add annotation to data frame
@@ -1965,10 +1875,10 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
 
 		observeEvent(settings_expr$anno_file,{
-      output$txt_sample_anno_expr <- renderText({
-        validate(need(settings_expr$anno_file, "Please select file where sample annotations are kept"))
-        settings_expr$anno_file
-      })    
+      # output$txt_sample_anno_expr <- renderText({
+        # validate(need(settings_expr$anno_file, "Please select file where sample annotations are kept"))
+        # settings_expr$anno_file
+      # })    
       req(settings_expr$anno_file)
 			temp.DT = tryCatch(as.data.table(fread(settings_expr$anno_file)),
 				error = function(e) NULL)
@@ -2013,44 +1923,79 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
     Expr_Load_FSTs = function() {
 				# merge nxtirf paths
-			temp.DT = FindSamples(settings_expr$collate_path, suffix = ".junc.fst", use_subdir = FALSE)
-			if(!is.null(temp.DT)) {
-        temp.DT = as.data.table(temp.DT)
-				if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-					# Assume output names designate sample names
-				} else {
-					temp.DT = as.data.table(FindSamples(
-						settings_expr$collate_path, suffix = ".junc.fst", use_subdir = TRUE))
-					if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-				# Else assume subdirectory names designate sample names					
-					} else {
-						output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
-						settings_expr$collate_path = ""
-						temp.DT = NULL
-					}
-				}
-			} else {
-				temp.DT = NULL
-			}
+        if(!is_valid(settings_expr$collate_path)) return(-1)
+        temp.DT = FindSamples(settings_expr$collate_path, suffix = ".junc.fst", use_subdir = FALSE)
+        if(!is.null(temp.DT)) {
+            temp.DT = as.data.table(temp.DT)
+            if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+                # Assume output names designate sample names
+            } else {
+                temp.DT = as.data.table(FindSamples(
+                    settings_expr$collate_path, suffix = ".junc.fst", use_subdir = TRUE))
+                if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
+            # Else assume subdirectory names designate sample names					
+                } else {
+                    output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
+                    # settings_expr$collate_path = ""
+                    temp.DT = NULL
+                }
+            }
+        } else {
+            temp.DT = NULL
+        }
 			
 		# compile experiment df with fst paths
-			if(!is.null(temp.DT)) {
-					colnames(temp.DT)[2] = "junc_file"
-				if(is_valid(settings_expr$df.files)) {
-			# merge with existing dataframe	
-					settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
-				} else {
-			# start anew
-					DT = data.table(sample = temp.DT$sample,
-						bam_file = "", irf_file = "", cov_file = "", junc_file = "")
-					DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
-					settings_expr$df.files = as.data.frame(DT)    
-				}
-			}    
+        if(!is.null(temp.DT)) {
+            colnames(temp.DT)[2] = "junc_file"
+            if(is_valid(settings_expr$df.files)) {
+        # merge with existing dataframe	
+                settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
+            } else {
+        # start anew
+                DT = data.table(sample = temp.DT$sample,
+                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+                DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
+                settings_expr$df.files = as.data.frame(DT)    
+            }
+            return(0)
+        } else {
+            return(-1)
+        }
     }
 		observeEvent(settings_expr$collate_path,{
-      req(settings_expr$collate_path)
-      Expr_Load_FSTs()
+            ret = Expr_Load_FSTs()
+            output$nxt_expr_infobox <- renderInfoBox({
+                infoBox(
+                    title = "NxtIRF Output", 
+                    value = ifelse(!is_valid(settings_expr$collate_path),
+                        "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
+                    subtitle = ifelse(is_valid(settings_expr$collate_path),
+                        settings_expr$collate_path, ""),
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = ifelse(!is_valid(settings_expr$collate_path),
+                        "red", ifelse(ret == 0, "green", "yellow"))
+                )
+            })
+            if(ret == 0 && !is_valid(settings_expr$bam_path)) {
+                output$bam_expr_infobox <- renderInfoBox({
+                    infoBox(
+                        title = "bam path", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }
+            if(ret == 0 && !is_valid(settings_expr$irf_path)) {
+                output$irf_expr_infobox <- renderInfoBox({
+                    infoBox(
+                    title = "irfinder output", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }
 		})
 	
     output$newcol_expr <- renderUI({
@@ -2162,6 +2107,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			settings_expr$collate_path = ""
 			settings_expr$df.files = c()
 			settings_expr$df.anno = c()
+            settings_SE$se = NULL
       output$txt_run_save_expr <- renderText("")
     })
 		observeEvent(input$build_expr, {
@@ -2180,9 +2126,53 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		settings_SE <- shiny::reactiveValues(
 			se = NULL,
 			
-			filterSummary = NULL,
-      filters = list()
+            filterSummary = NULL,
+            filters = list()
 		)
+
+        observeEvent(settings_SE$se, {
+            output$se_expr_infobox <- renderInfoBox({
+                infoBox(
+                    title = "SummarizedExperiment Object", 
+                    value = ifelse(is_valid(settings_SE$se),
+                        "LOADED", "MISSING"),
+                    icon = icon("dna", lib = "font-awesome"),
+                    color = ifelse(is_valid(settings_SE$se),
+                        "green", "red")
+                )
+            })
+            if(!is_valid(settings_expr$bam_path)) {
+                output$bam_expr_infobox <- renderInfoBox({
+                    infoBox(
+                        title = "bam path", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }
+            if(!is_valid(settings_expr$irf_path)) {
+                output$irf_expr_infobox <- renderInfoBox({
+                    infoBox(
+                    title = "irfinder output", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }            
+            if(!is_valid(settings_expr$collate_path)) {
+                output$nxt_expr_infobox <- renderInfoBox({
+                    infoBox(
+                        title = "NxtIRF Output", 
+                        value = "NOT REQUIRED",
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })
+            }
+        })
+
 		
     getFilterData = function(i) {
       if(is_valid(settings_SE$filters)) {
@@ -2331,13 +2321,18 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       saveRDS(final, selectedfile$datapath)
     })
 
-		shinyFileChoose(input, "loadAnalysis_Filters", roots = c(default_volumes, addit_volume), session = session,
+    shinyFileChoose(input, "loadAnalysis_Filters", roots = c(default_volumes, addit_volume), session = session,
       filetypes = c("Rds"))
     observeEvent(input$loadAnalysis_Filters, {
       selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadAnalysis_Filters)
       req(selectedfile$datapath)
       settings_SE$filters = readRDS(selectedfile$datapath)
     })
+
+    observeEvent(input$loadDefault_Filters, {
+      settings_SE$filters = default_filter
+    })
+
     
     # DE
 		settings_DE <- shiny::reactiveValues(

@@ -1,4 +1,4 @@
-is_valid <- function(x) !is.null(x) && length(x) > 0 && (!is.character(x) || x != "" && x != "(none)")
+is_valid <- function(x) !is.null(x) && length(x) > 0 && !is.na(x) && (!is.character(x) || (x != "" && x != "(none)"))
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
