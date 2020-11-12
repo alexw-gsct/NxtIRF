@@ -42,7 +42,8 @@ Imports:
 	stringr,
 	SummarizedExperiment,
 	S4Vectors,
-	IRanges
+	IRanges,
+	DESeq2, limma
 Suggests: DESeq2, limma
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
