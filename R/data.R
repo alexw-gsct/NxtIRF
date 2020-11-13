@@ -1,7 +1,6 @@
 #' Default / recommended filters for NxtIRF
 #'
-#' This is 
-#'  diamonds. The variables are as follows:
+#' This is default filters object. The variables are as follows:
 #'
 #' @format A list of 8 filters:
 #'   - Depth filter (requires total splice depth of > 20 (splice + IR depth for IR events))

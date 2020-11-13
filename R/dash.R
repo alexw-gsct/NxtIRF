@@ -2033,8 +2033,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         "running CollateData()"
       })
 
-			cores_to_use = as.numeric(input$cores_slider)
-			if(!is_valid(input$cores_slider)) cores_to_use = 1
+			cores_to_use = as.numeric(settings_system$n_threads)
+			if(!is_valid(cores_to_use)) cores_to_use = 1
 			withProgress(message = 'Collating IRFinder output', value = 0, {
 				CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
 			})

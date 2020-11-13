@@ -17,7 +17,6 @@ A list of 8 filters:
 default_filter
 }
 \description{
-This is
-diamonds. The variables are as follows:
+This is default filters object. The variables are as follows:
 }
 \keyword{datasets}
