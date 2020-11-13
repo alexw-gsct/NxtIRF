@@ -30,7 +30,7 @@ of the parent directory \code{use_subdir = TRUE}. See example below.
 \examples{
 ## If your sample files are contained like this:
 ## /path/to/project/samples/Apple.BAM and /path/to/project/samples/Banana.BAM
-df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
+## df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
   use_subdir = FALSE)
 ## returns df with df$sample = c("Apple", "Banana"), 
 ## df$path = c("/path/to/project/samples/Apple.BAM",
@@ -39,8 +39,8 @@ df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
 ## Alternately, if your sample files are contained like this:
 ## /path/to/project/samples/Apple/Aligned.BAM and
 ## /path/to/project/samples/Banana/Aligned.BAM
-df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-  use_subdir = TRUE)
+## df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
+##  use_subdir = TRUE)
 ## returns df with df$sample = c("Apple", "Banana"), 
 ## df$path = c("/path/to/project/samples/Apple/Aligned.BAM",
 ## "/path/to/project/samples/Banana/Aligned.BAM")

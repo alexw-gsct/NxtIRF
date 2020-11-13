@@ -19,6 +19,7 @@ Imports:
 	shiny,
 	shinyFiles,
 	shinyWidgets,
+	shinydashboard,
 	rhandsontable,
 	ggplot2,
 	dplyr,
@@ -44,7 +45,6 @@ Imports:
 	S4Vectors,
 	IRanges,
 	DESeq2, limma
-Suggests: DESeq2, limma
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 SystemRequirements: C++11
