@@ -436,7 +436,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 					)
 				),
 				
-				tabItem(tabName = "navQC",
+				tabItem(tabName = "navCoverage",
 					fluidRow(style='height:20vh',
 						column(6, 
 							textOutput("warning_cov"),
