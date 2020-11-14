@@ -870,7 +870,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_Cov$event.ranges = as.data.table(rowData)
         
 					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
-					DT.files = data.table::na.omit(DT.files)
+					DT.files = na.omit(DT.files)
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
 					if(input$mode_cov == "By Condition") {
@@ -1997,7 +1997,7 @@ startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observeEvent(input$run_collate_expr, {
       req(settings_expr$df.files)
 
-      Experiment = data.table::na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
+      Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
       reference_path = settings_loadref$loadref_path
       output_path = settings_expr$collate_path
       # BPPARAM = BPPARAM_mod

@@ -217,7 +217,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                                 textOutput("txt_collate_path_expr"), # done
                             
                                 circle = TRUE, status = "danger",
-                                icon = icon("gear"), width = "300px"                              
+                                icon = icon("folder-open", lib = "font-awesome"), 
+                                width = "300px"                              
                             ), br(),
 
                             shinyWidgets::dropdownButton(
@@ -236,7 +237,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                                 actionButton("build_expr", "Build SummarizedExperiment"),
                             
                                 circle = TRUE, status = "danger",
-                                icon = icon("gear"), width = "300px"                           
+                                icon = icon("flask", lib = "font-awesome"), 
+                                width = "300px"                           
                             ), br(),
 
 
@@ -247,7 +249,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                                 textOutput("txt_run_irf_expr"),
                             
                                 circle = TRUE, status = "danger",
-                                icon = icon("gear"), width = "300px"                               
+                                icon = icon("align-center", lib = "font-awesome"), 
+                                width = "300px"                               
                             ), br(),
 
 
@@ -258,7 +261,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                                 textOutput("txt_run_col_expr"),
                             
                                 circle = TRUE, status = "danger",
-                                icon = icon("gear"), width = "300px"                           
+                                icon = icon("layer-group", lib = "font-awesome"), 
+                                width = "300px"                           
                             ), br(),
                             
 							conditionalPanel(
@@ -276,7 +280,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 										)
 									),
                                     circle = TRUE, status = "danger",
-                                    icon = icon("gear"), width = "300px"                                      
+                                    icon = icon("columns", lib = "font-awesome"), 
+                                    width = "300px"                                      
 								)
 							),
 						),
@@ -623,7 +628,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                         title = "SummarizedExperiment Object", 
                         value = ifelse(is_valid(settings_SE$se),
                             "LOADED", "MISSING"),
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("flask", lib = "font-awesome"),
                         color = ifelse(is_valid(settings_SE$se),
                             "green", "red")
                     )
@@ -1724,7 +1729,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                         "MISSING", ifelse(ret == 0, "LOADED", "No BAMs found")),
                     subtitle = ifelse(is_valid(settings_expr$bam_path),
                         settings_expr$bam_path, ""),
-                    icon = icon("dna", lib = "font-awesome"),
+                    icon = icon("folder-open", lib = "font-awesome"),
                     color = ifelse(!is_valid(settings_expr$bam_path),
                         "red", ifelse(ret == 0, "green", "yellow"))
                 )
@@ -1847,7 +1852,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                         "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
                     subtitle = ifelse(is_valid(settings_expr$irf_path),
                         settings_expr$irf_path, ""),
-                    icon = icon("dna", lib = "font-awesome"),
+                    icon = icon("align-center", lib = "font-awesome"),
                     color = ifelse(!is_valid(settings_expr$irf_path),
                         "red", ifelse(ret == 0, "green", "yellow"))
                 )
@@ -1857,7 +1862,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                         title = "bam path", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("folder-open", lib = "font-awesome"),
                         color = "green"
                     )
                 })
@@ -1971,7 +1976,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                         "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
                     subtitle = ifelse(is_valid(settings_expr$collate_path),
                         settings_expr$collate_path, ""),
-                    icon = icon("dna", lib = "font-awesome"),
+                    icon = icon("layer-group", lib = "font-awesome"),
                     color = ifelse(!is_valid(settings_expr$collate_path),
                         "red", ifelse(ret == 0, "green", "yellow"))
                 )
@@ -1981,7 +1986,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                         title = "bam path", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("folder-open", lib = "font-awesome"),
                         color = "green"
                     )
                 })
@@ -1991,7 +1996,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                     title = "irfinder output", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("align-center", lib = "font-awesome"),
                         color = "green"
                     )
                 })
@@ -2136,7 +2141,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     title = "SummarizedExperiment Object", 
                     value = ifelse(is_valid(settings_SE$se),
                         "LOADED", "MISSING"),
-                    icon = icon("dna", lib = "font-awesome"),
+                    icon = icon("flask", lib = "font-awesome"),
                     color = ifelse(is_valid(settings_SE$se),
                         "green", "red")
                 )
@@ -2146,7 +2151,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                         title = "bam path", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("folder-open", lib = "font-awesome"),
                         color = "green"
                     )
                 })
@@ -2156,7 +2161,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                     title = "irfinder output", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("align-center", lib = "font-awesome"),
                         color = "green"
                     )
                 })
@@ -2166,7 +2171,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                     infoBox(
                         title = "NxtIRF Output", 
                         value = "NOT REQUIRED",
-                        icon = icon("dna", lib = "font-awesome"),
+                        icon = icon("layer-group", lib = "font-awesome"),
                         color = "green"
                     )
                 })
