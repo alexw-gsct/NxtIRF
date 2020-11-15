@@ -1657,17 +1657,27 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		
     observeEvent(settings_loadref$loadref_path, {
         output$ref_expr_infobox <- renderInfoBox({
-            infoBox(
+            box1 = infoBox(
                 title = "Reference", 
                 value = ifelse(is_valid(settings_loadref$loadref_path),
                     "LOADED", "MISSING"),
                 subtitle = ifelse(is_valid(settings_loadref$loadref_path),
-                    settings_loadref$loadref_path, ""),
+                    settings_loadref$loadref_path, "click here to set reference"),
                 icon = icon("dna", lib = "font-awesome"),
                 color = ifelse(is_valid(settings_loadref$loadref_path),
                     "green", "red")
             )
+            if(!is_valid(settings_loadref$loadref_path)) {
+                box1$children[[1]]$attribs$class<-"action-button"
+                box1$children[[1]]$attribs$id<-"ref_expr_goto_loadref"
+            }
+            return(box1)
         }) 
+    })
+    
+    observeEvent(input$ref_expr_goto_loadref, {
+        req(input$ref_expr_goto_loadref)
+        updateTabItems(session, "navSelection", "navRef_Load")
     })
 
     observe({  
