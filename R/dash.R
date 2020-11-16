@@ -7,507 +7,32 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
     ah = AnnotationHub(localHub = offline)
 	
-
-	
 	ui_dash <- dashboardPage(
 		dashboardHeader(title = "NxtIRF"),
-		dashboardSidebar(
-			sidebarMenu(id = "navSelection",
-				menuItem("About", tabName = "navTitle"),
-				menuItem("System", tabName = "navSystem"),
-				menuItem("Reference",
-					 menuSubItem("New Reference", tabName = "navRef_New"),
-					 menuSubItem("Load Reference", tabName = "navRef_Load"),
-					 menuSubItem("View Reference", tabName = "navRef_View")
-				),
-				menuItem("Experiment", tabName = "navExpr"),
-				menuItem("Analysis",
-					 menuSubItem("Experiment QC", tabName = "navQC"),
-					 menuSubItem("Filters", tabName = "navFilter"),
-					 menuSubItem("Differential Expression Analysis", tabName = "navAnalyse")
-				),
-				menuItem("Display",
-					 menuSubItem("Diagonal", tabName = "navDiag"),
-					 menuSubItem("Volcano", tabName = "navVolcano"),
-					 menuSubItem("Heatmap", tabName = "navHeatmap"),
-					 menuSubItem("Coverage", tabName = "navCoverage")
-				)
-			)
-		),
+		ui_sidebar(),
 		dashboardBody(
 			tabItems(
-				tabItem(tabName = "navTitle",
-					img(src="https://pbs.twimg.com/profile_images/1310789966293655553/7HawCItY_400x400.jpg")		
-				),
-				tabItem(tabName = "navSystem",
-					box(
-						tags$div(title = paste("Number of threads to run computationally-intensive operations",
-							"such as IRFinder, NxtIRF-collate, and DESeq2"),
-							numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
-						),
-						tags$div(title = paste("Number of threads to run computationally-intensive operations",
-							"such as IRFinder, NxtIRF-collate, and DESeq2"),
-							sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
-						)
-					)
-				),
-				tabItem(tabName = "navRef_New",
-					fluidRow(
-						column(5,
-							h4("Select Reference Directory"),
-							tags$div(title = "Specify (or create) a directory for NxtIRF to create its IRFinder/NxtIRF reference",
-								shinyDirButton("dir_reference_path", label = "Choose reference path", 
-									title = "Choose reference path")
-							),
-							textOutput("txt_reference_path"),
-							br(),
-							h4("Select Ensembl Reference from AnnotationHub"),
-							selectInput('newrefAH_Species', 'Select Species', width = '100%',
-								choices = c("")),
-							selectInput('newrefAH_Version_Trans', 'Select Transcriptome Version', width = '100%',
-								choices = c("")),
-							tags$div(title = paste("Choose the source gtf file to build the reference.",
-									"Typically avoid choosing *.abinitio.gtf, '*.chr.gtf' or",
-									"'*.chr_patch_hapl_scaff.gtf' assemblies"),
-								selectInput('newrefAH_Trans', 'Select Transcriptome Reference', width = '100%',
-									choices = c(""))
-							),
-							selectInput('newrefAH_Assembly', 'Select Genome Assembly', width = '100%',
-								choices = c("")),
-							selectInput('newrefAH_Version_Genome', 'Select Genome Version', width = '100%',
-								choices = c("")),
-							tags$div(title = paste("Choose the source genome sequence to build the reference.",
-									"Typically choose the primary assembly, or if none, use",
-									"either the 'sm.toplevel' or 'rm.toplevel' assemblies.",
-									"Avoid using the cdna or ncrna assemblies"),
-								selectInput('newrefAH_Genome', 'Select Genome Reference', width = '100%',
-									choices = c(""))
-							),
-							br(),
-							h4("or select Reference from File"),
-							br(),
-							tags$div(title = paste("Choose a user-supplied genome fasta file"),
-								shinyFilesButton("file_genome", label = "Choose genome FASTA File", title = "Choose genome FASTA File", multiple = FALSE)
-							),
-							textOutput("txt_genome"),
-							tags$div(title = paste("Choose a user-supplied transcript reference gtf file"),
-								shinyFilesButton("file_gtf", label = "Choose transcriptome GTF File", title = "Choose transcriptome GTF File", multiple = FALSE)
-							),
-							textOutput("txt_gtf")
-						),
-						column(5,
-							tags$div(title = paste("NxtIRF will auto-populate default mappability and non-polyA",
-									"reference files for hg38, hg19, mm10 and mm9 genomes"),
-								selectInput('newref_genome_type',
-									'Select Genome Type to set Mappability and non-PolyA files', 
-									c("(not specified)", "hg38", "mm10", "hg19", "mm9"))
-							),
-							tags$div(title = paste("Select Mappability Exclusion file. This is typically a 3 columns",
-									"of values containing seqnames, start and end coordinates of low-mappability regions"),
-								shinyFilesButton("file_mappa", label = "Choose Mappability Exclusion file", 
-									title = "Choose Mappability Exclusion file", multiple = FALSE)
-							),
-							textOutput("txt_mappa"), actionButton("clear_mappa", "Clear"),
-							tags$div(title = paste("Select Non-PolyA reference file. This is used by IRFinder",
-									"to calculate reads from known non-polyadenylated transcripts to assess",
-									"quality of poly-A enrichment in sample QC"),
-								shinyFilesButton("file_NPA", label = "Choose non-PolyA BED file", title = "Choose non-PolyA BED file", multiple = FALSE)
-							),
-							textOutput("txt_NPA"), actionButton("clear_NPA", "Clear"),
-							tags$div(title = paste("Select Blacklist file. This is typically a 3 columns",
-									"of values containing seqnames, start and end coordinates of regions",
-									"to exclude from IRFinder analysis"),
-								shinyFilesButton("file_bl", label = "Choose blacklist BED file", title = "Choose blacklist BED file", multiple = FALSE)
-							),
-							textOutput("txt_bl"), actionButton("clear_bl", "Clear"),
-							br(),
-							actionButton("buildRef", "Build Reference"),
-							actionButton("clearNewRef", "Clear settings"),
-							uiOutput("refStatus")
-						)
-					)
-				),			
+                ui_tab_title(),
+                ui_tab_system(),
+                ui_tab_ref_new(),			
 
-				tabItem(tabName = "navRef_Load",
-					fluidRow(
-						box(
-							h4("Select Reference Directory"),
-							shinyDirButton("dir_reference_path_load", label = "Choose reference path", title = "Choose reference path"),
-							textOutput("txt_reference_path_load"),                        
-                        ),
-                        box(
-							actionButton("clearLoadRef", "Clear settings"), # TODO                        
-                        )
-
-					),
-                    conditionalPanel(
-                        condition = "output.txt_reference_path_load != ''",
-                        fluidRow(
-                            infoBoxOutput("fasta_source_infobox"),
-                            infoBoxOutput("gtf_source_infobox")
-                        ),
-                        fluidRow(
-                            infoBoxOutput("mappa_source_infobox"),
-                            infoBoxOutput("NPA_source_infobox"),
-                            infoBoxOutput("BL_source_infobox")
-                        )
-                    )
-				),
-
-				tabItem(tabName = "navRef_View",
-					fluidRow(style='height:20vh',
-						column(4, 
-							div(style="display: inline-block;vertical-align:top; width: 240px;",
-								selectizeInput('genes_view', 'Genes', choices = "(none)")
-							),
-							div(style="display: inline-block;vertical-align:top; width: 240px;",
-								selectizeInput('events_view', 'Events', choices = c("(none)"))
-							),
-							textOutput("warning_view_ref")
-						),
-						column(8,
-							div(style="display: inline-block;vertical-align:top; width: 80px;",
-								selectInput("chr_view_ref", label = "Chr", c("(none)"), selected = "(none)")),
-							div(style="display: inline-block;vertical-align:top; width: 120px;",
-								textInput("start_view_ref", label = "Left", c(""))),
-							div(style="display: inline-block;vertical-align:top; width: 120px;",
-								textInput("end_view_ref", label = "Right", c(""))),            
-							br(),
-							shinyWidgets::actionBttn("zoom_out_view_ref", style = "material-circle", color = "danger",
-								icon = icon("minus")),
-							div(style="display: inline-block;vertical-align:center;width: 60px;padding:20px",
-								textOutput("label_zoom_view_ref")),
-							shinyWidgets::actionBttn("zoom_in_view_ref", style = "material-circle", color = "danger",
-								icon = icon("plus")),
-							div(style="display: inline-block;vertical-align:top;padding:10px;",
-								shinyWidgets::switchInput("move_labels_view_ref", label = "Movable labels", labelWidth = "100px")
-							)
-						)
-					),
-					fluidRow(
-						plotlyOutput("plot_view_ref", height = "800px"),
-					)
-				),
-
-				tabItem(tabName = "navExpr",
-                    fluidRow(
-                        infoBoxOutput("ref_expr_infobox"),
-                        infoBoxOutput("bam_expr_infobox"),
-                        infoBoxOutput("irf_expr_infobox"),
-                        infoBoxOutput("nxt_expr_infobox"),
-                        infoBoxOutput("se_expr_infobox")
-                    ),
-					fluidRow(
-						column(4,
-                            shinyWidgets::dropdownButton(
-                                tags$h4("Set Paths"),
-                                shinyDirButton("dir_bam_path_load", 
-                                    label = "Choose BAM path", 
-                                    title = "Choose BAM path"), # done
-                                textOutput("txt_bam_path_expr"),
-                                shinyDirButton("dir_irf_path_load", 
-                                
-                                    label = "Choose IRFinder output path", 
-                                    title = "Choose IRFinder output path"), # done					
-                                textOutput("txt_irf_path_expr"),
-
-                                shinyDirButton("dir_collate_path_load", 
-                                    label = "Choose NxtIRF FST output path", 
-                                    title = "Choose NxtIRF FST output path"), # done
-                                textOutput("txt_collate_path_expr"), # done
-                            
-                                circle = TRUE, status = "danger",
-                                icon = icon("folder-open", lib = "font-awesome"), 
-                                width = "300px"                              
-                            ), br(),
-
-                            shinyWidgets::dropdownButton(
-                                tags$h4("Construct Experiment"),
-                                shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
-                                    title = "Load Experiment Data Frame", multiple = FALSE), # done
-                                shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
-                                    filetype = list(dataframe = "csv")),
-                                actionButton("clear_expr", "Clear Experiment"),
-                                textOutput("txt_run_save_expr"),
-                                br(),
-                                shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
-                                    title = "Choose Sample Annotation Table", multiple = FALSE), # done
-                                textOutput("txt_sample_anno_expr"), # done
-                                br(),
-                                actionButton("build_expr", "Build SummarizedExperiment"),
-                            
-                                circle = TRUE, status = "danger",
-                                icon = icon("flask", lib = "font-awesome"), 
-                                width = "300px"                           
-                            ), br(),
-
-
-                            shinyWidgets::dropdownButton(
-                                tags$h4("Run IRFinder on Selected BAMs"),
-                                actionButton("run_irf_expr", 
-                                    "Run IRFinder"), # TODO
-                                textOutput("txt_run_irf_expr"),
-                            
-                                circle = TRUE, status = "danger",
-                                icon = icon("align-center", lib = "font-awesome"), 
-                                width = "300px"                               
-                            ), br(),
-
-
-                            shinyWidgets::dropdownButton(
-                                tags$h4("Run NxtIRF CollateData on IRFinder output"),
-                                actionButton("run_collate_expr", 
-                                    "Compile NxtIRF FST files"),
-                                textOutput("txt_run_col_expr"),
-                            
-                                circle = TRUE, status = "danger",
-                                icon = icon("layer-group", lib = "font-awesome"), 
-                                width = "300px"                           
-                            ), br(),
-                            
-							conditionalPanel(
-								condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
-                                shinyWidgets::dropdownButton(
-                                    tags$h4("Annotation Columns"),
-									uiOutput("newcol_expr"), # done
-									div(class='row',
-										div(class= "col-sm-6",
-											radioButtons("type_newcol_expr", "Type", c("character", "integer", "double"))
-										),
-										div(class = "col-sm-6", 
-											actionButton("addcolumn_expr", "Add"), br(),  # done
-											actionButton("removecolumn_expr", "Remove") # done
-										)
-									),
-                                    circle = TRUE, status = "danger",
-                                    icon = icon("columns", lib = "font-awesome"), 
-                                    width = "300px"                                      
-								)
-							),
-						),
-						column(8,
-							shinyWidgets::radioGroupButtons(
-								 inputId = "hot_switch_expr",
-								 label = "Experiment Display",
-								 choices = c("Files", "Annotations"),
-								 selected = "Files"
-							),
-							conditionalPanel(
-								condition = "['Files'].indexOf(input.hot_switch_expr) >= 0",
-								rHandsontableOutput("hot_files_expr")
-							),
-							conditionalPanel(
-								condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
-								rHandsontableOutput("hot_anno_expr")
-							)
-						)	# last column
-					)
-				),
+                ui_tab_expr(),
 				
 				tabItem(tabName = "navQC",
                     div(style = 'overflow-x: scroll',  DT::dataTableOutput('DT_QC'))
 				),
 
-				tabItem(tabName = "navFilter",
-					# Current Experiment
-					fluidRow(
-						column(4,	
-							wellPanel(style = "overflow-y:scroll; max-height: 800px",
-								filterModule_UI("filter1", "Filter #1"),
-								filterModule_UI("filter2", "Filter #2"),
-								filterModule_UI("filter3", "Filter #3"),
-								filterModule_UI("filter4", "Filter #4")
-							)
-						),
-						column(4,	
-							wellPanel(style = "overflow-y:scroll; max-height: 800px",
-								filterModule_UI("filter5", "Filter #5"),
-								filterModule_UI("filter6", "Filter #6"),
-								filterModule_UI("filter7", "Filter #7"),
-								filterModule_UI("filter8", "Filter #8")
-							)
-						),
-						column(4,	
-							textOutput("current_expr_Filters"), br(),
-							textOutput("current_ref_Filters"), br(),
-							# actionButton("load_filterdata_Filters", "Load Data"),
-							actionButton("refresh_filters_Filters", "Refresh Filters"),
-							plotlyOutput("plot_filtered_Events"),
-							selectInput('graphscale_Filters', 'Y-axis Scale', width = '100%',
-								choices = c("linear", "log10")), 
-							shinySaveButton("saveAnalysis_Filters", "Save Filters", "Save Filters as...", 
-								filetype = list(RDS = "Rds")),
-							shinyFilesButton("loadAnalysis_Filters", label = "Load Filters", 
-								title = "Load Filters from Rds", multiple = FALSE),
-							actionButton("loadDefault_Filters", "Load Default Filters"),
-								
-						)
-					)
-				),
+                ui_tab_filter(),
 
-				tabItem(tabName = "navAnalyse",
-				 fluidRow(
-						column(4,	
-							textOutput("warning_DE"),
-							selectInput('method_DE', 'Method', 
-								c("DESeq2", "limma", "DSS")),
-							selectInput('variable_DE', 'Variable', 
-								c("(none)")),
-							selectInput('nom_DE', 'Nominator', 
-								c("(none)")),
-							selectInput('denom_DE', 'Denominator', 
-								c("(none)")),
-							selectInput('batch1_DE', 'Batch Factor 1', 
-								c("(none)")),
-							selectInput('batch2_DE', 'Batch Factor 2', 
-								c("(none)")),
-							actionButton("perform_DE", "Perform DE"),
-                            shinyFilesButton("load_DE", label = "Load DE", 
-                                    title = "Load DE from RDS", multiple = FALSE),
-							shinySaveButton("save_DE", "Save DE", "Save DE as...", 
-								filetype = list(RDS = "Rds")),
-						),
-						column(8,
-							actionButton("clear_selected_DE", "Clear Selected Events"),
-							DT::dataTableOutput("DT_DE")
-						)
-					)
-				),
+                ui_tab_analyse(),
 
-				tabItem(tabName = "navDiag",
-					fluidRow(
-						column(3,	
-							shinyWidgets::sliderTextInput(inputId = "number_events_diag", label = "Number of Top Events",
-								choices = c(100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000), 
-								selected = 10000),
-							selectInput("EventType_diag", "Splice Type", width = '100%', multiple = TRUE,
-								choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
-							selectInput('variable_diag', 'Variable', 
-								c("(none)")),
-							selectInput('nom_diag', 'X-axis condition', 
-								c("(none)")),
-							selectInput('denom_diag', 'Y-axis condition', 
-								c("(none)")),
-							actionButton("clear_diag", "Clear settings"),
-							textOutput("warning_diag")
-						),
-						column(9,
-							plotlyOutput("plot_diag", height = "800px")
-						)
-					)
-				),
+                ui_tab_diag(),
 
-				tabItem(tabName = "navVolcano",
-					fluidRow(
-						column(3,	
-							shinyWidgets::sliderTextInput(inputId = "number_events_volc", label = "Number of Top Events",
-								choices = c(100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000), 
-								selected = 10000),
-							selectInput("EventType_volc", "Splice Type", width = '100%', multiple = TRUE,
-								choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
-							shinyWidgets::switchInput("facet_volc", label = "Facet by Type", labelWidth = "150px"),
-							actionButton("clear_volc", "Clear settings"),
-							textOutput("warning_volc")
-						),
-						column(9,
-							plotlyOutput("plot_volc", height = "800px")
-						)
-					)
-				),
+                ui_tab_volcano(),
 
-				tabItem(tabName = "navHeatmap",
-					fluidRow(
-						column(3, 
-							shinyWidgets::radioGroupButtons("select_events_heat", 
-								label = "Select Events from Differential Expression Results", justified = FALSE,
-								choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
-								checkIcon = list(yes = icon("ok", lib = "glyphicon"))
-							),
-							shinyWidgets::sliderTextInput("slider_num_events_heat", 
-								"Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25),
-							shinyWidgets::radioGroupButtons("mode_heat", 
-								label = "Mode", justified = FALSE,
-								choices = c("PSI", "Logit", "Z-score"), 
-								checkIcon = list(yes = icon("ok", lib = "glyphicon"))
-							),
-							selectInput('color_heat', 'Palette', 
-								c("RdBu", "BrBG", "PiYG", "PRGn", "PuOr", "RdGy", "RdYlBu", "RdYlGn", "Spectral")
-							)            
-						),
-						column(9, 
-							textOutput("warning_heat"),
-							plotlyOutput("plot_heat", height = "800px"),
-						)
-					)
-				),
+                ui_tab_heatmap(),
 				
-				tabItem(tabName = "navCoverage",
-					fluidRow(style='height:20vh',
-						column(6, 
-							textOutput("warning_cov"),
-							div(style="display: inline-block;vertical-align:top; width: 250px;",
-								selectizeInput('genes_cov', 'Genes', choices = "(none)")
-							),
-							div(style="display: inline-block;vertical-align:top; width: 350px;",
-								selectizeInput('events_cov', 'Events', choices = c("(none)"))
-							),
-							shinyWidgets::radioGroupButtons("select_events_cov", 
-								label = "Select Events from Differential Expression Results", justified = FALSE,
-								choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
-								checkIcon = list(yes = icon("ok", lib = "glyphicon"))
-							)
-						),
-						column(3,
-							div(style="display: inline-block;vertical-align:top; width: 80px;",
-								selectInput("chr_cov", label = "Chr", c("(none)"), selected = "(none)")),
-							div(style="display: inline-block;vertical-align:top; width: 120px;",
-								textInput("start_cov", label = "Left", c(""))),
-							div(style="display: inline-block;vertical-align:top; width: 120px;",
-								textInput("end_cov", label = "Right", c(""))),            
-							br(),
-							shinyWidgets::actionBttn("zoom_out_cov", style = "material-circle", color = "danger",
-								icon = icon("minus")),
-							div(style="display: inline-block;vertical-align:center;width: 80px;padding:35px",
-								textOutput("label_zoom_cov")),
-							shinyWidgets::actionBttn("zoom_in_cov", style = "material-circle", color = "danger",
-								icon = icon("plus"))
-						),
-						column(3,
-							div(style="display: inline-block;vertical-align:top;padding:10px;",
-								shinyWidgets::radioGroupButtons("graph_mode_cov",label = "Graph Mode", justified = FALSE,
-									choices = c("Pan", "Zoom", "Movable Labels"), 
-									checkIcon = list(yes = icon("ok", lib = "glyphicon")))
-								# shinyWidgets::switchInput("move_labels_cov", label = "Movable labels", labelWidth = "100px")
-							),
-							shinyWidgets::sliderTextInput("slider_num_events_cov", 
-								"Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25)       
-							
-						)
-					),
-					fluidRow(
-						column(2, 
-							selectInput('event_norm_cov', 'Normalize Event', width = '100%',
-								choices = c("(none)")),
-							selectInput('mode_cov', 'View', width = '100%',
-								choices = c("Individual", "By Condition")),					
-							selectInput('condition_cov', 'Condition', width = '100%',
-								choices = c("(none)")),							
-							selectInput('track1_cov', 'Track 1', width = '100%',
-								choices = c("(none)")),
-							selectInput('track2_cov', 'Track 2', width = '100%',
-								choices = c("(none)")),
-							selectInput('track3_cov', 'Track 3', width = '100%',
-								choices = c("(none)")),
-							selectInput('track4_cov', 'Track 4', width = '100%',
-								choices = c("(none)")),
-							shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "150px"),
-							shinyWidgets::switchInput("pairwise_t_cov", label = "Pairwise t-test", labelWidth = "150px")
-						),
-						column(10, 
-							plotlyOutput("plot_cov", height = "800px"),
-						)
-					)
-				)			
+                ui_tab_coverage()
 			)
 		)
 	)
@@ -521,14 +46,9 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	nom <- denom <- EventName <- log2FoldChange <- x <- ci <- track <- t_stat <- NULL
 
         settings_system <- reactiveValues(
-            # online = FALSE,
             threads_initialized = FALSE,
             n_threads = 1
         )
-
-        # observeEvent(input$online_system, {
-            # settings_system$online = input$online_system
-        # })
 
         observeEvent(settings_system$n_threads, {
             updateSliderInput(session = session, 
@@ -623,17 +143,16 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 }
 
 			} else if(input$navSelection == "navExpr") {
-                output$se_expr_infobox <- renderInfoBox({
-                    infoBox(
-                        title = "SummarizedExperiment Object", 
-                        value = ifelse(is_valid(settings_SE$se),
-                            "LOADED", "MISSING"),
-                        icon = icon("flask", lib = "font-awesome"),
-                        color = ifelse(is_valid(settings_SE$se),
-                            "green", "red")
+                output$se_expr_infobox <- renderUI({
+                    ui_infobox_expr(ifelse(
+                        is_valid(settings_SE$se), 2,
+                        ifelse(is_valid(settings_expr$df.files) &&
+                            "junc_file" %in% names(settings_expr$df.files) &&
+                            all(file.exists(settings_expr$df.files$junc_file)),
+                            1,0)
+                        )
                     )
                 })
-        
 			} else if(input$navSelection == "navQC") {
 				output$DT_QC <- DT::renderDataTable({
 					validate(need(settings_SE$se, "Load Experiment file first"))
@@ -765,10 +284,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           
           settings_Cov$event.ranges = as.data.table(rowData)
         
-					DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
-					DT.files = na.omit(DT.files)
+            DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
+            DT.files = na.omit(DT.files)
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
+          settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
+          
 					if(input$mode_cov == "By Condition") {
 						colData = SummarizedExperiment::colData(settings_SE$se)
 						colData = colData[rownames(colData) %in% DT.files$sample,]
@@ -776,7 +297,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 						updateSelectInput(session = session, inputId = "condition_cov", 
 							choices = c("(none)", conditions_avail), selected = "(none)")
 					} else if(input$mode_cov == "Individual") {
-						avail_samples = DT.files$sample
+						avail_samples = names(settings_Cov$avail_cov)
 						updateSelectInput(session = session, inputId = "track1_cov", 
 							choices = c("(none)", avail_samples), selected = "(none)")
 						updateSelectInput(session = session, inputId = "track2_cov", 
@@ -1207,420 +728,22 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 }
 			})
 		})
-# View Ref page
-
-    settings_ViewRef <- reactiveValues(
-			# data
-			seqInfo = NULL,
-			gene_list = NULL,
-      elem.DT = NULL,
-      transcripts.DT = NULL,
-			# view settings
-      view_chr = "",
-      view_start = "",
-      view_end = "",
-      data_start = 0,
-      data_end = 0,
-
-      plotly_relayout = NULL,
-      plot_ini = FALSE
-		)
 		
-    loadTranscripts <- function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-			file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
-      
-      Transcripts.DT = as.data.table(read.fst(file_path))
-
-      if("transcript_support_level" %in% colnames(Transcripts.DT)) {
-          Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
-          Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
-      } else {
-        Transcripts.DT$transcript_support_level = 1
-      }
-      
-      return(Transcripts.DT)
-    }
-
-    loadViewRef <- function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
-			transcript_id <- NULL
-			dir_path = file.path(settings_loadref$loadref_path, "fst")
-
-      exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
-        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-      exons.DT = exons.DT[transcript_id != "protein_coding"]
-
-      protein.DT = as.data.table(read.fst(file.path(dir_path, "Proteins.fst"),
-        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-      misc.DT = as.data.table(read.fst(file.path(dir_path, "Misc.fst"),
-        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-      # introns.DT = as.data.table(read.fst(file.path(dir_path, "junctions.fst")))
-      # introns.DT[, type := "intron"]
-      
-      total.DT = rbindlist(list(
-        exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-        protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-        misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
-        # introns.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
-      ))
-      return(total.DT)
-    }
-    
-		getGeneList <- function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-			file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
-			if(!file.exists(file_path)) return(NULL)
-			
-			df = as.data.table(read.fst(file_path))
-			return(df)
-		}
-
-    observe({
-      view_chr = input$chr_view_ref
-      view_start = suppressWarnings(as.numeric(input$start_view_ref))
-      view_end = suppressWarnings(as.numeric(input$end_view_ref))
-			
-			has_movable_labels = input$move_labels_view_ref
-			
-      req(view_chr)
-      req(view_start)
-      req(view_end)
-
-      message("plot_view_ref_fn")
-
-      if(is.null(settings_ViewRef$elem.DT)) settings_ViewRef$elem.DT <- loadViewRef()
-      if(is.null(settings_ViewRef$transcripts.DT)) settings_ViewRef$transcripts.DT <- loadTranscripts()
-
-      req(settings_ViewRef$elem.DT)
-      req(settings_ViewRef$transcripts.DT)
-      message("stuff loaded")
- 
-      output$plot_view_ref <- renderPlotly({
-        settings_ViewRef$plot_ini = TRUE      
-        print(
-					plot_view_ref_fn(
-						view_chr, view_start, view_end, 
-						settings_ViewRef$transcripts.DT, settings_ViewRef$elem.DT
-					)
-				)
-      })
-    })
-
-		plot_view_ref_fn <- function(view_chr, view_start, view_end, transcripts, elems, highlight_events, condensed = FALSE) {
-      
-   transcript_support_level <- transcript_id <- group_id <- type <- gene_id <- plot_level <- 
-	 i.gene_name <- i.gene_biotype <- i.transcript_name <- i.transcript_biotype <- display_name <- 
-	 group_name <- group_biotype <- disp_x <- i.plot_level <- NULL		
-			
-			data_start = view_start - (view_end - view_start)
-      data_end = view_end + (view_end - view_start)
-
-      transcripts.DT = transcripts[seqnames == view_chr]
-      transcripts.DT = transcripts.DT[start <= data_end & end >= data_start]
-      setorder(transcripts.DT, transcript_support_level, width)
-
-			# filter transcripts by criteria if applicable
-
-      message(paste(nrow(transcripts.DT), " transcripts"))
-
-      screen.DT = elems[transcript_id %in% transcripts.DT$transcript_id]
-      # screen.DT = screen.DT[start <= data_end & end >= data_start]
-      if(condensed != TRUE & nrow(transcripts.DT) <= 100) {
-        condense_this = FALSE
-        transcripts.DT[, group_id := transcript_id]
-        screen.DT[, group_id := transcript_id]
-        reduced.DT = copy(screen.DT)
-        reduced.DT[type %in% c("CDS", "start_codon", "stop_codon"), type := "CDS"]
-        reduced.DT[type != "CDS", type := "exon"]
-      } else {
-        condense_this = TRUE
-        transcripts.DT[, group_id := gene_id]     
-        screen.DT[transcripts.DT, on = "transcript_id", group_id := gene_id]
-        # reduce screen.DT 
-        reduced.gr = disjoin(
-          makeGRangesFromDataFrame(
-            as.data.frame(screen.DT)
-          )
-        )
-        reduced.gr$type = "exon"
-        OL = findOverlaps(
-          reduced.gr,
-          makeGRangesFromDataFrame(
-            as.data.frame(screen.DT)
-          )
-        )
-        reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
-        OL = findOverlaps(
-          reduced.gr,
-          makeGRangesFromDataFrame(
-            as.data.frame(screen.DT[type %in% c("CDS", "start_codon", "stop_codon")])
-          )
-        )
-        reduced.gr$type[OL@from] = "CDS"
-        
-        reduced.DT = as.data.table(reduced.gr)
-      }
-
-      # add introns to reduced.DT
-      introns.DT = as.data.table(grlGaps(
-        split(makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
-          reduced.DT$group_id)
-      ))
-      introns.DT[, type := "intron"]
-      data.table::setnames(introns.DT, "group_name", "group_id")
-      
-      reduced.DT = rbind(reduced.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")], 
-        introns.DT[, c("seqnames", "start", "end", "strand", "type", "group_id")])
-      
-      # Highlight events here
-      if(!missing(highlight_events)) {
-      
-      }
-      
-      group.grl = split(
-        makeGRangesFromDataFrame(
-          as.data.frame(transcripts.DT)
-        ), transcripts.DT$group_id
-      )
-      group.DT = as.data.table(range(group.grl))
-      group.DT$group = NULL
-      data.table::setnames(group.DT, "group_name", "group_id")
-      # apply plot_order on transcripts.DT
-      OL = findOverlaps(
-        makeGRangesFromDataFrame(as.data.frame(group.DT)),
-        makeGRangesFromDataFrame(as.data.frame(group.DT)),
-        ignore.strand = TRUE
-      )
-      group.DT$plot_level = 1      
-      cur_level = 1    
-      while(any(group.DT$plot_level == cur_level)) {
-        j = match(cur_level, group.DT$plot_level)
-        repeat {
-          bump_up_trs = unique(OL@to[OL@from == j])
-          bump_up_trs = bump_up_trs[bump_up_trs > j]
-          bump_up_trs = bump_up_trs[group.DT$plot_level[bump_up_trs] == cur_level]
-          if(length(bump_up_trs) > 0) {
-            group.DT[bump_up_trs, plot_level := cur_level + 1]
-          }
-          j = j + match(cur_level, group.DT$plot_level[-seq_len(j)])
-          if(is.na(j)) break
-        }
-        cur_level = cur_level + 1
-      }
-      
-      if(condense_this == TRUE) {
-        group.DT[transcripts.DT, on = "group_id", c("group_name", "group_biotype") :=
-          list(i.gene_name, i.gene_biotype)]
-      } else {
-        group.DT[transcripts.DT, on = "group_id", c("group_name", "group_biotype") :=
-          list(i.transcript_name, i.transcript_biotype)]      
-      }
-
-      group.DT = group.DT[end > view_start & start < view_end]
-      group.DT[strand == "+", display_name := paste(group_name, "-", group_biotype, " ->>")]
-      group.DT[strand == "-", display_name := paste("<-- ", group_name, "-", group_biotype)]
-      group.DT[, disp_x := 0.5 * (start + end)]
-      group.DT[start < view_start & end > view_start, disp_x := 0.5 * (view_start + end)]
-      group.DT[end > view_end & start < view_end, disp_x := 0.5 * (start + view_end)]
-      group.DT[start < view_start & end > view_end, disp_x := 0.5 * (view_start + view_end)]
-		
-      reduced.DT$group_id = factor(reduced.DT$group_id, unique(group.DT$group_id), ordered = TRUE)
-      reduced.DT[group.DT, on = "group_id", 
-        plot_level := i.plot_level]
-        # c("transcript_name", "transcript_biotype", "transcript_support_level", "display_name", "plot_level") := 
-        # list(i.transcript_name, i.transcript_biotype, i.transcript_support_level, i.display_name, i.plot_level)]
-      
-      p = ggplot(reduced.DT)
-
-      if(nrow(subset(as.data.frame(reduced.DT), type = "intron")) > 0) {
-        p = p + geom_segment(data = subset(as.data.frame(reduced.DT), type = "intron"), 
-          aes(x = start, xend = end, y = plot_level, yend = plot_level))
-      }
-      if(nrow(subset(as.data.frame(reduced.DT), type != "intron")) > 0) {
-        p = p + 
-          geom_rect(data = subset(as.data.frame(reduced.DT), type != "intron"), 
-            aes(xmin = start, xmax = end, 
-              ymin = plot_level - 0.1 - ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
-              ymax = plot_level + 0.1 + ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)
-            )
-          )
-      }
-      
-      if(condense_this == TRUE) {
-        anno = list(
-          x = group.DT$disp_x,
-          y = group.DT$plot_level - 0.5 + 0.3 * runif(rep(1, nrow(group.DT))),
-          text = group.DT$display_name,
-          xref = "x", yref = "y", showarrow = FALSE)
-      } else {
-        anno = list(
-          x = group.DT$disp_x,
-          y = group.DT$plot_level - 0.4,
-          text = group.DT$display_name,
-          xref = "x", yref = "y", showarrow = FALSE)      
-      }
-      
-      if(nrow(group.DT) == 0) {
-        max_plot_level = 1
-      } else {
-        max_plot_level = max(group.DT$plot_level)
-      }
-      pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% layout(
-        annotations = anno,
-        dragmode = "pan",
-        xaxis = list(range = c(view_start, view_end)),
-        yaxis = list(range = c(0, 1 + max_plot_level), fixedrange = TRUE)
-      )
-			return(pl)			
-		}
-
-    settings_ViewRef$plotly_relayout = reactive({
-      req(settings_ViewRef$plot_ini == TRUE)
-      event_data("plotly_relayout", source = "plotly_ViewRef")
-    })
-
-    observeEvent(input$zoom_out_view_ref, {
-      req(input$zoom_out_view_ref)
-			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-
-			view_chr = input$chr_view_ref
-			view_start = suppressWarnings(as.numeric(input$start_view_ref))
-			view_end = suppressWarnings(as.numeric(input$end_view_ref))
-
-			req(view_chr)
-			req(view_start)
-			req(view_end)
-      req(view_end - view_start > 50)
-
-			seqInfo = settings_ViewRef$seqInfo[input$chr_view_ref]
-			seqmax = GenomeInfoDb::seqlengths(seqInfo)
-			# get center of current range
-			center = round((view_start + view_end) / 2)
-			span = view_end - view_start
-			# zoom range is 50 * 3^z
-			cur_zoom = floor(log(span/50) / log(3))
-      
-			new_span = round(span * 3)
-			if(new_span > seqmax - 1) new_span = seqmax - 1
-
-      new_zoom = floor(log(new_span/50) / log(3))
-      
-      new_start = max(1, center - round(new_span / 2))
-      updateTextInput(session = session, inputId = "start_view_ref", 
-        value = new_start)
-      updateTextInput(session = session, inputId = "end_view_ref", 
-        value = new_start + new_span)
-    })
-
-    observeEvent(input$zoom_in_view_ref, {
-      req(input$zoom_in_view_ref)
-			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-
-			view_start = suppressWarnings(as.numeric(input$start_view_ref))
-			view_end = suppressWarnings(as.numeric(input$end_view_ref))
-
-			req(view_start)
-			req(view_end)
-      req(view_end - view_start > 50)
-
-			# get center of current range
-			center = round((view_start + view_end) / 2)
-			span = view_end - view_start
-			# zoom range is 50 * 3^z
-			cur_zoom = floor(log(span/50) / log(3))
-      
-			new_span = round(span / 3)
-			if(new_span < 50) new_span = 50
-
-      new_zoom = floor(log(new_span/50) / log(3))
-      
-      new_start = max(1, center - round(new_span / 2))
-      updateTextInput(session = session, inputId = "start_view_ref", 
-        value = new_start)
-      updateTextInput(session = session, inputId = "end_view_ref", 
-        value = new_start + new_span)
-    })
 
 
-    observeEvent(settings_ViewRef$plotly_relayout(), {
-      plotly_relayout = settings_ViewRef$plotly_relayout()
-      message(names(plotly_relayout))
-      req(length(plotly_relayout) == 2)
-      req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(plotly_relayout)))
 
-      updateTextInput(session = session, inputId = "start_view_ref", 
-        value = max(1, round(plotly_relayout[["xaxis.range[0]"]])))
-      updateTextInput(session = session, inputId = "end_view_ref", 
-        value = round(plotly_relayout[["xaxis.range[1]"]]))
-        
-    })
-
-		observeEvent(input$genes_view, {
-      req(input$genes_view)
-      req(input$genes_view != "(none)")
-
-      gene_id_view = settings_ViewRef$gene_list[gene_display_name == input$genes_view]
-
-      # change settings on input based on this
-      updateSelectInput(session = session, inputId = "chr_view_ref", 
-        selected = gene_id_view$seqnames[1])
-      updateTextInput(session = session, inputId = "start_view_ref", 
-        value = gene_id_view$start[1])
-      updateTextInput(session = session, inputId = "end_view_ref", 
-        value = gene_id_view$end[1])
-    })
-
-    observeEvent(input$chr_view_ref, {
-      req(input$chr_view_ref != "(none)")
-			seqInfo = settings_ViewRef$seqInfo[input$chr_view_ref]
-			seqmax = GenomeInfoDb::seqlengths(seqInfo)
-      
-			req(as.numeric(input$end_view_ref))
-      if(as.numeric(input$end_view_ref) > seqmax) {
-        updateTextInput(session = session, inputId = "end_view_ref", 
-          value = seqmax)      
-        req(as.numeric(input$start_view_ref))
-        if(seqmax - as.numeric(input$start_view_ref) < 50) {
-          updateTextInput(session = session, inputId = "end_view_ref", 
-            value = seqmax - 50)        
-        }
-      }
-    })
-    
-    observeEvent(input$start_view_ref, {
-			req(as.numeric(input$start_view_ref))
-			req(as.numeric(input$end_view_ref))
-			req(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) > 50)
-
-			# adjust zoom
-			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
-			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_view_ref <- renderText({cur_zoom})
-    })
-    observeEvent(input$end_view_ref, {
-			req(as.numeric(input$start_view_ref))
-			req(as.numeric(input$end_view_ref))		
-			req(as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref) > 50)
-
-			# adjust zoom
-			span = as.numeric(input$end_view_ref) - as.numeric(input$start_view_ref)
-			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_view_ref <- renderText({cur_zoom})
-    })
-    
 # Design Experiment page
-		settings_expr <- shiny::reactiveValues(
-			expr_path = "",
-			bam_path = "",
-			irf_path = "",
-			anno_file = "",
-			collate_path = "",
-			df = c(),
-			df.files = c(),
-			df.anno = c()
-		)
-		files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
+    settings_expr <- shiny::reactiveValues(
+        expr_path = "",
+        bam_path = "",
+        irf_path = "",
+        anno_file = "",
+        collate_path = "",
+        df = c(),
+        df.files = c(),
+        df.anno = c()
+    )
+    files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
 
     # Make sure df.anno exists when df.files exist:
     observeEvent(settings_expr$df.files, {
@@ -1656,22 +779,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 		
     observeEvent(settings_loadref$loadref_path, {
-        output$ref_expr_infobox <- renderInfoBox({
-            box1 = infoBox(
-                title = "Reference", 
-                value = ifelse(is_valid(settings_loadref$loadref_path),
-                    "LOADED", "MISSING"),
-                subtitle = ifelse(is_valid(settings_loadref$loadref_path),
-                    settings_loadref$loadref_path, "click here to set reference"),
-                icon = icon("dna", lib = "font-awesome"),
-                color = ifelse(is_valid(settings_loadref$loadref_path),
-                    "green", "red")
-            )
+        output$ref_expr_infobox <- renderUI({
             if(!is_valid(settings_loadref$loadref_path)) {
-                box1$children[[1]]$attribs$class<-"action-button"
-                box1$children[[1]]$attribs$id<-"ref_expr_goto_loadref"
+                ui_infobox_ref("")            
+            } else {
+                ui_infobox_ref(file.path(settings_loadref$loadref_path, "settings.Rds"))
             }
-            return(box1)
         }) 
     })
     
@@ -1732,17 +845,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     }
 		observeEvent(settings_expr$bam_path,{
             ret = Expr_Load_BAMs()
-            output$bam_expr_infobox <- renderInfoBox({
-                infoBox(
-                    title = "bam path", 
-                    value = ifelse(!is_valid(settings_expr$bam_path),
-                        "MISSING", ifelse(ret == 0, "LOADED", "No BAMs found")),
-                    subtitle = ifelse(is_valid(settings_expr$bam_path),
-                        settings_expr$bam_path, ""),
-                    icon = icon("folder-open", lib = "font-awesome"),
-                    color = ifelse(!is_valid(settings_expr$bam_path),
-                        "red", ifelse(ret == 0, "green", "yellow"))
-                )
+            output$bam_expr_infobox <- renderUI({
+                ui_infobox_bam(settings_expr$bam_path, ret)
             })
 		})
     
@@ -1855,26 +959,19 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		
 		observeEvent(settings_expr$irf_path,{
             ret = Expr_Load_IRFs()
-            output$irf_expr_infobox <- renderInfoBox({
-                infoBox(
-                    title = "irfinder output", 
-                    value = ifelse(!is_valid(settings_expr$irf_path),
-                        "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
-                    subtitle = ifelse(is_valid(settings_expr$irf_path),
-                        settings_expr$irf_path, ""),
-                    icon = icon("align-center", lib = "font-awesome"),
-                    color = ifelse(!is_valid(settings_expr$irf_path),
-                        "red", ifelse(ret == 0, "green", "yellow"))
-                )
+            if(is_valid(settings_expr$df.files) && "irf_file" %in% colnames(settings_expr$df.files)) {
+                irf_files = settings_expr$df.files$irf_file
+            } else {
+                irf_files = NULL
+            }
+            
+            output$irf_expr_infobox <- renderUI({
+                ui_infobox_irf(settings_expr$irf_path, irf_files)
             })
-            if(ret == 0 && !is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderInfoBox({
-                    infoBox(
-                        title = "bam path", 
-                        value = "NOT REQUIRED",
-                        icon = icon("folder-open", lib = "font-awesome"),
-                        color = "green"
-                    )
+            ret = is_valid(irf_files) && all(file.exists(irf_files))
+            if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(escape = TRUE)
                 })
             }
 		})
@@ -1979,38 +1076,36 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     }
 		observeEvent(settings_expr$collate_path,{
             ret = Expr_Load_FSTs()
-            output$nxt_expr_infobox <- renderInfoBox({
-                infoBox(
-                    title = "NxtIRF Output", 
-                    value = ifelse(!is_valid(settings_expr$collate_path),
-                        "MISSING", ifelse(ret == 0, "LOADED", "No files found")),
-                    subtitle = ifelse(is_valid(settings_expr$collate_path),
-                        settings_expr$collate_path, ""),
-                    icon = icon("layer-group", lib = "font-awesome"),
-                    color = ifelse(!is_valid(settings_expr$collate_path),
-                        "red", ifelse(ret == 0, "green", "yellow"))
+            if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
+                nxt_files = settings_expr$df.files$junc_file
+            } else {
+                nxt_files = NULL
+            }
+           
+            output$nxt_expr_infobox <- renderUI({
+                ui_infobox_nxt(settings_expr$collate_path, nxt_files)
+            })
+            ret = is_valid(nxt_files) && all(file.exists(nxt_files))
+            if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(escape = TRUE)
+                })
+            }
+            if(ret == TRUE && !is_valid(settings_expr$irf_path)) {
+                output$irf_expr_infobox <- renderUI({
+                    ui_infobox_irf(escape = TRUE)
+                })
+            }
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(ifelse(
+                    is_valid(settings_SE$se), 2,
+                    ifelse(is_valid(settings_expr$df.files) &&
+                        "junc_file" %in% names(settings_expr$df.files) &&
+                        all(file.exists(settings_expr$df.files$junc_file)),
+                        1,0)
+                    )
                 )
             })
-            if(ret == 0 && !is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderInfoBox({
-                    infoBox(
-                        title = "bam path", 
-                        value = "NOT REQUIRED",
-                        icon = icon("folder-open", lib = "font-awesome"),
-                        color = "green"
-                    )
-                })
-            }
-            if(ret == 0 && !is_valid(settings_expr$irf_path)) {
-                output$irf_expr_infobox <- renderInfoBox({
-                    infoBox(
-                    title = "irfinder output", 
-                        value = "NOT REQUIRED",
-                        icon = icon("align-center", lib = "font-awesome"),
-                        color = "green"
-                    )
-                })
-            }
 		})
 	
     output$newcol_expr <- renderUI({
@@ -2107,7 +1202,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
       df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
       if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
-      if(is_valid(settings_expr$irf_file)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_file]
+      if(is_valid(settings_expr$irf_path)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_path]
       if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
 			fwrite(df, selectedfile$datapath)
 			output$txt_run_save_expr <- renderText({
@@ -2126,15 +1221,24 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       output$txt_run_save_expr <- renderText("")
     })
 		observeEvent(input$build_expr, {
-			output$txt_run_save_expr <- renderText({
-				validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
-        colData = as.data.table(settings_expr$df.anno)
+            # output$txt_run_save_expr <- renderText({
+                # validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
+        # colData = as.data.table(settings_expr$df.anno)
         # colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
-        validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
-				se = MakeSE(colData, settings_expr$collate_path)
-				settings_SE$se = se
-				"SummarizedExperiment Loaded"
-			})
+        # validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
+                # se = MakeSE(colData, settings_expr$collate_path)
+                # settings_SE$se = se
+                # "SummarizedExperiment Loaded"
+            # })
+            if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
+                nxt_files = settings_expr$df.files$junc_file
+            } else {
+                nxt_files = NULL
+            }            
+            ret = is_valid(nxt_files) && all(file.exists(nxt_files))
+            req(ret == TRUE)
+            colData = as.data.table(settings_expr$df.anno)
+            settings_SE$se = MakeSE(colData, settings_expr$collate_path)
 		})
 		
 	# Analyse - Calculate PSIs
@@ -2146,45 +1250,26 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		)
 
         observeEvent(settings_SE$se, {
-            output$se_expr_infobox <- renderInfoBox({
-                infoBox(
-                    title = "SummarizedExperiment Object", 
-                    value = ifelse(is_valid(settings_SE$se),
-                        "LOADED", "MISSING"),
-                    icon = icon("flask", lib = "font-awesome"),
-                    color = ifelse(is_valid(settings_SE$se),
-                        "green", "red")
-                )
+            req(settings_SE$se)
+            req(is(settings_SE$se, "SummarizedExperiment"))
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(2)
             })
             if(!is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderInfoBox({
-                    infoBox(
-                        title = "bam path", 
-                        value = "NOT REQUIRED",
-                        icon = icon("folder-open", lib = "font-awesome"),
-                        color = "green"
-                    )
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(escape = TRUE)
                 })
             }
             if(!is_valid(settings_expr$irf_path)) {
-                output$irf_expr_infobox <- renderInfoBox({
-                    infoBox(
-                    title = "irfinder output", 
-                        value = "NOT REQUIRED",
-                        icon = icon("align-center", lib = "font-awesome"),
-                        color = "green"
-                    )
+                output$irf_expr_infobox <- renderUI({
+                    ui_infobox_irf(escape = TRUE)
                 })
             }            
             if(!is_valid(settings_expr$collate_path)) {
-                output$nxt_expr_infobox <- renderInfoBox({
-                    infoBox(
-                        title = "NxtIRF Output", 
-                        value = "NOT REQUIRED",
-                        icon = icon("layer-group", lib = "font-awesome"),
-                        color = "green"
-                    )
+                output$nxt_expr_infobox <- renderUI({
+                    ui_infobox_nxt(escape = TRUE)
                 })
+
             }
         })
 
@@ -2595,7 +1680,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 		
 		shinyFileSave(input, "save_DE", roots = c(default_volumes, addit_volume), session = session,
-      filetypes = c("Rds"))
+            filetypes = c("Rds"))
 		observeEvent(input$save_DE, {	
 			req(settings_DE$res)
 			req(length(settings_DE$res_settings) > 0)
@@ -2722,6 +1807,26 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
 
     })
+
+    settings_Diag$plotly_brush = reactive({
+      plot_exist = settings_Diag$plot_ini
+      if(plot_exist == TRUE) {
+        event_data("plotly_selected", source = "plotly_diagonal")
+      }
+    })
+  
+    observeEvent(settings_Diag$plotly_brush(), {
+      req(settings_Diag$plotly_brush())
+      brush = settings_Diag$plotly_brush()
+      print(brush)
+      brush.id = which(settings_DE$res$EventName %in% brush$key)
+      req(brush.id)
+      
+      selected = input$DT_DE_rows_selected
+      selected = unique(c(selected, brush.id))
+      
+      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+   })
     
 		observeEvent(input$variable_diag, {
 			req(settings_SE$se)
@@ -2922,241 +2027,171 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# RNA-seq Coverage Plots
     settings_Cov <- shiny::reactiveValues(
 			# data
-			seqInfo = NULL,
-			gene_list = NULL,
-      elem.DT = NULL,
-      transcripts.DT = NULL,
-			# view settings
-      view_chr = "",
-      view_start = "",
-      view_end = "",
-      data_start = 0,
-      data_end = 0,
+        seqInfo = NULL,
+        gene_list = NULL,
+        elem.DT = NULL,
+        transcripts.DT = NULL,
+            # view settings
+        view_chr = "",
+        view_start = "",
+        view_end = "",
+        data_start = 0,
+        data_end = 0,
 			
-			view_strand = "*",
+        view_strand = "*",
 
-      event.ranges = NULL,
-			avail_cov = NULL,	# named vector of files
+        event.ranges = NULL,
+        avail_cov = NULL,	# named vector of files
 
-      plotly_relayout = NULL,
-      plot_ini = FALSE
-		)
-		get_track_selection <- function(i) {
-			if(i == 1) return(input$track1_cov)
-			if(i == 2) return(input$track2_cov)
-			if(i == 3) return(input$track3_cov)
-			if(i == 4) return(input$track4_cov)
-		}
-		
-    update_norm_events_cov <- function(view_chr, view_start, view_end, default_event = NULL) {
-      req(settings_Cov$event.ranges)
-      event.ranges.legit = settings_Cov$event.ranges[seqnames == view_chr]
-      event.ranges.legit = event.ranges.legit[end > view_start & start < view_end]
+        plotly_relayout = NULL,
+        plot_ini = FALSE,
+        
+        final_plot = NULL
+    )
+    
+    get_track_selection <- function(i) {
+        if(i == 1) return(input$track1_cov)
+        if(i == 2) return(input$track2_cov)
+        if(i == 3) return(input$track3_cov)
+        if(i == 4) return(input$track4_cov)
+    }
 
-      if(!is_valid(default_event) && is_valid(isolate(input$event_norm_cov))) {
-        default_event = isolate(input$event_norm_cov)
-      }
+    loadTranscripts <- function() {
+      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+			file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
+      
+      Transcripts.DT = as.data.table(read.fst(file_path))
 
-      if(nrow(event.ranges.legit) == 0) {
-        # retain selected event
-        if(is_valid(default_event)) {
-          updateSelectInput(session = session, inputId = "event_norm_cov", 
-            choices = c("(none)", default_event), selected = default_event)
-          return(default_event)
-        } else {
-          updateSelectInput(session = session, inputId = "event_norm_cov", 
-            choices = c("(none)"), selected = "(none)")
-          return("(none)")
-        }
-      } else if(is_valid(default_event) && default_event %in% event.ranges.legit$EventName) {
-        updateSelectInput(session = session, inputId = "event_norm_cov", 
-          choices = c("(none)", event.ranges.legit$EventName), selected = default_event)
-        return(default_event)
-      } else if(is_valid(default_event)){
-        updateSelectInput(session = session, inputId = "event_norm_cov", 
-          choices = c("(none)", default_event, event.ranges.legit$EventName), selected = default_event)      
-        return(default_event)
+      if("transcript_support_level" %in% colnames(Transcripts.DT)) {
+          Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
+          Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
       } else {
-        updateSelectInput(session = session, inputId = "event_norm_cov", 
-          choices = c("(none)", event.ranges.legit$EventName), selected = "(none)")      
-        return("(none)")
-      }    
+        Transcripts.DT$transcript_support_level = 1
+      }
+      
+      return(Transcripts.DT)
+    }
+
+    loadViewRef <- function() {
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
+            transcript_id <- NULL
+            dir_path = file.path(settings_loadref$loadref_path, "fst")
+
+        exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
+            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+        exons.DT = exons.DT[transcript_id != "protein_coding"]
+
+        protein.DT = as.data.table(read.fst(file.path(dir_path, "Proteins.fst"),
+            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+        misc.DT = as.data.table(read.fst(file.path(dir_path, "Misc.fst"),
+            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+
+        total.DT = rbindlist(list(
+            exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+            protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+            misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
+        ))
+        return(total.DT)
+    }
+    
+    getGeneList <- function() {
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+        file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
+        if(!file.exists(file_path)) return(NULL)
+
+        df = as.data.table(read.fst(file_path))
+        return(df)
+    }
+	
+    get_inrange_events <- function(view_chr, view_start, view_end) {
+        req(settings_Cov$event.ranges)
+        event.ranges.legit = settings_Cov$event.ranges[seqnames == view_chr]
+        event.ranges.legit = event.ranges.legit[end > view_start & start < view_end]
+        return(event.ranges.legit$EventName)
     }
     
     observe({
-      view_chr = input$chr_cov
-      view_start = suppressWarnings(as.numeric(input$start_cov))
-      view_end = suppressWarnings(as.numeric(input$end_cov))
-			graph_mode = isolate(input$graph_mode_cov)
+        view_chr = input$chr_cov
+        view_start = suppressWarnings(as.numeric(input$start_cov))
+        view_end = suppressWarnings(as.numeric(input$end_cov))
+
+        req(view_chr)
+        req(view_start)
+        req(view_end)
+        
+        selected_event = isolate(input$events_cov)
+        cur_event = isolate(input$event_norm_cov)
+
+        event_choices = c("(none)")
+        if(is_valid(selected_event)) {
+            event_choices = c(event_choices, selected_event)
+        } else if(is_valid(cur_event)) {
+            event_choices = c(event_choices, cur_event)        
+        }
+        event_choices = unique(c(event_choices, 
+            get_inrange_events(view_chr, view_start, view_end)))
+
+        if(is_valid(selected_event)) {
+            updateSelectInput(session = session, inputId = "event_norm_cov", 
+                choices = event_choices, selected = selected_event)
+        } else if(is_valid(cur_event)) {
+            updateSelectInput(session = session, inputId = "event_norm_cov", 
+                choices = event_choices, selected = cur_event)
+        } else {
+            updateSelectInput(session = session, inputId = "event_norm_cov", 
+                choices = event_choices, selected = "(none)")        
+        }
+    })
+    
+    
+    observe({
+        view_chr = input$chr_cov
+        view_start = suppressWarnings(as.numeric(input$start_cov))
+        view_end = suppressWarnings(as.numeric(input$end_cov))
+        graph_mode = input$graph_mode_cov
 			
-      req(view_chr)
-      req(view_start)
-      req(view_end)
-      req(settings_SE$se)
-      
-      selected_event = isolate(input$events_cov)
-      if(is_valid(selected_event)) {
-        cur_event = update_norm_events_cov(view_chr, view_start, view_end, selected_event)
-      } else {
-        cur_event = NULL
-      }
+        req(view_chr)
+        req(view_start)
+        req(view_end)
+        req(settings_SE$se)
       
       # refresh in-range events here
-
-      conf.int = 0.95
-
-      if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
-      if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- loadTranscripts()
-
-      req(settings_Cov$elem.DT)
-      req(settings_Cov$transcripts.DT)
-      message("stuff loaded")
-			
-			p_ref = plot_view_ref_fn(
-				view_chr, view_start, view_end, 
-				settings_Cov$transcripts.DT, settings_Cov$elem.DT
-			)
-			p_track = list()
-      
-      cur_zoom = floor(log((view_end - view_start)/50) / log(3))
-
-      data.list = list()
-      data.t_test = NULL
-      fac = NULL
-      
-      if(is_valid(input$condition_cov) & is_valid(cur_event)) {
-        for(i in 1:4) {
-          track_samples = get_track_selection(i)
-          if(is_valid(track_samples)) {
-            colData = SummarizedExperiment::colData(settings_SE$se)
-            samples = rownames(colData)[unlist(as.character(colData[, input$condition_cov]) == track_samples)]
-            event_norms = SummarizedExperiment::assay(settings_SE$se, "Depth")[cur_event,samples]
-            samples = samples[event_norms >= 10]
-            event_norms = event_norms[event_norms >= 10]
-            
-            df = as.data.frame(GetCoverage_DF(samples, settings_Cov$avail_cov[samples],
-              view_chr, view_start, view_end, settings_Cov$view_strand))
-            # bin anything with cur_zoom > 5
-            df = bin_df(df, max(1, 3^(cur_zoom - 5)))
-              
-            for(todo in seq_len(length(samples))) {
-              df[, samples[todo]] = df[, samples[todo]] / event_norms[todo]
-            }
-            
-            if(input$pairwise_t_cov == TRUE) {
-              if(is.null(data.t_test)) {
-                data.t_test <- as.matrix(df)
-                fac = rep(as.character(i), ncol(df) - 1)
-              } else {
-                data.t_test <- cbind(data.t_test, as.matrix(df[, -1]))
-                fac = c(fac, rep(as.character(i), ncol(df) - 1))
-              }
-            }
-            
-            df$mean = rowMeans(as.matrix(df[,samples]))
-            df$sd = matrixStats::rowSds(as.matrix(df[,samples]))
-            n = length(samples)
-            df$ci = qt((1 + conf.int)/2,df=	n-1) * df$sd / sqrt(n)
-
-            df$track = as.character(i)
-            df = df %>% dplyr::select(x, mean, ci, track)
-            data.list[[i]] <- as.data.table(df)
-          }
-        }
-        if(input$stack_tracks_cov == TRUE) {
-          df = as.data.frame(rbindlist(data.list))
-          if(nrow(df) > 0) {
-            p_track[[1]] = ggplotly(
-              ggplot(df, aes(x = x)) + 
-                geom_ribbon(alpha = 0.2, aes(y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
-                geom_line(aes(y = mean, colour = track)) +
-                labs(y = "Stacked Tracks Normalized Coverage"),
-                tooltip = c("x", "y", "ymin", "ymax", "colour")
-            )
-            p_track[[1]] = p_track[[1]] %>% layout(
-              dragmode = "zoom",
-              yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
-            )
-          }
+        if(is_valid(input$event_norm_cov)) {
+            norm_event = input$event_norm_cov
         } else {
-          for(i in 1:4) {
-            if(length(data.list) >= i && !is.null(data.list[[i]])) {
-              p_track[[i]] = ggplotly(
-                ggplot(df, aes(x = x)) + 
-                  geom_ribbon(alpha = 0.2, colour = NA, aes(y = mean, ymin = mean - ci, ymax = mean + ci)) +
-                  geom_line(aes(y = mean)) +
-                  labs(y = paste("Track", i, "Normalized Coverage")),
-                tooltip = c("x", "y", "ymin", "ymax")
-              )						
-              p_track[[i]] = p_track[[i]] %>% layout(
-                yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
-              )
-            }
-          }
+            norm_event = NULL
         }
-      } else if(input$mode_cov == "Individual") {
-        for(i in 1:4) {
-          track_samples = get_track_selection(i)
-          if(is_valid(track_samples)) {
-            df = GetCoverage_DF(track_samples, settings_Cov$avail_cov[track_samples],
-              view_chr, view_start, view_end, settings_Cov$view_strand)
-            df = bin_df(df, max(1, 3^(cur_zoom - 5)))
-            data.list[[i]] <- as.data.table(df)
 
-            p_track[[i]] = ggplotly(
-              ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line() +
-                  labs(y = paste(track_samples, " Coverage")),
-                tooltip = c("x", "y")
-            )
-            p_track[[i]] = p_track[[i]] %>% layout(
-              yaxis = list(range = c(0, 1 + max(unlist(df[,track_samples]))), fixedrange = TRUE)
-            )
-          }
+        conf.int = 0.95
+
+        if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
+        if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- loadTranscripts()
+
+        req(settings_Cov$elem.DT)
+        req(settings_Cov$transcripts.DT)
+     
+        tracks = list()
+        for(i in seq_len(4)) {
+            tracks[[i]] = get_track_selection(i)       
         }
-      }
-            
-      if(input$pairwise_t_cov == TRUE && !is.null(fac) && length(unique(fac)) == 2) {
-        fac = factor(fac)
-        t_test = genefilter::rowttests(data.t_test[, -1], fac)
-        DT = data.table(x = data.t_test[, 1])
-        DT[, t_stat := -log10(t_test$p.value)]
-        
-        p_track[[5]] = ggplotly(
-          ggplot(as.data.frame(DT), aes_string(x = "x", y = "t_stat")) + geom_line() +
-              labs(y = paste("Pairwise T-test -log10(p)")),
-            tooltip = c("x", "y")
+     
+        settings_Cov$final_plot = plot_cov_fn(
+            view_chr, view_start, view_end, settings_Cov$view_strand,
+            norm_event, input$condition_cov, tracks = tracks, 
+            se = settings_SE$se, settings_Cov$avail_cov,
+            settings_Cov$transcripts.DT, settings_Cov$elem.DT,
+            graph_mode = graph_mode,
+            stack_tracks = input$stack_tracks_cov,
+            t_test = input$pairwise_t_cov
         )
-        p_track[[5]] = p_track[[5]] %>% layout(
-          yaxis = list(c(0, 1 + max(DT$t_stat)), fixedrange = TRUE)
-        )        
-      }
-      
-      plot_tracks = p_track[unlist(lapply(p_track, function(x) !is.null(x)))]
 
-      plot_tracks[[length(plot_tracks) + 1]] = p_ref
-
-      final_plot = subplot(plot_tracks, nrows = length(plot_tracks), shareX = TRUE)
       
-      if(graph_mode == "Pan") {
-        final_plot = final_plot %>% layout(
-          dragmode = "pan"
-        )
-      } else if(graph_mode == "Zoom") {
-        final_plot = final_plot %>% layout(
-          dragmode = "zoom"
-        )   
-      } else if(graph_mode == "Movable Labels") {
-        final_plot = final_plot %>% layout(
-          dragmode = FALSE
-        ) %>% config(editable = TRUE)
-      }
-      
-      output$plot_cov <- renderPlotly({
-        settings_Cov$plot_ini = TRUE      
-        print(
-					final_plot
-				)
-      })
+        output$plot_cov <- renderPlotly({
+            settings_Cov$plot_ini = TRUE      
+            print(
+                settings_Cov$final_plot
+            )
+        })
     })
 		
     observeEvent(input$graph_mode_cov, {
@@ -3173,21 +2208,42 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
     })
     
-		observeEvent(input$mode_cov, {
+    observeEvent(input$mode_cov, {
       req(input$mode_cov)
       req(settings_SE$se)
       if(input$mode_cov == "By Condition") {
         colData = SummarizedExperiment::colData(settings_SE$se)
         
         updateSelectInput(session = session, inputId = "condition_cov", 
-          choices = c("(none)", colnames(colData)))      
+          choices = c("(none)", colnames(colData)))
+
+        updateSelectInput(session = session, inputId = "track1_cov", 
+          choices = c("(none)"), selected = "(none)")     
+        updateSelectInput(session = session, inputId = "track2_cov", 
+          choices = c("(none)"), selected = "(none)")  
+        updateSelectInput(session = session, inputId = "track3_cov", 
+          choices = c("(none)"), selected = "(none)")    
+        updateSelectInput(session = session, inputId = "track4_cov", 
+          choices = c("(none)"), selected = "(none)")             
       } else {
         updateSelectInput(session = session, inputId = "condition_cov", 
-          choices = c("(none)"))      
+          choices = c("(none)"))
+          
+        # avail_samples = names(settings_Cov$avail_cov)
+        # updateSelectInput(session = session, inputId = "track1_cov", 
+            # choices = c("(none)", avail_samples), selected = "(none)")
+        # updateSelectInput(session = session, inputId = "track2_cov", 
+            # choices = c("(none)", avail_samples), selected = "(none)")
+        # updateSelectInput(session = session, inputId = "track3_cov", 
+            # choices = c("(none)", avail_samples), selected = "(none)")
+        # updateSelectInput(session = session, inputId = "track4_cov", 
+            # choices = c("(none)", avail_samples), selected = "(none)")
+
       }
+     
     })
 
-		observeEvent(input$condition_cov, {
+    observeEvent(input$condition_cov, {
       req(input$condition_cov)
       req(settings_SE$se)
       if(is_valid(input$condition_cov)) {
@@ -3200,15 +2256,16 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
         updateSelectInput(session = session, inputId = "track4_cov", 
           choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-      } else {
+      } else if(input$mode_cov == "Individual") {
+        avail_samples = names(settings_Cov$avail_cov)
         updateSelectInput(session = session, inputId = "track1_cov", 
-          choices = c("(none)"))     
+            choices = c("(none)", avail_samples), selected = "(none)")
         updateSelectInput(session = session, inputId = "track2_cov", 
-          choices = c("(none)"))  
+            choices = c("(none)", avail_samples), selected = "(none)")
         updateSelectInput(session = session, inputId = "track3_cov", 
-          choices = c("(none)"))    
+            choices = c("(none)", avail_samples), selected = "(none)")
         updateSelectInput(session = session, inputId = "track4_cov", 
-          choices = c("(none)"))    
+            choices = c("(none)", avail_samples), selected = "(none)")
       }
     })
 
@@ -3229,66 +2286,66 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         value = round(plotly_relayout[["xaxis.range[1]"]]))
     })
     observeEvent(input$zoom_out_cov, {
-      req(input$zoom_out_cov)
-			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+        req(input$zoom_out_cov)
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 
-			view_chr = input$chr_cov
-			view_start = suppressWarnings(as.numeric(input$start_cov))
-			view_end = suppressWarnings(as.numeric(input$end_cov))
+        view_chr = input$chr_cov
+        view_start = suppressWarnings(as.numeric(input$start_cov))
+        view_end = suppressWarnings(as.numeric(input$end_cov))
 
-			req(view_chr)
-			req(view_start)
-			req(view_end)
-      req(view_end - view_start > 50)
+        req(view_chr)
+        req(view_start)
+        req(view_end)
+        req(view_end - view_start > 50)
 
-			seqInfo = settings_Cov$seqInfo[input$chr_cov]
-			seqmax = GenomeInfoDb::seqlengths(seqInfo)
-			# get center of current range
-			center = round((view_start + view_end) / 2)
-			span = view_end - view_start
-			# zoom range is 50 * 3^z
-			cur_zoom = floor(log(span/50) / log(3))
-      
-			new_span = round(span * 3)
-			if(new_span > seqmax - 1) new_span = seqmax - 1
+        seqInfo = settings_Cov$seqInfo[input$chr_cov]
+        seqmax = GenomeInfoDb::seqlengths(seqInfo)
+        # get center of current range
+        center = round((view_start + view_end) / 2)
+        span = view_end - view_start
+        # zoom range is 50 * 3^z
+        cur_zoom = floor(log(span/50) / log(3))
+  
+        new_span = round(span * 3)
+        if(new_span > seqmax - 1) new_span = seqmax - 1
 
-      new_zoom = floor(log(new_span/50) / log(3))
-      
-      new_start = max(1, center - round(new_span / 2))
-      updateTextInput(session = session, inputId = "start_cov", 
-        value = new_start)
-      updateTextInput(session = session, inputId = "end_cov", 
-        value = new_start + new_span)
+        new_zoom = floor(log(new_span/50) / log(3))
+
+        new_start = max(1, center - round(new_span / 2))
+        updateTextInput(session = session, inputId = "start_cov", 
+            value = new_start)
+        updateTextInput(session = session, inputId = "end_cov", 
+            value = new_start + new_span)
     })		
     observeEvent(input$zoom_in_cov, {
-      req(input$zoom_in_cov)
-			req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+        req(input$zoom_in_cov)
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
 
-			view_start = suppressWarnings(as.numeric(input$start_cov))
-			view_end = suppressWarnings(as.numeric(input$end_cov))
+        view_start = suppressWarnings(as.numeric(input$start_cov))
+        view_end = suppressWarnings(as.numeric(input$end_cov))
 
-			req(view_start)
-			req(view_end)
-      req(view_end - view_start > 50)
+        req(view_start)
+        req(view_end)
+        req(view_end - view_start > 50)
 
-			# get center of current range
-			center = round((view_start + view_end) / 2)
-			span = view_end - view_start
-			# zoom range is 50 * 3^z
-			cur_zoom = floor(log(span/50) / log(3))
-      
-			new_span = round(span / 3)
-			if(new_span < 50) new_span = 50
+        # get center of current range
+        center = round((view_start + view_end) / 2)
+        span = view_end - view_start
+        # zoom range is 50 * 3^z
+        cur_zoom = floor(log(span/50) / log(3))
+  
+        new_span = round(span / 3)
+        if(new_span < 50) new_span = 50
 
-      new_zoom = floor(log(new_span/50) / log(3))
-      
-      new_start = max(1, center - round(new_span / 2))
-      updateTextInput(session = session, inputId = "start_cov", 
-        value = new_start)
-      updateTextInput(session = session, inputId = "end_cov", 
-        value = new_start + new_span)
+        new_zoom = floor(log(new_span/50) / log(3))
+
+        new_start = max(1, center - round(new_span / 2))
+        updateTextInput(session = session, inputId = "start_cov", 
+            value = new_start)
+        updateTextInput(session = session, inputId = "end_cov", 
+            value = new_start + new_span)
     })
-		observeEvent(input$events_cov, {
+    observeEvent(input$events_cov, {
       req(input$events_cov)
       req(input$events_cov != "(none)")
 
@@ -3306,8 +2363,17 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         value = view_start)
       updateTextInput(session = session, inputId = "end_cov", 
         value = view_end)
-    })		
-		observeEvent(input$genes_cov, {
+    })
+    # observeEvent(input$event_norm_cov, {
+        # req(input$event_norm_cov)
+        # if(input$event_norm_cov != input$events_cov) {
+            # updateSelectInput(session = session, inputId = "event_norm_cov", 
+              # selected = "(none)")      
+        
+        # }
+    # })
+    
+    observeEvent(input$genes_cov, {
       req(input$genes_cov)
       req(input$genes_cov != "(none)")
 
@@ -3323,11 +2389,11 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })		
 
     observeEvent(input$chr_cov, {
-      req(input$chr_cov != "(none)")
-			seqInfo = settings_Cov$seqInfo[input$chr_cov]
-			seqmax = GenomeInfoDb::seqlengths(seqInfo)
-      
-			req(as.numeric(input$end_cov))
+        req(input$chr_cov != "(none)")
+        seqInfo = settings_Cov$seqInfo[input$chr_cov]
+        seqmax = GenomeInfoDb::seqlengths(seqInfo)
+
+        req(as.numeric(input$end_cov))
       if(as.numeric(input$end_cov) > seqmax) {
         updateTextInput(session = session, inputId = "end_cov", 
           value = seqmax)      
@@ -3339,24 +2405,24 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       }
     })
    observeEvent(input$start_cov, {
-			req(as.numeric(input$start_cov))
-			req(as.numeric(input$end_cov))
-			req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
+        req(as.numeric(input$start_cov))
+        req(as.numeric(input$end_cov))
+        req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
 
-			# adjust zoom
-			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
-			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_cov <- renderText({16 - cur_zoom})
+        # adjust zoom
+        span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
+        cur_zoom = floor(log(span/50) / log(3))
+        output$label_zoom_cov <- renderText({16 - cur_zoom})
     })
     observeEvent(input$end_cov, {
-			req(as.numeric(input$start_cov))
-			req(as.numeric(input$end_cov))		
-			req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
+        req(as.numeric(input$start_cov))
+        req(as.numeric(input$end_cov))		
+        req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
 
-			# adjust zoom
-			span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
-			cur_zoom = floor(log(span/50) / log(3))
-			output$label_zoom_cov <- renderText({16 - cur_zoom})
+        # adjust zoom
+        span = as.numeric(input$end_cov) - as.numeric(input$start_cov)
+        cur_zoom = floor(log(span/50) / log(3))
+        output$label_zoom_cov <- renderText({16 - cur_zoom})
     })
     
   # DE events row selection:
@@ -3388,7 +2454,17 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         choices = c("(none)"), selected = "(none)")    								    
     }
   })
-    
+  
+    shinyFileSave(input, "saveplot_cov", roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("pdf"))
+    observeEvent(input$saveplot_cov, {	
+        req(settings_Cov$final_plot)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
+        req(selectedfile$datapath)
+        
+        plotly::orca(input$saveplot_cov, selectedfile$datapath)
+    })
+  
     
 # End of server function		
   }

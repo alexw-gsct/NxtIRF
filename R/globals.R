@@ -111,3 +111,5 @@ NxtIRF.SplitVector <- function(vector = "", n_workers = 1) {
 semi_join.DT = function(A, B, by, nomatch = 0) {
 	A[A[B, on = by, which = TRUE, nomatch = nomatch]]
 }
+
+is_valid <- function(x) !is.null(x) && length(x) > 0 && !is.na(x) && (!is.character(x) || (x != "" && x != "(none)"))

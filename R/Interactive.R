@@ -1,4 +1,4 @@
-is_valid <- function(x) !is.null(x) && length(x) > 0 && !is.na(x) && (!is.character(x) || (x != "" && x != "(none)"))
+
 
 #' @export
 startNxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
@@ -3393,30 +3393,6 @@ update_data_frame <- function(existing_df, new_df) {
   return(as.data.frame(newDT))
 }
 
-GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
-  covData = list()
-  for(i in seq_len(length(files))) {
-    cov = GetCoverage(files[i], seqname, start - 1, end, ifelse(strand == "+", 0, ifelse(strand == "-", 1, 2)))
-    view = IRanges::Views(cov, start, end)
-    view.df = as.data.frame(view[[1]])
-    covData[[i]] = view.df
-  }
-  df = do.call(cbind, covData)
-  colnames(df) = samples
-  x = start:end
-  df = cbind(x, df)
-  return(df)
-}
-
-bin_df <- function(df, binwidth = 3) {
-  DT = as.data.table(df)
-  brks = seq(1, nrow(DT), length = round(nrow(DT) / binwidth))
-	bin <- NULL
-  DT[, bin := findInterval(seq_len(nrow(DT)), brks)]
-  DT2 <- DT[, lapply(.SD, mean, na.rm = TRUE), by = bin]
-  DT2[, bin := NULL]
-  return(as.data.frame(DT2))
-}
 
 
 

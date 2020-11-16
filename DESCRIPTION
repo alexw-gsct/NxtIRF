@@ -59,6 +59,8 @@ Collate: Imports.R
 	CollateData.R
 	filterModules_shiny.R
 	Interactive.R
+	dash_utils.R
+	dash_ui.R
 	dash.R
 Encoding: UTF-8
 RoxygenNote: 7.1.1
