@@ -8,28 +8,24 @@ GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
   }
   df = do.call(cbind, covData)
   colnames(df) = samples
-  x = start:end
+  x = seq(start,end)
   df = cbind(x, df)
   return(df)
 }
 
 bin_df <- function(df, binwidth = 3) {
-  DT = as.data.table(df)
-  brks = seq(1, nrow(DT), length = round(nrow(DT) / binwidth))
-	bin <- NULL
-  DT[, bin := findInterval(seq_len(nrow(DT)), brks)]
-  DT2 <- DT[, lapply(.SD, mean, na.rm = TRUE), by = bin]
-  DT2[, bin := NULL]
-  return(as.data.frame(DT2))
+    DT = as.data.table(df)
+    brks = seq(1, nrow(DT), length = round(nrow(DT) / binwidth))
+    bin <- NULL
+    DT[, bin := findInterval(seq_len(nrow(DT)), brks)]
+    DT2 <- DT[, lapply(.SD, mean, na.rm = TRUE), by = bin]
+    DT2[, bin := NULL]
+    return(as.data.frame(DT2))
 }
 
 
 plot_view_ref_fn <- function(view_chr, view_start, view_end, 
     transcripts, elems, highlight_events, condensed = FALSE) {
-      
-   # transcript_support_level <- transcript_id <- group_id <- type <- gene_id <- plot_level <- 
-	 # i.gene_name <- i.gene_biotype <- i.transcript_name <- i.transcript_biotype <- display_name <- 
-	 # group_name <- group_biotype <- disp_x <- i.plot_level <- NULL		
 			
     data_start = view_start - (view_end - view_start)
     data_end = view_end + (view_end - view_start)
@@ -209,8 +205,10 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     layout(
         annotations = anno,
         dragmode = "pan",
-        xaxis = list(range = c(view_start, view_end)),
-        yaxis = list(range = c(0, 1 + max_plot_level), fixedrange = TRUE)
+        xaxis = list(range = c(view_start, view_end),
+            title = paste("Chromosome/Scaffold", view_chr)),
+        yaxis = list(range = c(0, 1 + max_plot_level), 
+            fixedrange = TRUE)
     )
     
     return(pl)			
@@ -331,14 +329,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     data.list[[i]] <- as.data.table(df)
 
                     p_track[[i]] = ggplotly(
-                        ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line() +
-                        labs(y = paste(track_samples, " Coverage")),
+                        ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line(),
+                        # labs(y = paste(track_samples, " Coverage")),
                         tooltip = c("x", "y")
                     )
                     p_track[[i]] = p_track[[i]] %>% layout(
                         yaxis = list(
                             range = c(0, 1 + max(unlist(df[,track_samples]))), 
-                            fixedrange = TRUE
+                            fixedrange = TRUE,
+                            title = paste(track_samples, " Coverage")
                         )
                     )
                 }
@@ -354,20 +353,24 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
         p_track[[5]] = ggplotly(
             ggplot(as.data.frame(DT), 
-                aes_string(x = "x", y = "t_stat")) + geom_line() +
-            labs(y = paste("Pairwise T-test -log10(p)")),
+                aes_string(x = "x", y = "t_stat")) + geom_line(),
+            # labs(y = paste("Pairwise T-test -log10(p)")),
             tooltip = c("x", "y")
         )
         p_track[[5]] = p_track[[5]] %>% layout(
-            yaxis = list(c(0, 1 + max(DT$t_stat)), fixedrange = TRUE)
-        )        
+            yaxis = list(c(0, 1 + max(DT$t_stat)), 
+                fixedrange = TRUE,
+                title = paste("T-test -log10(p)")
+            )
+        )
     }
 
     plot_tracks = p_track[unlist(lapply(p_track, function(x) !is.null(x)))]
 
     plot_tracks[[length(plot_tracks) + 1]] = p_ref
 
-    final_plot = subplot(plot_tracks, nrows = length(plot_tracks), shareX = TRUE)
+    final_plot = subplot(plot_tracks, nrows = length(plot_tracks), 
+        shareX = TRUE, titleY = TRUE)
 
     if(graph_mode == "Pan") {
         final_plot = final_plot %>% 

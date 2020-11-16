@@ -608,11 +608,11 @@ ui_tab_coverage <- function() {
                 ),
                 shinyWidgets::radioGroupButtons("select_events_cov", 
                     label = "Select Events from Differential Expression Results", justified = FALSE,
-                    choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
+                    choices = c("Top N All Results", "Top N Filtered Results", "Highlighted"), 
                     checkIcon = list(yes = icon("ok", lib = "glyphicon"))
                 )
             ),
-            column(3,
+            column(4,
                 div(style="display: inline-block;vertical-align:top; width: 80px;",
                     selectInput("chr_cov", label = "Chr", c("(none)"), selected = "(none)")),
                 div(style="display: inline-block;vertical-align:top; width: 120px;",
@@ -622,12 +622,19 @@ ui_tab_coverage <- function() {
                 br(),
                 shinyWidgets::actionBttn("zoom_out_cov", style = "material-circle", color = "danger",
                     icon = icon("minus")),
-                div(style="display: inline-block;vertical-align:center;width: 80px;padding:35px",
+                div(style="display: inline-block;vertical-align:center;width: 50px;padding:25px",
                     textOutput("label_zoom_cov")),
                 shinyWidgets::actionBttn("zoom_in_cov", style = "material-circle", color = "danger",
-                    icon = icon("plus"))
+                    icon = icon("plus")),
+                div(style="display: inline-block;vertical-align:center;padding:15px",
+                    shinyWidgets::radioGroupButtons("strand_cov", 
+                        label = "Strand", justified = FALSE,
+                        choices = c("*", "+", "-"), 
+                        checkIcon = list(yes = icon("ok", lib = "glyphicon"))
+                    )
+                )
             ),
-            column(3,
+            column(2,
                 div(style="display: inline-block;vertical-align:top;padding:10px;",
                     shinyWidgets::radioGroupButtons("graph_mode_cov",label = "Graph Mode", justified = FALSE,
                         choices = c("Pan", "Zoom", "Movable Labels"), 
@@ -635,7 +642,6 @@ ui_tab_coverage <- function() {
                 ),
                 shinyWidgets::sliderTextInput("slider_num_events_cov", 
                     "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25)       
-                
             )
         ),
         fluidRow(
@@ -661,7 +667,6 @@ ui_tab_coverage <- function() {
                 shinyWidgets::switchInput("pairwise_t_cov", label = "Pairwise t-test", labelWidth = "150px"),
                 shinySaveButton("saveplot_cov", "Save Plot as PDF", "Save Plot as PDF...", 
                     filetype = list(PDF = "pdf")),
-                
             ),
             column(10, 
                 plotlyOutput("plot_cov", height = "800px"),

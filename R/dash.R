@@ -210,7 +210,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           updateSelectInput(session = session, inputId = "variable_diag", 
             choices = c("(none)", colnames(colData)), selected = "(none)")
         }
-			} else if(input$navSelection == "navCoverage") {
+    } else if(input$navSelection == "navCoverage") {
         if(is_valid(settings_loadref$loadref_path)) {
           load_ref()
         }
@@ -220,14 +220,14 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         })
         req(settings_loadref$loadref_path)
 				
-				# seqinfo
-				settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
-				if(settings$ah_genome != "") {
-					genome = FetchAH(settings$ah_genome, ah = ah)
-				} else {
-					genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
-				}
-				settings_Cov$seqInfo = seqinfo(genome)
+        # seqinfo
+        settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+        if(settings$ah_genome != "") {
+            genome = FetchAH(settings$ah_genome, ah = ah)
+        } else {
+            genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+        }
+        settings_Cov$seqInfo = seqinfo(genome)
         settings_Cov$gene_list <- getGeneList()
         settings_Cov$elem.DT <- loadViewRef()
         settings_Cov$transcripts.DT <- loadTranscripts()
@@ -247,32 +247,28 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           }
 
           if(length(selected) > 0 & is_valid(settings_DE$res)) {
-            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
-              choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
             updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
               choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
           } else {
-            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
-              choices = c("(none)"), selected = "(none)")    								
             updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
               choices = c("(none)"), selected = "(none)")    								    
           }        
         }
         
-				if(!is.null(settings_Cov$gene_list)) {
-          message(paste("Populating drop-down box with", 
+        if(!is.null(settings_Cov$gene_list)) {
+            message(paste("Populating drop-down box with", 
             length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
-					updateSelectInput(session = session, inputId = "chr_cov", 
-						choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
-					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-						choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
-				} else {
-					updateSelectInput(session = session, inputId = "chr_cov", 
-						choices = c("(none)"), selected = "(none)")    								
-					updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-						choices = c("(none)"), selected = "(none)") 
-				}
-				if(is_valid(settings_SE$se)) {
+            updateSelectInput(session = session, inputId = "chr_cov", 
+                choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+            updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
+        } else {
+            updateSelectInput(session = session, inputId = "chr_cov", 
+                choices = c("(none)"), selected = "(none)")    								
+            updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                choices = c("(none)"), selected = "(none)") 
+        }
+        if(is_valid(settings_SE$se)) {
           # dissect rowData ranges
           rowData = as.data.frame(SummarizedExperiment::rowData(settings_SE$se))
           rowData$seqnames = tstrsplit(rowData$EventRegion, split=":")[[1]]
@@ -289,24 +285,24 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
           settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
-          
-					if(input$mode_cov == "By Condition") {
-						colData = SummarizedExperiment::colData(settings_SE$se)
-						colData = colData[rownames(colData) %in% DT.files$sample,]
-						conditions_avail = colnames(colData)
-						updateSelectInput(session = session, inputId = "condition_cov", 
-							choices = c("(none)", conditions_avail), selected = "(none)")
-					} else if(input$mode_cov == "Individual") {
-						avail_samples = names(settings_Cov$avail_cov)
-						updateSelectInput(session = session, inputId = "track1_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track2_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track3_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-						updateSelectInput(session = session, inputId = "track4_cov", 
-							choices = c("(none)", avail_samples), selected = "(none)")
-					}
+  
+            if(input$mode_cov == "By Condition") {
+                colData = SummarizedExperiment::colData(settings_SE$se)
+                colData = colData[rownames(colData) %in% DT.files$sample,]
+                conditions_avail = colnames(colData)
+                updateSelectInput(session = session, inputId = "condition_cov", 
+                    choices = c("(none)", conditions_avail))
+            } else if(input$mode_cov == "Individual") {
+                avail_samples = names(settings_Cov$avail_cov)
+                updateSelectInput(session = session, inputId = "track1_cov", 
+                    choices = c("(none)", avail_samples), selected = "(none)")
+                updateSelectInput(session = session, inputId = "track2_cov", 
+                    choices = c("(none)", avail_samples), selected = "(none)")
+                updateSelectInput(session = session, inputId = "track3_cov", 
+                    choices = c("(none)", avail_samples), selected = "(none)")
+                updateSelectInput(session = session, inputId = "track4_cov", 
+                    choices = c("(none)", avail_samples), selected = "(none)")
+            }
 				}        
 			}
 		})
@@ -2176,7 +2172,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         }
      
         settings_Cov$final_plot = plot_cov_fn(
-            view_chr, view_start, view_end, settings_Cov$view_strand,
+            view_chr, view_start, view_end, input$strand_cov,
             norm_event, input$condition_cov, tracks = tracks, 
             se = settings_SE$se, settings_Cov$avail_cov,
             settings_Cov$transcripts.DT, settings_Cov$elem.DT,
@@ -2184,7 +2180,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             stack_tracks = input$stack_tracks_cov,
             t_test = input$pairwise_t_cov
         )
-
       
         output$plot_cov <- renderPlotly({
             settings_Cov$plot_ini = TRUE      
@@ -2228,19 +2223,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       } else {
         updateSelectInput(session = session, inputId = "condition_cov", 
           choices = c("(none)"))
-          
-        # avail_samples = names(settings_Cov$avail_cov)
-        # updateSelectInput(session = session, inputId = "track1_cov", 
-            # choices = c("(none)", avail_samples), selected = "(none)")
-        # updateSelectInput(session = session, inputId = "track2_cov", 
-            # choices = c("(none)", avail_samples), selected = "(none)")
-        # updateSelectInput(session = session, inputId = "track3_cov", 
-            # choices = c("(none)", avail_samples), selected = "(none)")
-        # updateSelectInput(session = session, inputId = "track4_cov", 
-            # choices = c("(none)", avail_samples), selected = "(none)")
-
       }
-     
     })
 
     observeEvent(input$condition_cov, {
@@ -2266,6 +2249,15 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             choices = c("(none)", avail_samples), selected = "(none)")
         updateSelectInput(session = session, inputId = "track4_cov", 
             choices = c("(none)", avail_samples), selected = "(none)")
+      } else {
+        updateSelectInput(session = session, inputId = "track1_cov", 
+          choices = "(none)")    
+        updateSelectInput(session = session, inputId = "track2_cov", 
+          choices = "(none)")    
+        updateSelectInput(session = session, inputId = "track3_cov", 
+          choices = "(none)")    
+        updateSelectInput(session = session, inputId = "track4_cov", 
+          choices = "(none)")    
       }
     })
 
@@ -2364,15 +2356,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       updateTextInput(session = session, inputId = "end_cov", 
         value = view_end)
     })
-    # observeEvent(input$event_norm_cov, {
-        # req(input$event_norm_cov)
-        # if(input$event_norm_cov != input$events_cov) {
-            # updateSelectInput(session = session, inputId = "event_norm_cov", 
-              # selected = "(none)")      
-        
-        # }
-    # })
-    
+
     observeEvent(input$genes_cov, {
       req(input$genes_cov)
       req(input$genes_cov != "(none)")
