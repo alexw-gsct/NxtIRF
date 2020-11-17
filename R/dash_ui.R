@@ -32,6 +32,17 @@ ui_tab_title <- function() {
 
 ui_tab_system <- function() {
     tabItem(tabName = "navSystem",
+        # box(
+            # tags$div(title = paste("Load NxtIRF Session from File"),
+                # shinyFilesButton("file_loadstate", label = "Choose Save State to Load", 
+                    # title = "Choose Save State to Load", multiple = FALSE,
+                    # filetype = list(RDS = "Rds"))
+            # ),
+            # tags$div(title = paste("Saves NxtIRF Session to File"),
+                # shinySaveButton("file_savestate", "Choose file to Save Session", "Choose file to Save Session", 
+                    # filetype = list(RDS = "Rds")),
+            # )
+        # ),
         box(
             tags$div(title = paste("Number of threads to run computationally-intensive operations",
                 "such as IRFinder, NxtIRF-collate, and DESeq2"),
@@ -204,7 +215,7 @@ ui_ddb_bam_path <- function() {
     )
 }
 
-ui_infobox_bam <- function(bam_path, ret = 0, escape = FALSE) {
+ui_infobox_bam <- function(bam_path, bam_files, escape = FALSE) {
     if(escape == TRUE) {
         box1 = infoBox(
             title = "bam path", 
@@ -213,15 +224,16 @@ ui_infobox_bam <- function(bam_path, ret = 0, escape = FALSE) {
             color = "green"
         )
     } else {
+        ret = !missing(bam_files) &&is_valid(bam_files) && all(file.exists(bam_files))
         box1 = infoBox(
             title = "bam path", 
             value = ifelse(!is_valid(bam_path),
-                "MISSING", ifelse(ret == 0, "LOADED", "No BAMs found")),
+                "MISSING", ifelse(ret == TRUE, "LOADED", "No BAMs found")),
             subtitle = ifelse(is_valid(bam_path),
                 bam_path, ""),
             icon = icon("folder-open", lib = "font-awesome"),
             color = ifelse(!is_valid(bam_path),
-                "red", ifelse(ret == 0, "green", "yellow"))
+                "red", ifelse(ret == TRUE, "green", "yellow"))
         )
     }
     ddb = ui_ddb_bam_path()
@@ -515,7 +527,7 @@ ui_tab_analyse <- function() {
             ),
             column(8,
                 actionButton("clear_selected_DE", "Clear Selected Events"),
-                DT::dataTableOutput("DT_DE")
+                div(style = 'overflow-x: scroll',  DT::dataTableOutput('DT_DE'))
             )
         )
     )

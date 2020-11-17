@@ -23,6 +23,58 @@ bin_df <- function(df, binwidth = 3) {
     return(as.data.frame(DT2))
 }
 
+determine_compatible_events <- function(reduced.DT, highlight_events) {
+
+    introns = reduced.DT[get("type") == "intron"]
+    introns[, c("highlight") := FALSE]
+    exons = reduced.DT[get("type") == "exon"]
+    exons[, c("highlight") := FALSE]
+    misc = reduced.DT[get("type") == "CDS"]
+    misc[, c("highlight") := FALSE]
+
+    tr_filter = c()
+    if(length(highlight_events) == 1) {
+        # This is IR
+        gr = NxtIRF.CoordToGR(highlight_events[[1]])
+        introns.gr = makeGRangesFromDataFrame(as.data.frame(introns))
+        OL = findOverlaps(gr, introns.gr)
+        introns[OL@to, c("highlight") := TRUE]
+    } else if(length(highlight_events) == 2) {
+        # This is AS
+        for(event in highlight_events) {
+            gr = NxtIRF.CoordToGR(event)
+            introns.gr = makeGRangesFromDataFrame(as.data.frame(introns))
+            OL = findOverlaps(gr, introns.gr, type = "equal")
+            introns[OL@to, c("highlight") := TRUE]
+
+            OL_s1 = findOverlaps(gr[1], introns.gr, type = "equal")
+            tr1 = unique(introns$group_id[OL_s1@to])
+            if(length(gr) == 2) {
+                OL_s2 = findOverlaps(gr[2], introns.gr, type = "equal")
+                tr1 = unique(intersect(tr1, introns$group_id[OL_s2@to]))
+            }
+            tr_filter = c(tr_filter, tr1)
+            coord_keys = c(BiocGenerics::start(gr[1]) - 1, BiocGenerics::end(gr[1]) + 1)
+            if(length(gr) == 2) {
+                coord_keys = c(coord_keys,
+                    BiocGenerics::start(gr[2]) - 1, BiocGenerics::end(gr[2]) + 1)
+            }
+            exons[get("group_id") %in% tr1 & 
+                (get("start") %in% coord_keys | get("end")%in% coord_keys),
+                c("highlight") := TRUE]   
+        }  
+    }
+    if(any(exons$highlight == TRUE)) {
+        OL_cds = findOverlaps(
+            makeGRangesFromDataFrame(as.data.frame(exons[get("highlight") == TRUE])),
+            makeGRangesFromDataFrame(as.data.frame(misc))
+        )
+        misc[OL_cds@to, c("highlight") := TRUE]
+        misc[!(get("group_id") %in% tr_filter), c("highlight") := FALSE]           
+    }
+
+    return(rbind(introns, exons, misc))
+}
 
 plot_view_ref_fn <- function(view_chr, view_start, view_end, 
     transcripts, elems, highlight_events, condensed = FALSE) {
@@ -39,7 +91,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     message(paste(nrow(transcripts.DT), " transcripts"))
 
     screen.DT = elems[
-        get("transcript_id") %in% transcripts.DT$transcript_id
+        get("transcript_id") %in% transcripts.DT$transcript_id &
+        get("type") %in% c("CDS", "start_codon", "stop_codon", "exon")
     ]
     if(condensed != TRUE & nrow(transcripts.DT) <= 100) {
         condense_this = FALSE
@@ -48,6 +101,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         reduced.DT = copy(screen.DT)
         reduced.DT[get("type") %in% c("CDS", "start_codon", "stop_codon"), c("type") := "CDS"]
         reduced.DT[get("type") != "CDS", c("type") := "exon"]
+        
     } else {
         condense_this = TRUE
         transcripts.DT[, c("group_id") := get("gene_id")]     
@@ -96,11 +150,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
 
     # Highlight events here
     # highlight_events is of syntax chrX:10000-11000/-
-    if(!missing(highlight_events)) {
-        event.df = as.data.table(NxtIRF.CoordToInt(highlight_events))
-        event.df = event.df[get("seqnames") == view_chr]
-        
-        
+    if(!missing(highlight_events) & condensed == FALSE) {
+        reduced.DT = determine_compatible_events(reduced.DT, highlight_events)
     }
 
     group.grl = split(
@@ -162,12 +213,15 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     reduced.DT$group_id = factor(reduced.DT$group_id, unique(group.DT$group_id), ordered = TRUE)
     reduced.DT[group.DT, on = "group_id", 
         c("plot_level") := get("i.plot_level")]
-      
+    
+    if(condense_this == TRUE) reduced.DT[, c("highlight") := FALSE]
+    
     p = ggplot(reduced.DT)
 
     if(nrow(subset(as.data.frame(reduced.DT), type = "intron")) > 0) {
         p = p + geom_segment(data = subset(as.data.frame(reduced.DT), type = "intron"), 
-            aes(x = start, xend = end, y = plot_level, yend = plot_level))
+            aes(x = start, xend = end, y = plot_level, yend = plot_level,
+            color = highlight))
     }
     if(nrow(subset(as.data.frame(reduced.DT), type != "intron")) > 0) {
         p = p + 
@@ -176,7 +230,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
                 ymin = plot_level - 0.1 - 
                     ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0), 
                 ymax = plot_level + 0.1 + 
-                    ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0)
+                    ifelse(type %in% c("CDS", "start_codon", "stop_codon"), 0.1, 0),
+                fill = highlight
             )
         )
     }
@@ -188,6 +243,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             text = group.DT$display_name,
             xref = "x", yref = "y", showarrow = FALSE)
     } else {
+        p = p + scale_color_manual(values = c("black", "red")) +
+            scale_fill_manual(values = c("black", "red"))
         anno = list(
             x = group.DT$disp_x,
             y = group.DT$plot_level - 0.4,
@@ -222,7 +279,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     p_ref = plot_view_ref_fn(
         view_chr, view_start, view_end, 
-        transcripts, elems
+        transcripts, elems, highlight_events
     )
     p_track = list()
   

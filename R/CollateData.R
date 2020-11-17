@@ -702,6 +702,13 @@ CollateData <- function(Experiment, reference_path, output_path,
   rowEvent.Extended[Splice.Options.Summary[isoform == "A"], on = "EventName", Inc_TSL := i.tsl_min]
   rowEvent.Extended[Splice.Options.Summary[isoform == "B"], on = "EventName", Exc_TSL := i.tsl_min]
 
+    # define Event1 / Event2
+    
+  rowEvent.Extended[EventType == "IR", Event1a := EventRegion]
+  rowEvent.Extended[Splice.Anno, on = "EventName",
+    c("Event1a", "Event2a", "Event1b", "Event2b") := 
+        list(i.Event1a, i.Event2a, i.Event1b, i.Event2b)]
+
   write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
 
 

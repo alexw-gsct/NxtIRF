@@ -45,11 +45,70 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	Events <- filtered <- padj <- i.logFC <- i.AveExpr <- i.t <- i.P.Value <- i.adj.P.Val <- i.B <- B <- 
 	nom <- denom <- EventName <- log2FoldChange <- x <- ci <- track <- t_stat <- NULL
 
-        settings_system <- reactiveValues(
-            threads_initialized = FALSE,
-            n_threads = 1
-        )
+        default_volumes <- c("Working Directory" = getwd(), getVolumes()())
+        addit_volume = c()
 
+        settings_system <- setreactive_system()
+		settings_newref <- setreactive_newref()
+        settings_loadref <- setreactive_loadref()
+        settings_expr <- setreactive_expr()
+        settings_SE <- setreactive_SE()
+        settings_DE <- setreactive_DE()
+        settings_Diag = setreactive_Diag()
+        settings_Volc = setreactive_Diag()
+        settings_Cov <- setreactive_Cov()
+
+        # settings_to_file <- function(filename) {
+            # final = list(
+                # settings_system <- isolate(reactiveValuesToList(settings_system)),
+                # settings_newref <- isolate(reactiveValuesToList(settings_newref)),
+                # settings_loadref <- isolate(reactiveValuesToList(settings_loadref)),
+                # settings_expr <- isolate(reactiveValuesToList(settings_expr)),
+                # settings_SE <- isolate(reactiveValuesToList(settings_SE)),
+                # settings_DE <- isolate(reactiveValuesToList(settings_DE)),
+                # settings_Diag <- isolate(reactiveValuesToList(settings_Diag)),
+                # settings_Volc <- isolate(reactiveValuesToList(settings_Volc)),
+                # settings_Cov <- isolate(reactiveValuesToList(settings_Cov))
+            # )
+            # names(final) = c("settings_system","settings_newref","settings_loadref",
+                # "settings_expr","settings_SE","settings_DE",
+                # "settings_Diag","settings_Volc","settings_Cov")
+            # saveRDS(final, filename)
+        # }
+
+        # settings_from_file <- function(filename) {
+            # if(file.exists(filename)) {
+                # final <- readRDS(filename)
+                # if("settings_system" %in% names(final)) settings_system <<- do.call(reactiveValues, final$settings_system)
+                # if("settings_newref" %in% names(final)) settings_newref <<- do.call(reactiveValues, final$settings_newref)
+                # if("settings_loadref" %in% names(final)) settings_loadref <<- do.call(reactiveValues, final$settings_loadref)
+                # if("settings_expr" %in% names(final)) settings_expr <<- do.call(reactiveValues, final$settings_expr)
+                # if("settings_SE" %in% names(final)) settings_SE <<- do.call(reactiveValues, final$settings_SE)
+                # if("settings_DE" %in% names(final)) settings_DE <<- do.call(reactiveValues, final$settings_DE)
+                # if("settings_Diag" %in% names(final)) settings_Diag <<- do.call(reactiveValues, final$settings_Diag)
+                # if("settings_Volc" %in% names(final)) settings_Volc <<- do.call(reactiveValues, final$settings_Volc)
+                # if("settings_Cov" %in% names(final)) settings_Cov <<- do.call(reactiveValues, final$settings_Cov)
+            # }
+        # }
+
+        # shinyFileSave(input, "file_savestate", 
+            # roots = c(default_volumes, addit_volume), session = session,
+            # filetype = list(RDS = "Rds"))
+        # observeEvent(input$file_savestate, {
+            # selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$file_savestate)
+            # req(selectedfile$datapath)
+            # settings_to_file(selectedfile$datapath)
+        # })
+
+        # shinyFileChoose(input, "file_loadstate", 
+            # roots = c(default_volumes, addit_volume), session = session)
+		# observeEvent(input$file_loadstate, {
+            # req(input$file_loadstate)
+            # file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_loadstate)
+            # req(file_selected$datapath)
+            # settings_from_file(as.character(file_selected$datapath))
+		# })
+        
         observeEvent(settings_system$n_threads, {
             updateSliderInput(session = session, 
                 inputId = "cores_slider", value = settings_system$n_threads)
@@ -57,19 +116,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 inputId = "cores_numeric", value = settings_system$n_threads)
         })
         
-		settings_newref <- shiny::reactiveValues(
-			newref_path = "",
-			newref_fasta = "",
-			newref_gtf = "",
-			newref_AH_fasta = "",
-			newref_AH_gtf = "",
-			newref_mappa = "",
-			newref_NPA = "",
-			newref_bl = ""
-		)
 
-    default_volumes <- c("Working Directory" = getwd(), getVolumes()())
-    addit_volume = c()
 
 	# tabEvent Observer
 		observeEvent(input$navSelection, {
@@ -287,11 +334,17 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
   
             if(input$mode_cov == "By Condition") {
-                colData = SummarizedExperiment::colData(settings_SE$se)
+                colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
                 colData = colData[rownames(colData) %in% DT.files$sample,]
                 conditions_avail = colnames(colData)
-                updateSelectInput(session = session, inputId = "condition_cov", 
-                    choices = c("(none)", conditions_avail))
+                if(is_valid(input$condition_cov) && input$condition_cov %in% conditions_avail) {
+                    cur_condition = input$condition_cov
+                    updateSelectInput(session = session, inputId = "condition_cov", 
+                        choices = c("(none)", conditions_avail), selected = cur_condition)                    
+                } else {
+                     updateSelectInput(session = session, inputId = "condition_cov", 
+                        choices = c("(none)", conditions_avail))                 
+                }
             } else if(input$mode_cov == "Individual") {
                 avail_samples = names(settings_Cov$avail_cov)
                 updateSelectInput(session = session, inputId = "track1_cov", 
@@ -590,10 +643,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
 # Load Reference Page
-		settings_loadref <- reactiveValues(
-			loadref_path = "",
-			settings = c()
-		)
+
 		shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volumes, addit_volume), session = session)
 		observeEvent(input$dir_reference_path_load,{  
       req(input$dir_reference_path_load)
@@ -729,16 +779,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 
 # Design Experiment page
-    settings_expr <- shiny::reactiveValues(
-        expr_path = "",
-        bam_path = "",
-        irf_path = "",
-        anno_file = "",
-        collate_path = "",
-        df = c(),
-        df.files = c(),
-        df.anno = c()
-    )
     files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
 
     # Make sure df.anno exists when df.files exist:
@@ -840,10 +880,34 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         }
     }
 		observeEvent(settings_expr$bam_path,{
-            ret = Expr_Load_BAMs()
-            output$bam_expr_infobox <- renderUI({
-                ui_infobox_bam(settings_expr$bam_path, ret)
-            })
+            Expr_Load_BAMs()
+            if(is_valid(settings_expr$df.files)) {
+                if(is_valid(settings_expr$bam_path) &&
+                        "bam_file" %in% colnames(settings_expr$df.files) && 
+                        all(file.exists(settings_expr$df.files$bam_file))) {
+                    output$bam_expr_infobox <- renderUI({
+                        ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
+                    })                  
+                } else if("irf_file" %in% colnames(settings_expr$df.files) && 
+                        all(file.exists(settings_expr$df.files$irf_file))) {
+                    output$bam_expr_infobox <- renderUI({
+                        ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
+                    })                        
+                } else if("junc_file" %in% colnames(settings_expr$df.files) && 
+                        all(file.exists(settings_expr$df.files$junc_file))) {
+                    output$bam_expr_infobox <- renderUI({
+                        ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
+                    })                        
+                } else if("bam_file" %in% colnames(settings_expr$df.files)) {
+                    output$bam_expr_infobox <- renderUI({
+                        ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
+                    })
+                }
+            } else {
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(settings_expr$bam_path)
+                })                 
+            } 
 		})
     
 		# Run IRFinder
@@ -964,12 +1028,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             output$irf_expr_infobox <- renderUI({
                 ui_infobox_irf(settings_expr$irf_path, irf_files)
             })
-            ret = is_valid(irf_files) && all(file.exists(irf_files))
-            if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderUI({
-                    ui_infobox_bam(escape = TRUE)
-                })
-            }
+            # ret = is_valid(irf_files) && all(file.exists(irf_files))
+            # if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
+                # output$bam_expr_infobox <- renderUI({
+                    # ui_infobox_bam(escape = TRUE)
+                # })
+            # }
 		})
 
 		# Add annotation to data frame
@@ -1082,11 +1146,11 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 ui_infobox_nxt(settings_expr$collate_path, nxt_files)
             })
             ret = is_valid(nxt_files) && all(file.exists(nxt_files))
-            if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderUI({
-                    ui_infobox_bam(escape = TRUE)
-                })
-            }
+            # if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
+                # output$bam_expr_infobox <- renderUI({
+                    # ui_infobox_bam(escape = TRUE)
+                # })
+            # }
             if(ret == TRUE && !is_valid(settings_expr$irf_path)) {
                 output$irf_expr_infobox <- renderUI({
                     ui_infobox_irf(escape = TRUE)
@@ -1145,11 +1209,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 				CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
 			})
 			Expr_Load_FSTs()
-			output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
+			# output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
     })
 		
-		shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+    shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
       filetypes = c("csv"))
+      
     observeEvent(input$loadexpr_expr, {
       selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
       req(selectedfile$datapath)
@@ -1176,18 +1241,18 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
         settings_expr$irf_path = DT.header$irf_file
         settings_expr$collate_path = DT.header$junc_file
         
-        output$txt_run_save_expr <- renderText({
-          paste(selectedfile$datapath, "loaded")
-        })
+        # output$txt_run_save_expr <- renderText({
+          # paste(selectedfile$datapath, "loaded")
+        # })
       } else {
-        output$txt_run_save_expr <- renderText({
-          paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
-        })
+        # output$txt_run_save_expr <- renderText({
+          # paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
+        # })
       }
 		})		
 
 		# Save Experiment
-		shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+    shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
       filetypes = c("csv"))
     observeEvent(input$saveexpr_expr, {
       req(settings_expr$df.files)
@@ -1238,12 +1303,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 		
 	# Analyse - Calculate PSIs
-		settings_SE <- shiny::reactiveValues(
-			se = NULL,
-			
-            filterSummary = NULL,
-            filters = list()
-		)
 
         observeEvent(settings_SE$se, {
             req(settings_SE$se)
@@ -1251,11 +1310,11 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             output$se_expr_infobox <- renderUI({
                 ui_infobox_expr(2)
             })
-            if(!is_valid(settings_expr$bam_path)) {
-                output$bam_expr_infobox <- renderUI({
-                    ui_infobox_bam(escape = TRUE)
-                })
-            }
+            # if(!is_valid(settings_expr$bam_path)) {
+                # output$bam_expr_infobox <- renderUI({
+                    # ui_infobox_bam(escape = TRUE)
+                # })
+            # }
             if(!is_valid(settings_expr$irf_path)) {
                 output$irf_expr_infobox <- renderUI({
                     ui_infobox_irf(escape = TRUE)
@@ -1431,16 +1490,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
     
     # DE
-		settings_DE <- shiny::reactiveValues(
-			res = NULL,
-			res_settings = list(),
-			method = NULL,
-			batchVar1 = NULL,
-			batchVar2 = NULL,
-			DE_Var = NULL,
-			nom_DE = NULL,
-			denom_DE = NULL
-		)
+		
     
     observeEvent(input$variable_DE, {
 			req(input$variable_DE)
@@ -1730,10 +1780,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 	# Diagonal Plots
 	
-    settings_Diag = reactiveValues(
-      plot_ini = FALSE,
-			plotly_click = NULL
-    )
     
 		output$plot_diag <- renderPlotly({
       # settings_Diag$plot_ini = FALSE
@@ -1860,10 +1906,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
 # Volcano Plots
-    settings_Volc = reactiveValues(
-      plot_ini = FALSE,
-			plotly_click = NULL
-    )
 
     settings_Volc$plotly_click = reactive({
       plot_exist = settings_Volc$plot_ini
@@ -2021,29 +2063,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
 		
 		# RNA-seq Coverage Plots
-    settings_Cov <- shiny::reactiveValues(
-			# data
-        seqInfo = NULL,
-        gene_list = NULL,
-        elem.DT = NULL,
-        transcripts.DT = NULL,
-            # view settings
-        view_chr = "",
-        view_start = "",
-        view_end = "",
-        data_start = 0,
-        data_end = 0,
-			
-        view_strand = "*",
-
-        event.ranges = NULL,
-        avail_cov = NULL,	# named vector of files
-
-        plotly_relayout = NULL,
-        plot_ini = FALSE,
-        
-        final_plot = NULL
-    )
     
     get_track_selection <- function(i) {
         if(i == 1) return(input$track1_cov)
@@ -2158,6 +2177,25 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             norm_event = NULL
         }
 
+        rowData = SummarizedExperiment::rowData(settings_SE$se)
+        events_to_highlight = list()
+        if(!is.null(norm_event) && norm_event %in% rowData$EventName) {
+            if(rowData$EventType[match(norm_event, rowData$EventName)] 
+                %in% c("MXE", "SE")) {
+                events_to_highlight[[1]] = c(rowData$Event1a[match(norm_event, rowData$EventName)],
+                    rowData$Event2a[match(norm_event, rowData$EventName)])
+            } else {
+                events_to_highlight[[1]] = rowData$Event1a[match(norm_event, rowData$EventName)]
+            }
+            if(rowData$EventType[match(norm_event, rowData$EventName)] 
+                %in% c("MXE")) {
+                events_to_highlight[[2]] = c(rowData$Event1b[match(norm_event, rowData$EventName)],
+                    rowData$Event2b[match(norm_event, rowData$EventName)])
+            } else if(rowData$EventType[match(norm_event, rowData$EventName)] 
+                %in% c("SE", "A3SS", "A5SS", "ALE", "AFE")){
+                events_to_highlight[[2]] = rowData$Event1b[match(norm_event, rowData$EventName)]
+            }           
+        }
         conf.int = 0.95
 
         if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
@@ -2176,6 +2214,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             norm_event, input$condition_cov, tracks = tracks, 
             se = settings_SE$se, settings_Cov$avail_cov,
             settings_Cov$transcripts.DT, settings_Cov$elem.DT,
+            events_to_highlight,
             graph_mode = graph_mode,
             stack_tracks = input$stack_tracks_cov,
             t_test = input$pairwise_t_cov
