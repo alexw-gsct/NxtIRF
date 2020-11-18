@@ -430,7 +430,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 					// oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
 					intronDepth = intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright));
 				}
-				os << intronDepth << "\t";
+				oss << intronDepth << "\t";
 				
 				if(s_clean.compare(0, 5, "clean")) {
 					ID_clean += intronDepth;				
