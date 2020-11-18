@@ -301,14 +301,20 @@ int CoverageBlocks::WriteOutput(std::string& output) const {
 
 
 int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, const JunctionCount &JC, const SpansPoint &SP, int directionality) const {
-    std::ostringstream oss;
+    std::ostringstream oss; std::ostringstream oss_qc; 
 	// Custom output function - related to the IRFinder needs
   if(directionality == 0) {
     oss << "Nondir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
   } else {
     oss << "Dir_Chr\tStart\tEnd\tName\tNull\tStrand\tExcludedBases\tCoverage\tIntronDepth\tIntronDepth25Percentile\tIntronDepth50Percentile\tIntronDepth75Percentile\tExonToIntronReadsLeft\tExonToIntronReadsRight\tIntronDepthFirst50bp\tIntronDepthLast50bp\tSpliceLeft\tSpliceRight\tSpliceExact\tIRratio\tWarnings\n";
   }      
-	unsigned int recordNumber = 0;	
+	unsigned int recordNumber = 0;
+	// IRBurden calculations
+	double ID_clean;
+	double ID_KE;
+	double ID_AS;
+	std::string KE = "known-exon";
+	
 	for (auto BEDrec : BEDrecords) {
 		recordNumber++;
 		// if name indicates it is a Dir/Non-dir record of interest - output it.
@@ -327,6 +333,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 				unsigned int SPleft;
 				unsigned int SPright;
 
+				double intronDepth;
 
 				std::string s_buffer;
 				std::string s_name;
@@ -414,13 +421,24 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 						<< JCexact << "\t";
 				}
 				if (intronTrimmedMean == 0 && JCleft == 0 && JCright == 0) {
-					oss << "0" << "\t";
+					// oss << "0" << "\t";
+					intronDepth = 0;
 				}else if (intronTrimmedMean < 1) {
-					oss << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
+					// oss << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
+					intronDepth = coverage / (coverage + max(JCleft, JCright));
 				}else{
-					oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
+					// oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
+					intronDepth = intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright));
 				}
+				os << intronDepth << "\t";
 				
+				if(s_clean.compare(0, 5, "clean")) {
+					ID_clean += intronDepth;				
+				} else if(s_clean.find(KE) != string::npos) {
+					ID_KE += intronDepth;				
+				} else if(directionality == 0) {
+					ID_AS += intronDepth;				
+				}
 				
 				// Final column -- don't try to be tri-state. Just say if it is "not ok".
 				// Not ok due to:
@@ -456,7 +474,18 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 			}
 		}
 	}
-    output = oss.str();
+	if(directionality == 0) {
+		oss_qc 	<< "Non-Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
+						<< "Non-Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n"
+						<< "Non-Directional Anti-Sense IntronDepth Sum" << "\t" << ID_AS << "\n";		
+	} else {
+		oss_qc 	<< "Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
+						<< "Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n";
+	}
+	
+  output = oss.str();
+	QC.append(oss_qc.str());
+	
 	return 0;
 }
 
