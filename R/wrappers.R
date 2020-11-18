@@ -23,12 +23,14 @@ run_IRFinder = function(
     
     if(run_featureCounts == TRUE) {
 
-
         NxtIRF.CheckPackageInstalled("Rsubread", "2.4.0")
         if(ah_transcriptome != "") {
             assert_that(substr(ah_transcriptome,1,2) == "AH",
                 msg = "Given transcriptome AnnotationHub reference is incorrect")
-            gtf_file = AnnotationHub::cache()
+            assert_that(ah_transcriptome %in% names(ah),
+                msg = paste(ah_transcriptome, "is not a record in given AnnotationHub object")
+            )
+            gtf_file = AnnotationHub::cache(ah[names(ah) == ah_transcriptome])
         } else {
             assert_that(file.exists(gtf),
                 msg = paste("Given transcriptome gtf file", gtf,
