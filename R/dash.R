@@ -971,7 +971,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 )
 			} else {
                 msg = paste("Run IRFinder on", length(bam_files), "samples?",
-                    "Estimated runtime", 10 * ceiling(bam_files / settings_system$n_threads),
+                    "Estimated runtime", 10 * 
+                        ceiling(length(bam_files) / settings_system$n_threads),
                     "minutes using", settings_system$n_threads, 
                     "threads (10min per BAM @ 100 million reads per sample)"
                 )
