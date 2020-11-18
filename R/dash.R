@@ -832,11 +832,12 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 
     observe({  
       shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
-			output$txt_bam_path_expr <- renderText({
-					validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
-          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
-					settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
-			})
+			# output$txt_bam_path_expr <- renderText({
+					# validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
+        req(input$dir_bam_path_load)
+        settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
+        settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
+			# })
     })
     Expr_Load_BAMs = function() {
     # First assume bams are named by subdirectory names
@@ -852,14 +853,29 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
             # Else assume bam names designate sample names					
                 } else {
-                    output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")							
+                    # output$txt_bam_path_expr <- renderText("BAM file names (or its path names) must be unique")
+                    sendSweetAlert(
+                        session = session,
+                        title = "Incompatible BAM file names",
+                        text = paste("Could not determine sample names.",
+                            "Please ensure either BAMs are uniquely named by sample name,",
+                            "or its parent directories are uniquely named."
+                        ),
+                        type = "error"
+                    )
                     settings_expr$bam_path = ""
                     temp.DT = NULL
                 }
             }
         } else {
-            output$txt_bam_path_expr <- renderText("No bam files found in given path")
-            # settings_expr$bam_path = ""
+            # output$txt_bam_path_expr <- renderText("No bam files found in given path")
+            sendSweetAlert(
+                session = session,
+                title = "No BAM files found",
+                text = "No BAM files found",
+                type = "error"
+            )            
+            settings_expr$bam_path = ""
             temp.DT = NULL
         }
     # compile experiment df with bam paths
