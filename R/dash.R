@@ -45,7 +45,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	Events <- filtered <- padj <- i.logFC <- i.AveExpr <- i.t <- i.P.Value <- i.adj.P.Val <- i.B <- B <- 
 	nom <- denom <- EventName <- log2FoldChange <- x <- ci <- track <- t_stat <- NULL
 
-        default_volumes <- c("Working Directory" = getwd(), getVolumes()())
+        default_volumes <- c("Working Directory" = getwd(), "Home" = "~", getVolumes()())
         addit_volume = c()
 
         settings_system <- setreactive_system()
