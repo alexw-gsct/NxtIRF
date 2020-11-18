@@ -801,7 +801,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
 		output$hot_files_expr <- renderRHandsontable({
 			if (!is.null(settings_expr$df.files)) {     
-				rhandsontable(settings_expr$df.files, useTypes = TRUE, stretchH = "all")
+				rhandsontable(settings_expr$df.files, useTypes = TRUE, 
+                selectCallback = TRUE, stretchH = "all")
 			} else {
         NULL
       }
@@ -913,31 +914,101 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		# Run IRFinder
 		observeEvent(input$run_irf_expr,{
 			req(settings_expr$df.files)
-			if(settings_loadref$loadref_path == "") {
-				output$txt_run_irf_expr <- renderText("Please load reference")
-			} else if(settings_expr$irf_path == "") {
-				output$txt_run_irf_expr <- renderText("Please select IRFinder output path")
+            req("bam_file" %in% colnames(settings_expr$df.files))
+            if(!is_valid(input$hot_files_expr_select$select$r)) {
+                 sendSweetAlert(
+                    session = session,
+                    title = "No BAM files selected",
+                    text = "Please select bam files to run IRFinder",
+                    type = "error"
+                )           
+            }
+            req(input$hot_files_expr_select$select$r)
+            selected_rows = seq(
+                input$hot_files_expr_select$select$r,
+                input$hot_files_expr_select$select$r2                
+            )
+            selected_cols = seq(
+                input$hot_files_expr_select$select$c,
+                input$hot_files_expr_select$select$c2                
+            )
+            bam_col = which(colnames(settings_expr$df.files) == "bam_file")
+            bam_files = settings_expr$df.files$bam_file[selected_rows]
+            if(settings_loadref$loadref_path == "") {
+                sendSweetAlert(
+                    session = session,
+                    title = "Missing Reference",
+                    text = "Please load Reference before running IRFinder",
+                    type = "error"
+                )
+            } else if(!(bam_col %in% selected_cols)) {
+                sendSweetAlert(
+                    session = session,
+                    title = "No BAM files selected",
+                    text = "Please select bam files to run IRFinder",
+                    type = "error"
+                )                
+            } else if(!all(file.exists(bam_files))) {
+                sendSweetAlert(
+                    session = session,
+                    title = "Missing BAMs",
+                    text = "Please check all selected bam files exist",
+                    type = "error"
+                )                
 			} else if(!file.exists(file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"))) {
-				output$txt_run_irf_expr <- renderText("IRFinder.ref.gz not found in given reference path")
-			} else {				
-				df = settings_expr$df.files
-				bam_to_run = unname(which(sapply(df$sample, is_valid) & sapply(df$bam_file, is_valid)))
-				if(is(BPPARAM, "SnowParam")) {
-					BPPARAM_mod = BiocParallel::SnowParam(input$cores_slider)
-          message(paste("Using SnowParam", input$cores_slider, "threads"))
-				} else if(is(BPPARAM, "MulticoreParam")) {
-					BPPARAM_mod = BiocParallel::MulticoreParam(input$cores_slider)
-          message(paste("Using MulticoreParam", input$cores_slider, "threads"))
-				} else {
-					BPPARAM_mod = BPPARAM
-				}
-				BiocParallel::bplapply(bam_to_run, function(i, run_IRF, df, reference_file, output_path) {
-					run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
-				}, df = df, run_IRF = run_IRFinder, reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
-					output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
-				Expr_Load_IRFs()
+                sendSweetAlert(
+                    session = session,
+                    title = "Missing Reference",
+                    text = "IRFinder.ref.gz is missing",
+                    type = "error"
+                )
+			} else if(!is_valid(settings_expr$irf_path) || !dir.exists(settings_expr$irf_path)) {
+                sendSweetAlert(
+                    session = session,
+                    title = "Missing IRFinder output path",
+                    text = "Please set IRFinder output path",
+                    type = "error"
+                )
+			} else {
+                msg = paste("Run IRFinder on", length(bam_files), "samples?",
+                    "Estimated runtime", 10 * ceiling(bam_files / settings_system$n_threads),
+                    "minutes using", settings_system$n_threads, 
+                    "threads (10min per BAM @ 100 million reads per sample)"
+                )
+                ask_confirmation(
+                    inputId = "irf_confirm",
+                    type = "warning",
+                    title = msg,
+                    btn_labels = c("Cancel", "Run IRFinder"),
+                    btn_colors = c("#00BFFF", "#FE2E2E")
+                )
 			}
 		})
+
+        observeEvent(input$irf_confirm, {
+            # Actually run IRFinder
+            selected_rows = seq(
+                input$hot_files_expr_select$select$r,
+                input$hot_files_expr_select$select$r2                
+            )
+            bam_to_run = settings_expr$df.files$bam_file[selected_rows]
+            if(is(BPPARAM, "SnowParam")) {
+                BPPARAM_mod = BiocParallel::SnowParam(settings_system$n_threads)
+                message(paste("Using SnowParam", settings_system$n_threads, "threads"))
+            } else if(is(BPPARAM, "MulticoreParam")) {
+                BPPARAM_mod = BiocParallel::MulticoreParam(settings_system$n_threads)
+                message(paste("Using MulticoreParam", settings_system$n_threads, "threads"))
+            } else {
+                BPPARAM_mod = BPPARAM
+            }
+            BiocParallel::bplapply(selected_rows, function(i, run_IRF, df, reference_file, output_path) {
+                run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
+            }, df = settings_expr$df.files, run_IRF = run_IRFinder, 
+                reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
+                output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod)
+        
+            Expr_Load_IRFs()
+        })
 
     shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
       session = session)		
