@@ -987,6 +987,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		})
 
         observeEvent(input$irf_confirm, {
+            req(input$irf_confirm == TRUE)
             # Actually run IRFinder
             selected_rows = seq(
                 input$hot_files_expr_select$select$r,
