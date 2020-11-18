@@ -1,13 +1,78 @@
 # wrappers to R/C++
 
 #' @export
-run_IRFinder = function(bamfile = "Unsorted.bam", ref_file = "./IRFinder.ref", output_file = "./Output.txt") {
-  s_bam = normalizePath(bamfile)
-  s_ref = normalizePath(ref_file)
-#  s_output = normalizePath(output_file)
-  system.time({
-    IRF_main(s_bam, s_ref, output_file)
-  })
+run_IRFinder = function(
+            bamfile = "Unsorted.bam", 
+            ref_file = "./IRFinder.ref.gz", 
+            output_file = "./Sample",
+            run_featureCounts = FALSE,
+            gtf = "transcripts.gtf",
+            ah_transcriptome = "",
+            localHub = FALSE,
+            ah = AnnotationHub(localHub = localHub)
+        ) {
+    s_bam = normalizePath(bamfile)
+    s_ref = normalizePath(ref_file)
+    system.time({
+        IRF_main(s_bam, s_ref, output_file)
+    })
+
+    assert_that(file.exists(paste0(output_file, ".txt.gz")),
+        msg = paste("IRFinder appears to have failed")
+    )
+    
+    if(run_featureCounts == TRUE) {
+
+
+        NxtIRF.CheckPackageInstalled("Rsubread", "2.4.0")
+        if(ah_transcriptome != "") {
+            assert_that(substr(ah_transcriptome,1,2) == "AH",
+                msg = "Given transcriptome AnnotationHub reference is incorrect")
+            gtf_file = AnnotationHub::cache()
+        } else {
+            assert_that(file.exists(gtf),
+                msg = paste("Given transcriptome gtf file", gtf,
+                    "not found"))
+            gtf_file = gtf
+        }
+        assert_that(file.exists(gtf_file),
+            msg = paste("Given gtf reference file", gtf_file, "does not exist. Could not run featureCounts")
+        )
+        
+        # determine paired_ness, strandedness 
+        data.list = get_multi_DT_from_gz(
+            normalizePath(paste0(output_file, ".txt.gz")), 
+            c("BAM", "Directionality")
+        )
+        stats = data.list$BAM
+        direct = data.list$Directionality
+
+        if(stats$Value[3] == 0 & stats$Value[4] > 0) {
+            paired = TRUE
+        } else if(stats$Value[3] > 0 && 
+                stats$Value[4] / stats$Value[3] / 1000) {
+            paired = TRUE
+        } else {
+            paired = FALSE
+        }
+        strand = direct$Value[9]
+        if(strand == -1) strand = 2
+        
+        res = Rsubread::featureCounts(
+            s_bam,
+            annot.ext = gtf_file,
+            isGTFAnnotationFile = TRUE,
+            strandSpecific = strand,
+            isPairedEnd = paired,
+            requireBothEndsMapped = paired
+        )
+
+        if(all(c("counts", "annotation", "targets", "stat")) %in% names(res)) {
+            saveRDS(res, paste(output_file, "fc.Rds", sep="."))
+        }
+        
+    }
+    
 }
 
 run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
