@@ -475,12 +475,12 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 		}
 	}
 	if(directionality == 0) {
-		oss_qc 	<< "Non-Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
-						<< "Non-Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n"
-						<< "Non-Directional Anti-Sense IntronDepth Sum" << "\t" << ID_AS << "\n";		
+		oss_qc 	<< "Non-Directional Clean IntronDepth Sum" << "\t" << std::ceil(ID_clean * 100.0) / 100.0 << "\n"
+						<< "Non-Directional Known-Exon IntronDepth Sum" << "\t" << std::ceil(ID_KE * 100.0) / 100.0 << "\n"
+						<< "Non-Directional Anti-Sense IntronDepth Sum" << "\t" << std::ceil(ID_AS * 100.0) / 100.0 << "\n";		
 	} else {
-		oss_qc 	<< "Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
-						<< "Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n";
+		oss_qc 	<< "Directional Clean IntronDepth Sum" << "\t" << std::ceil(ID_clean * 100.0) / 100.0 << "\n"
+						<< "Directional Known-Exon IntronDepth Sum" << "\t" << std::ceil(ID_KE * 100.0) / 100.0 << "\n";
 	}
 	
   output = oss.str();
