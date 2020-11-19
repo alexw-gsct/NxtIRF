@@ -432,7 +432,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 				}
 				oss << intronDepth << "\t";
 				
-				if(s_clean.compare(0, 5, "clean")) {
+				if(s_clean.compare(0, 5, "clean") == 0) {
 					ID_clean += intronDepth;				
 				} else if(s_clean.find(KE) != string::npos) {
 					ID_KE += intronDepth;				
