@@ -67,14 +67,14 @@ parse_valid_file <- function(file, msg) {
 }
 
 fetch_mappability_file <- function(genome_type,
-        localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+        localHub = FALSE, ah = AnnotationHub::AnnotationHub(localHub = localHub)) {
 
     resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
     if(!(genome_type %in% c("hg38", "hg19", "mm9", "mm10"))) {
         MappabilityFile = ""
     } else {
         ah_record = ah[ah$genome == genome_type & 
-            SourceUrl == resource_path]
+            ah$sourceurl == resource_path]
         if(length(ah_record) == 1) {
             MappabilityFile = AnnotationHub::cache(ah.record)
         } else {
@@ -101,7 +101,7 @@ fetch_mappability_file <- function(genome_type,
 }
 
 fetch_genome_defaults <- function(genome_type, nonPolyARef, MappabilityRef,
-        BlacklistRef, localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+        BlacklistRef, localHub = FALSE, ah = AnnotationHub::AnnotationHub(localHub = localHub)) {
 
     if(genome_type %in% c("hg38", "hg19", "mm9", "mm10")) {
         MappabilityFile = fetch_mappability_file(genome_type, localHub, ah)

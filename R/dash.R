@@ -631,7 +631,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			args <- list(reference_path = settings_newref$newref_path,
 				ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
 				fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
-				genome_type = "Interactive", nonPolyARef = settings_newref$newref_NPA, 
+				genome_type = match_genome_type(), nonPolyARef = settings_newref$newref_NPA, 
                 MappabilityRef = settings_newref$newref_mappa,
 				BlacklistRef = settings_newref$newref_bl)
 
