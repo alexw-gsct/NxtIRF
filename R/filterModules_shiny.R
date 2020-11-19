@@ -84,7 +84,7 @@ filterModule_server <- function(id, filterdata, conditionList) {
             if(is_valid(final$filterType) && 
                     final$filterType %in% type_choices) {
                 updateSelectInput(session = session, inputId = "filterClass", 
-                    choices = type_choices, selected = final$filterClass)
+                    choices = c("(none)", "Annotation", "Data", selected = final$filterClass)
                 # updateSelectInput(session = session, inputId = "filterType", 
                 # choices = type_choices, selected = final$filterType)
             } else {
@@ -158,7 +158,7 @@ filterModule_server <- function(id, filterdata, conditionList) {
             } else {
                 type_choices = "(none)"
             }
-            cur_choice = isolate(input$filterType)
+            cur_choice = isolate(final$filterType)
             if(is_valid(cur_choice) && cur_choice %in% type_choices) {
                 updateSelectInput(session = session, 
                     inputId = "filterType", 
