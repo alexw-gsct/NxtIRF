@@ -1232,7 +1232,6 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
           settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
           settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_collate_path_load)
-      })      
     })
     Expr_Load_FSTs = function() {
 				# merge nxtirf paths
