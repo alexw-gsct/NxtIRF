@@ -90,7 +90,7 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
 run_IRFinder_MapExclusionRegions = function(bamfile = "", output_file, threshold = 4, includeCov = FALSE) {
   s_bam = normalizePath(bamfile)
   assert_that(file.exists(s_bam),
-    msg = paste(s_bam, "does not exist")))
+    msg = paste(s_bam, "does not exist"))
   return(
     IRF_GenerateMappabilityRegions(s_bam, 
         normalizePath(output_file),
