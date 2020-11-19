@@ -442,18 +442,32 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
     
 		observeEvent(input$newref_genome_type, {
+            resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
+            
 			if(input$newref_genome_type == "hg38") {
-				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
-        settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_hg38_v94.txt.gz", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file(
+                    "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+                settings_newref$newref_mappa = 
+                    paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
+            
 			} else if(input$newref_genome_type == "hg19")  {
-				settings_newref$newref_NPA = system.file("extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
-        settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_hg19_v75.txt.gz", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file(
+                    "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+                settings_newref$newref_mappa = 
+                    paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
+            
 			} else if(input$newref_genome_type == "mm10")  {
-				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
-        settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_mm10_v94.txt.gz", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file(
+                    "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+                settings_newref$newref_mappa = 
+                    paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
+            
 			} else if(input$newref_genome_type == "mm9")  {
-				settings_newref$newref_NPA = system.file("extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
-        settings_newref$newref_mappa = system.file("extra-input-files/Mappability_Regions_mm9_v67.txt.gz", package = "NxtIRF")
+				settings_newref$newref_NPA = system.file(
+                    "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+                settings_newref$newref_mappa = 
+                    paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
+            
 			} else if(input$newref_genome_type == "(not specified)") {
         # do nothing. This allows user to first select the default and then change to user-defined files
 			} else {
@@ -574,12 +588,51 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			}
 		})
 		
+        match_genome_type <- function() {
+            if(!is_valid(settings_newref$newref_NPA) | !is_valid(settings_newref$newref_mappa)) {
+                return("Interactive")            
+            }
+            resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
+            if(
+ 				settings_newref$newref_NPA == system.file(
+                    "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF") &
+                settings_newref$newref_mappa == 
+                    paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
+            ) {
+                return("hg38")
+            } else if(
+				settings_newref$newref_NPA == system.file(
+                    "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF") &
+                settings_newref$newref_mappa == 
+                    paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
+            ) {
+                return("hg19")
+            } else if(
+				settings_newref$newref_NPA == system.file(
+                    "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF") &
+                settings_newref$newref_mappa == 
+                    paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
+            ) {
+                return("mm10")
+            } else if(
+				settings_newref$newref_NPA == system.file(
+                    "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF") &
+                settings_newref$newref_mappa == 
+                    paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
+            ) {
+                return("mm9")
+            } else {
+                return("Interactive")            
+            }
+        }
+        
 		# buildRef Button
 		observeEvent(input$buildRef, {
 			args <- list(reference_path = settings_newref$newref_path,
 				ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
 				fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
-				genome_type = "Interactive", nonPolyARef = settings_newref$newref_NPA, MappabilityRef = settings_newref$newref_mappa,
+				genome_type = "Interactive", nonPolyARef = settings_newref$newref_NPA, 
+                MappabilityRef = settings_newref$newref_mappa,
 				BlacklistRef = settings_newref$newref_bl)
 
 			args <- Filter(is_valid, args)

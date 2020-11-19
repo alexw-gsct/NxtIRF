@@ -8,7 +8,7 @@ df <- data.frame(
     RDataPath = file.path("NxtIRF", "mappability", 
         c("hg38_v94.rds", "hg19_v75.rds", "mm10_v94.rds", "mm9_v67.rds")),
     BiocVersion="3.12", 
-    Genome=NA, 
+    Genome=c("hg38", "hg19", "mm10", "mm9"), 
     SourceType="BED", 
     SourceUrl="https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data",
     SourceVersion=c(
@@ -24,7 +24,6 @@ df <- data.frame(
     Maintainer="Alex Wong <a.wong@centenary.org.au>",
     RDataClass="GRanges",
     DispatchClass="BEDFile",
-    
     Location_Prefix = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data",
     RDataPath = c(
         "Mappability_Regions_hg38_v94.txt.gz",
