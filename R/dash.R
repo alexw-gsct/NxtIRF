@@ -1228,8 +1228,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     observe({
       shinyDirChoose(input, "dir_collate_path_load", roots = c(default_volumes, addit_volume), 
         session = session)
-      output$txt_collate_path_expr <- renderText({
-          validate(need(input$dir_collate_path_load, "Please select path where NxtIRF compiled output should be kept"))
+        req(input$dir_collate_path_load)
           settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
           settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_collate_path_load)
@@ -1249,8 +1248,8 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
                 if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
             # Else assume subdirectory names designate sample names					
                 } else {
-                    output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
-                    # settings_expr$collate_path = ""
+                    # output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
+                    settings_expr$collate_path = ""
                     temp.DT = NULL
                 }
             }
@@ -1338,20 +1337,28 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
       reference_path = settings_loadref$loadref_path
       output_path = settings_expr$collate_path
       # BPPARAM = BPPARAM_mod
+        if(!is_valid(settings_loadref$loadref_path)) {
+           sendSweetAlert(
+                session = session,
+                title = "Missing Reference",
+                text = "Please load Reference before running NxtIRF::CollateData",
+                type = "error"
+            )
+        } else if(!is_valid(settings_expr$collate_path)) {
+           sendSweetAlert(
+                session = session,
+                title = "Missing NxtIRF Path",
+                text = "Please select NxtIRF path before running NxtIRF::CollateData",
+                type = "error"
+            )        
+        }
 
-      output$txt_run_col_expr <- renderText({
-        validate(need(settings_loadref$loadref_path, "Please load a reference before generating NxtIRF FST files"))
-        validate(need(settings_expr$collate_path, "Please select a path to store NxtIRF FST files"))
-        "running CollateData()"
-      })
-
-			cores_to_use = as.numeric(settings_system$n_threads)
-			if(!is_valid(cores_to_use)) cores_to_use = 1
-			withProgress(message = 'Collating IRFinder output', value = 0, {
-				CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)#, BPPARAM = BPPARAM)
-			})
-			Expr_Load_FSTs()
-			# output$txt_run_col_expr <- renderText("Finished compiling NxtIRF FST files")
+        cores_to_use = as.numeric(settings_system$n_threads)
+        if(!is_valid(cores_to_use)) cores_to_use = 1
+        withProgress(message = 'Collating IRFinder output', value = 0, {
+            CollateData(Experiment, reference_path, output_path, n_threads = cores_to_use)
+        })
+        Expr_Load_FSTs()
     })
 		
     shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,

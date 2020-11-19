@@ -310,9 +310,9 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
   }      
 	unsigned int recordNumber = 0;
 	// IRBurden calculations
-	double ID_clean;
-	double ID_KE;
-	double ID_AS;
+	double ID_clean = 0.0;
+	double ID_KE = 0.0;
+	double ID_AS = 0.0;
 	std::string KE = "known-exon";
 	
 	for (auto BEDrec : BEDrecords) {
@@ -333,7 +333,7 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 				unsigned int SPleft;
 				unsigned int SPright;
 
-				double intronDepth;
+				double intronDepth = 0.0;
 
 				std::string s_buffer;
 				std::string s_name;
