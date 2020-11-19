@@ -52,7 +52,7 @@ parse_valid_file <- function(file, msg) {
         cache <- rappdirs::user_cache_dir(appname="NxtIRF")
         bfc = BiocFileCache::BiocFileCache(cache, ask = FALSE)
         path <- BiocFileCache::bfcrpath(bfc, url)
-        return(path)
+        return(unname(path))
     } else if(!file.exists(file)) {
         message(paste(file, "not found.",
             "Reference generated without", msg))
@@ -69,7 +69,7 @@ parse_valid_file <- function(file, msg) {
 fetch_mappability_file <- function(genome_type,
         localHub = FALSE, ah = AnnotationHub::AnnotationHub(localHub = localHub)) {
 
-    resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
+    resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
     if(!(genome_type %in% c("hg38", "hg19", "mm9", "mm10"))) {
         MappabilityFile = ""
     } else {
@@ -2396,7 +2396,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
     extra_files = fetch_genome_defaults(genome_type, nonPolyARef, 
         MappabilityRef, BlacklistRef, localHub, ah)
-        
+
+    message(extra_files$nonPolyAFile)
+    message(extra_files$MappabilityFile)
+    message(extra_files$BlacklistFile)
+
     assert_that(
         tryCatch(ifelse(normalizePath(dirname(reference_path)) != "",TRUE, TRUE),
             error = function(e) FALSE),

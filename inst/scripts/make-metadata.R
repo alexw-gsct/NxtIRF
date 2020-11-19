@@ -10,13 +10,16 @@ df <- data.frame(
     BiocVersion="3.12", 
     Genome=c("hg38", "hg19", "mm10", "mm9"), 
     SourceType="BED", 
-    SourceUrl="https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data",
-    SourceVersion=c(
-        "Mappability_Regions_hg38_v94.txt.gz",
-        "Mappability_Regions_hg19_v75.txt.gz",
-        "Mappability_Regions_mm10_v94.txt.gz",
-        "Mappability_Regions_mm9_v67.txt.gz"
+    SourceUrl=paste(
+        "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data",
+        c(
+            "Mappability_Regions_hg38_v94.txt.gz",
+            "Mappability_Regions_hg19_v75.txt.gz",
+            "Mappability_Regions_mm10_v94.txt.gz",
+            "Mappability_Regions_mm9_v67.txt.gz"
+        )
     ),
+    SourceVersion="0.98.0",
     Species=c(rep("Homo sapiens", 2),rep("Mus musculus", 2)),
     TaxonomyId=c(rep("9606", 2),rep("10090", 2)),
     Coordinate_1_based=FALSE,
@@ -24,7 +27,7 @@ df <- data.frame(
     Maintainer="Alex Wong <a.wong@centenary.org.au>",
     RDataClass="GRanges",
     DispatchClass="BEDFile",
-    Location_Prefix = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data",
+    Location_Prefix = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data",
     RDataPath = c(
         "Mappability_Regions_hg38_v94.txt.gz",
         "Mappability_Regions_hg19_v75.txt.gz",

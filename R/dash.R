@@ -442,7 +442,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
     })
     
 		observeEvent(input$newref_genome_type, {
-            resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
+            resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
             
 			if(input$newref_genome_type == "hg38") {
 				settings_newref$newref_NPA = system.file(
@@ -592,7 +592,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
             if(!is_valid(settings_newref$newref_NPA) | !is_valid(settings_newref$newref_mappa)) {
                 return("Interactive")            
             }
-            resource_path = "https://github.com/alexw-gsct/NxtIRF_resources/tree/main/data"
+            resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
             if(
  				settings_newref$newref_NPA == system.file(
                     "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF") &
