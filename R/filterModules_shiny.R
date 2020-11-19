@@ -84,13 +84,18 @@ filterModule_server <- function(id, filterdata, conditionList) {
             if(is_valid(final$filterType) && 
                     final$filterType %in% type_choices) {
                 updateSelectInput(session = session, inputId = "filterClass", 
-                    choices = c("(none)", "Annotation", "Data", selected = final$filterClass)
+                    choices = c("(none)", "Annotation", "Data"), selected = final$filterClass)
                 # updateSelectInput(session = session, inputId = "filterType", 
                 # choices = type_choices, selected = final$filterType)
             } else {
                 # Invalid filter; destroy this record
                 final$filterClass = "(none)"
                 final$filterType = "(none)"
+                updateSelectInput(session = session, inputId = "filterClass", 
+                    choices = c("(none)"))
+                updateSelectInput(session = session, inputId = "filterType", 
+                    choices = c("(none)"))
+
                 return()
             }
             if(is_valid((final$filterVars$minimum))) {
