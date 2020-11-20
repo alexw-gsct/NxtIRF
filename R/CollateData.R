@@ -249,6 +249,28 @@ CollateData <- function(Experiment, reference_path, output_path,
                     block$Fraction_Span_Reads[i] =
                         QC$Value[QC$QC == "Spans Reads"] / 
                             block$depth[i]
+
+# IRBurden calculations                            
+                    if(block$strand[i] == 0) {
+                        block$IRBurden_clean[i] =
+                            QC$Value[QC$QC == "Non-Directional Clean IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Annotated Junctions"]
+                        block$IRBurden_exitrons[i] =
+                            QC$Value[QC$QC == "Non-Directional Known-Exon IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Annotated Junctions"]
+                        block$IRBurden_antisense[i] =
+                            QC$Value[QC$QC == "Non-Directional Anti-Sense IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Annotated Junctions"]
+                    } else {
+                        block$IRBurden_clean[i] =
+                            QC$Value[QC$QC == "Directional Clean IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Annotated Junctions"]
+                        block$IRBurden_exitrons[i] =
+                            QC$Value[QC$QC == "Directional Known-Exon IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Annotated Junctions"]
+                        block$IRBurden_antisense[i] = 0
+                    }
+                    
                 }
                 return(block)
             }, jobs = jobs, df.internal = df.internal, BPPARAM = BPPARAM_mod
