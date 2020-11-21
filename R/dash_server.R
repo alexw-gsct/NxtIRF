@@ -1053,7 +1053,7 @@ dash_server = function(input, output, session) {
                         incProgress(1 / length(selected_rows), 
                             message = paste(i_done, "of", length(selected_rows), "done"))
                     }
-                }
+                })
             } else if(n_threads < length(selected_rows)) {
                 n_rounds = ceiling(length(selected_rows) / n_threads)
                 n_threads = ceiling(length(selected_rows) / n_rounds)
