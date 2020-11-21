@@ -1052,7 +1052,8 @@ dash_server = function(input, output, session) {
                     withProgress(message = 'Running IRFinder', value = 0, {
                         i_done = 0
                         incProgress(0.001, 
-                            message = paste(i_done, "of", length(selected_rows), "done"))
+                            message = paste('Running IRFinder',
+                                i_done, "of", length(selected_rows), "done"))
                         for(i in selected_rows) {
                             run_IRFinder(settings_expr$df.files$bam_file[i], 
                                 file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
@@ -1083,7 +1084,8 @@ dash_server = function(input, output, session) {
                 withProgress(message = 'Running IRFinder - Multi-threaded', value = 0, {
                     i_done = 0
                     incProgress(0.001, 
-                        message = paste(i_done, "of", length(selected_rows), "done"))
+                        message = paste('Running IRFinder - Multi-threaded,',
+                            i_done, "of", length(selected_rows), "done"))
                     for(i in seq_len(n_rounds)) {
                         selected_rows_subset = seq(row_starts[i], 
                             min(length(selected_rows), row_starts[i] + n_threads - 1)
