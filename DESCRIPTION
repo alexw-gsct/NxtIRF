@@ -62,6 +62,7 @@ Collate: Imports.R
 	dash_settings.R
 	dash_utils.R
 	dash_ui.R
+	dash_server.R
 	dash.R
 Encoding: UTF-8
 RoxygenNote: 7.1.1

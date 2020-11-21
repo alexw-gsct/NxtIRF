@@ -4,16 +4,17 @@ ui_sidebar <- function() {
         sidebarMenu(id = "navSelection",
             menuItem("About", tabName = "navTitle"),
             menuItem("System", tabName = "navSystem"),
+
             menuItem("Reference", tabName = "navRef_New"),
-                 # menuSubItem("New Reference", tabName = "navRef_New"),
-                 # menuSubItem("Load Reference", tabName = "navRef_Load"),
-                 # menuSubItem("View Reference", tabName = "navRef_View")
+
             menuItem("Experiment", tabName = "navExpr"),
+
             menuItem("Analysis",
                  menuSubItem("Experiment QC", tabName = "navQC"),
                  menuSubItem("Filters", tabName = "navFilter"),
                  menuSubItem("Differential Expression Analysis", tabName = "navAnalyse")
             ),
+
             menuItem("Display",
                  menuSubItem("Diagonal", tabName = "navDiag"),
                  menuSubItem("Volcano", tabName = "navVolcano"),
@@ -33,24 +34,46 @@ ui_tab_title <- function() {
 ui_tab_system <- function() {
     tabItem(tabName = "navSystem",
         # box(
-            # tags$div(title = paste("Load NxtIRF Session from File"),
+            # tags$div(title = paste("Load Session"),
                 # shinyFilesButton("file_loadstate", label = "Choose Save State to Load", 
                     # title = "Choose Save State to Load", multiple = FALSE,
                     # filetype = list(RDS = "Rds"))
             # ),
-            # tags$div(title = paste("Saves NxtIRF Session to File"),
+            # tags$div(title = paste("Save Session"),
                 # shinySaveButton("file_savestate", "Choose file to Save Session", "Choose file to Save Session", 
                     # filetype = list(RDS = "Rds")),
             # )
         # ),
         box(
+            # tags$div(title = paste("Number of threads to run computationally-intensive operations",
+                # "such as IRFinder, NxtIRF-collate, and DESeq2"),
+                # numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
+            # ),
+            # tags$div(title = paste("Number of threads to run computationally-intensive operations",
+                # "such as IRFinder, NxtIRF-collate, and DESeq2"),
+                # sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
+            # )
             tags$div(title = paste("Number of threads to run computationally-intensive operations",
                 "such as IRFinder, NxtIRF-collate, and DESeq2"),
-                numericInput("cores_numeric", "# Threads", min = 1, max = 1, value = 1)
+                radioGroupButtons(
+                   inputId = "thread_option",
+                   label = "Mode",
+                   choices = c("Single-Thread", 
+                    "Multi-Thread (Low)", "Multi-Thread (High)"),
+                   justified = TRUE,
+                   checkIcon = list(
+                      yes = icon("ok", 
+                    lib = "glyphicon"))
+                ),
             ),
-            tags$div(title = paste("Number of threads to run computationally-intensive operations",
-                "such as IRFinder, NxtIRF-collate, and DESeq2"),
-                sliderInput('cores_slider', "# Threads", min = 1, max = 1, value = 1)			
+            tags$div(title = paste("Memory maximum (per-thread)",
+                "for NxtIRF-collate"),
+                sliderTextInput(
+                   inputId = "mem_option",
+                   label = "Memory Limit:", 
+                   choices = c("2Gb", "4Gb", "8Gb", "16Gb", "Unlimited"),
+                   selected = "4Gb"
+                )
             )
         )
     )
@@ -135,6 +158,23 @@ ui_tab_ref_new <- function() {
     )
 }
 
+ui_toggle_wellPanel <- function(inputId, title, color = "danger", icon = icon("bars"), ...) {
+    tagList(
+        actionBttn(
+           inputId = inputId,
+           label = title,
+           style = "gradient", 
+           color = color,
+           icon = icon
+        ),
+        br(),
+        conditionalPanel(condition = 
+            paste0("input.", inputId, " % 2 != 0"),
+            wellPanel(...)
+        )
+    )
+}
+
 ui_tab_ref_load <- function() {
     tabItem(tabName = "navRef_Load",
         fluidRow(
@@ -164,20 +204,13 @@ ui_tab_ref_load <- function() {
 }
 
 ui_ddb_ref_load <- function() {
-    shinyWidgets::dropdownButton(
-        # box(
-            h4("Select Reference Directory"),
-            shinyDirButton("dir_reference_path_load", label = "Choose reference path", title = "Choose reference path"),
-            textOutput("txt_reference_path_load"),                        
-        # ),
-        # box(
-            actionButton("clearLoadRef", "Clear settings"), # TODO                        
-        # ),
-        
-        circle = TRUE, status = "danger",
-        icon = icon("folder-open", lib = "font-awesome"), 
-        width = "300px",
-        inputId = "ref_ddb"
+    ui_toggle_wellPanel(
+        inputId = "expr_ddb_ref_load",
+        title = "Reference",
+        color = "danger",
+        icon = icon("dna", lib = "font-awesome"),
+        shinyDirButton("dir_reference_path_load", label = "Select reference path", title = "Select reference path"),
+        textOutput("txt_reference_path_load")
     )
 }
 
@@ -187,32 +220,23 @@ ui_infobox_ref <- function(settings_file) {
         value = ifelse(file.exists(settings_file),
             "LOADED", "MISSING"),
         subtitle = ifelse(file.exists(settings_file),
-            dirname(settings_file), "click here to set reference"),
+            dirname(settings_file), ""),
         icon = icon("dna", lib = "font-awesome"),
         color = ifelse(file.exists(settings_file),
             "green", "red")
     )
-    ddb = ui_ddb_ref_load()
-    
-    box1$children[[1]]$attribs$id = ddb$children[[1]]$attribs$id
-    box1$children[[1]]$attribs$`data-toggle` = "dropdown"
-    box1$children[[2]] = ddb$children[[2]]
     return(box1)
 }
 
 ui_ddb_bam_path <- function() {
-    shinyWidgets::dropdownButton(
-        tags$h4("Set BAM Path"),
-        shinyDirButton("dir_bam_path_load", 
-            label = "Choose BAM path", 
-            title = "Choose BAM path"), # done
-        textOutput("txt_bam_path_expr"),
-        
-        circle = TRUE, status = "danger",
-        icon = icon("folder-open", lib = "font-awesome"), 
-        width = "300px",
-        inputId = "bam_ddb"
-    )
+    ui_toggle_wellPanel(
+        inputId = "expr_ddb_bam_load",
+        title = "BAM Path",
+        color = "danger",
+        icon = icon("folder-open", lib = "font-awesome"),
+        shinyDirButton("dir_bam_path_load", label = "Select BAM path", title = "Select BAM path"),
+        textOutput("txt_bam_path_expr")
+    )    
 }
 
 ui_infobox_bam <- function(bam_path, bam_files, escape = FALSE) {
@@ -236,28 +260,25 @@ ui_infobox_bam <- function(bam_path, bam_files, escape = FALSE) {
                 "red", ifelse(ret == TRUE, "green", "yellow"))
         )
     }
-    ddb = ui_ddb_bam_path()
-    
-    box1$children[[1]]$attribs$id = ddb$children[[1]]$attribs$id
-    box1$children[[1]]$attribs$`data-toggle` = "dropdown"
-    box1$children[[2]] = ddb$children[[2]]
     return(box1)
 }
 
 ui_ddb_irf_path <- function() {
-    shinyWidgets::dropdownButton(
-        tags$h4("Set IRFinder Path"),
+    ui_toggle_wellPanel(
+        inputId = "expr_ddb_irf_load",
+        title = "IRFinder",
+        color = "danger",
+        icon = icon("align-center", lib = "font-awesome"),
         shinyDirButton("dir_irf_path_load", 
-        
             label = "Choose IRFinder output path", 
             title = "Choose IRFinder output path"), # done					
-        textOutput("txt_irf_path_expr"),
+        textOutput("txt_irf_path_expr"), br(),
         
-        circle = TRUE, status = "danger",
-        icon = icon("folder-open", lib = "font-awesome"), 
-        width = "300px",
-        inputId = "irf_ddb"
-    )
+        tags$h4("Run IRFinder on Selected BAMs"),
+        actionButton("run_irf_expr", 
+            "Run IRFinder"), # TODO
+        textOutput("txt_run_irf_expr")        
+    )      
 }
 
 ui_infobox_irf <- function(irf_path, irf_files, escape = FALSE) {
@@ -281,26 +302,26 @@ ui_infobox_irf <- function(irf_path, irf_files, escape = FALSE) {
             "red", ifelse(ret == TRUE, "green", "yellow"))
         )
     }
-    ddb = ui_ddb_irf_path()
-    
-    box1$children[[1]]$attribs$id = ddb$children[[1]]$attribs$id
-    box1$children[[1]]$attribs$`data-toggle` = "dropdown"
-    box1$children[[2]] = ddb$children[[2]]
     return(box1)
 }
 
 ui_ddb_nxt_path <- function() {
-    shinyWidgets::dropdownButton(
+    ui_toggle_wellPanel(
+        inputId = "expr_ddb_nxt_load",
+        title = "NxtIRF Collate",
+        color = "danger",
+        icon = icon("layer-group", lib = "font-awesome"),
+
         tags$h4("Set NxtIRF Path"),
         shinyDirButton("dir_collate_path_load", 
             label = "Choose NxtIRF FST output path", 
             title = "Choose NxtIRF FST output path"), # done
-        textOutput("txt_collate_path_expr"), # done
+        textOutput("txt_collate_path_expr"), br(), # done
         
-        circle = TRUE, status = "danger",
-        icon = icon("folder-open", lib = "font-awesome"), 
-        width = "300px",
-        inputId = "nxt_ddb"
+        tags$h4("Run NxtIRF CollateData on IRFinder output"),
+        actionButton("run_collate_expr", 
+            "Compile NxtIRF FST files"),
+        textOutput("txt_run_col_expr")
     )
 }
 
@@ -325,21 +346,20 @@ ui_infobox_nxt <- function(nxt_path, nxt_files, escape = FALSE) {
             "red", ifelse(ret == TRUE, "green", "yellow"))
         )
     }
-    ddb = ui_ddb_nxt_path()
-    
-    box1$children[[1]]$attribs$id = ddb$children[[1]]$attribs$id
-    box1$children[[1]]$attribs$`data-toggle` = "dropdown"
-    box1$children[[2]] = ddb$children[[2]]
     return(box1)
 }
 
 ui_ddb_build_expr <- function() {
-    shinyWidgets::dropdownButton(
-        tags$h4("Construct Experiment"),
+    ui_toggle_wellPanel(
+        inputId = "expr_ddb_expr_load",
+        title = "Construct Experiment",
+        color = "danger",
+        icon = icon("flask", lib = "font-awesome"),
+
         shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
-            title = "Load Experiment Data Frame", multiple = FALSE), # done
+            title = "Load Experiment Data Frame", multiple = FALSE), br(), # done
         shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
-            filetype = list(dataframe = "csv")),
+            filetype = list(dataframe = "csv")), br(),
         actionButton("clear_expr", "Clear Experiment"),
         textOutput("txt_run_save_expr"),
         br(),
@@ -349,10 +369,6 @@ ui_ddb_build_expr <- function() {
         br(),
         actionButton("build_expr", "Build SummarizedExperiment"),
         
-        circle = TRUE, status = "danger",
-        icon = icon("folder-open", lib = "font-awesome"), 
-        width = "300px",
-        inputId = "nxt_ddb"
     )
 }
 
@@ -366,12 +382,6 @@ ui_infobox_expr <- function(status = 0) {
         color = ifelse(status == 0,
         "red", ifelse(status == 2, "green", "yellow"))
     )
-
-    ddb = ui_ddb_build_expr()
-    
-    box1$children[[1]]$attribs$id = ddb$children[[1]]$attribs$id
-    box1$children[[1]]$attribs$`data-toggle` = "dropdown"
-    box1$children[[2]] = ddb$children[[2]]
     return(box1)
 }
 
@@ -379,7 +389,7 @@ ui_infobox_expr <- function(status = 0) {
 ui_tab_expr <- function() {
     tabItem(tabName = "navExpr",
         conditionalPanel(
-            condition = "output.txt_reference_path_load != '' && input.ref_ddb_state == true",
+            condition = "output.txt_reference_path_load != '' && input.expr_ddb_ref_load % 2 != 0",
             fluidRow(
                 infoBoxOutput("fasta_source_infobox"),
                 infoBoxOutput("gtf_source_infobox")
@@ -399,49 +409,31 @@ ui_tab_expr <- function() {
         ),
         fluidRow(
             column(4,
+                wellPanel(
+                    conditionalPanel(
+                        condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
+                        wellPanel(
+                            tags$h4("Annotation Columns"),
+                            uiOutput("newcol_expr"), # done
+                            div(class='row',
+                                div(class= "col-sm-6",
+                                    radioButtons("type_newcol_expr", "Type", c("character", "integer", "double"))
+                                ),
+                                div(class = "col-sm-6", 
+                                    actionButton("addcolumn_expr", "Add"), br(),  # done
+                                    actionButton("removecolumn_expr", "Remove") # done
+                                )
+                            )                                
+                        )
+                    ),
+            
+                    ui_ddb_ref_load(),
+                    ui_ddb_bam_path(),
+                    ui_ddb_irf_path(),
+                    ui_ddb_nxt_path(),
+                    ui_ddb_build_expr(),
 
-                shinyWidgets::dropdownButton(
-                    tags$h4("Run IRFinder on Selected BAMs"),
-                    actionButton("run_irf_expr", 
-                        "Run IRFinder"), # TODO
-                    textOutput("txt_run_irf_expr"),
-                
-                    circle = TRUE, status = "danger",
-                    icon = icon("align-center", lib = "font-awesome"), 
-                    width = "300px"                               
-                ), br(),
-
-
-                shinyWidgets::dropdownButton(
-                    tags$h4("Run NxtIRF CollateData on IRFinder output"),
-                    actionButton("run_collate_expr", 
-                        "Compile NxtIRF FST files"),
-                    textOutput("txt_run_col_expr"),
-                
-                    circle = TRUE, status = "danger",
-                    icon = icon("layer-group", lib = "font-awesome"), 
-                    width = "300px"                           
-                ), br(),
-                
-                conditionalPanel(
-                    condition = "['Annotations'].indexOf(input.hot_switch_expr) >= 0",
-                    shinyWidgets::dropdownButton(
-                        tags$h4("Annotation Columns"),
-                        uiOutput("newcol_expr"), # done
-                        div(class='row',
-                            div(class= "col-sm-6",
-                                radioButtons("type_newcol_expr", "Type", c("character", "integer", "double"))
-                            ),
-                            div(class = "col-sm-6", 
-                                actionButton("addcolumn_expr", "Add"), br(),  # done
-                                actionButton("removecolumn_expr", "Remove") # done
-                            )
-                        ),
-                        circle = TRUE, status = "danger",
-                        icon = icon("columns", lib = "font-awesome"), 
-                        width = "300px"                                      
-                    )
-                ),
+                )
             ),
             column(8,
                 shinyWidgets::radioGroupButtons(

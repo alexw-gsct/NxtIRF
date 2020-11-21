@@ -14,7 +14,16 @@ setreactive_newref <- function() {
         newref_AH_gtf = "",
         newref_mappa = "",
         newref_NPA = "",
-        newref_bl = ""
+        newref_bl = "",
+        
+        ui_newrefAH_Species = "",
+        ui_newrefAH_Version_Trans = "",
+        ui_newrefAH_Trans = "",
+        ui_newrefAH_Assembly = "",
+        ui_newrefAH_Version_Genome = "",
+        ui_newrefAH_Genome = "",
+        
+        ui_newref_genome_type = ""
     )
 }
 

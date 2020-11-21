@@ -23,6 +23,18 @@ bin_df <- function(df, binwidth = 3) {
     return(as.data.frame(DT2))
 }
 
+update_select_without_clearing <- function(session, inputId, choices, input) {
+    req(inputId %in% names(input))
+    selected = input[[inputId]]
+    if(selected %in% choices) {
+        updateSelectInput(session = session, inputId = inputId,
+            choices = choices, selected = selected)
+    } else {
+        updateSelectInput(session = session, inputId = inputId,
+            choices = choices, selected = selected)    
+    }
+}
+
 determine_compatible_events <- function(reduced.DT, highlight_events) {
 
     introns = reduced.DT[get("type") == "intron"]
