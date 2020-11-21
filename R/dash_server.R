@@ -1013,6 +1013,7 @@ dash_server = function(input, output, session) {
                     type = "error"
                 )
 			} else {
+                settings_expr$selected_rows = selected_rows
                 n_threads = min(get_threads(), length(selected_rows))
                 if(n_threads < length(selected_rows)) {
                     n_rounds = ceiling(length(selected_rows) / n_threads)
@@ -1035,70 +1036,76 @@ dash_server = function(input, output, session) {
 		})
 
         observeEvent(input$irf_confirm, {
-            req(input$irf_confirm == TRUE)
-            # Actually run IRFinder
-            selected_rows = seq(
-                input$hot_files_expr_select$select$r,
-                input$hot_files_expr_select$select$r2                
-            )
-            n_threads = min(get_threads(), length(selected_rows))
-            if(n_threads == 1) {
-                # run IRFinder using single thread
-                withProgress(message = 'Running IRFinder', value = 0, {
+           if(input$irf_confirm == FALSE) {
+                # do nothing
+           } else {
+               selected_rows = settings_expr$selected_rows
+               
+                # Actually run IRFinder
+                # selected_rows = seq(
+                    # input$hot_files_expr_select$select$r,
+                    # input$hot_files_expr_select$select$r2                
+                # )
+                n_threads = min(get_threads(), length(selected_rows))
+                if(n_threads == 1) {
+                    # run IRFinder using single thread
+                    withProgress(message = 'Running IRFinder', value = 0, {
+                        i_done = 0
+                        incProgress(0, 
+                            message = paste(i_done, "of", length(selected_rows), "done"))
+                        for(i in selected_rows) {
+                            run_IRFinder(settings_expr$df.files$bam_file[i], 
+                                file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
+                                file.path(output_path, settings_expr$df.files$sample[i]))
+                            i_done = i_done + 1
+                            incProgress(1 / length(selected_rows), 
+                                message = paste(i_done, "of", length(selected_rows), "done"))
+                        }
+                    })
+                } else if(n_threads < length(selected_rows)) {
+                    n_rounds = ceiling(length(selected_rows) / n_threads)
+                    n_threads = ceiling(length(selected_rows) / n_rounds)
+                    
+                    BPPARAM = BiocParallel::bpparam()
+                    if(is(BPPARAM, "SnowParam")) {
+                        BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+                        message(paste("Using SnowParam", n_threads, "threads"))
+                    } else if(is(BPPARAM, "MulticoreParam")) {
+                        BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+                        message(paste("Using MulticoreParam", n_threads, "threads"))
+                    } else {
+                        BPPARAM_mod = BPPARAM
+                    }
+                
+                    # extract subset to run in parallel
+                    row_starts = seq(selected_rows[1], by = n_threads,
+                        length.out = n_rounds)
+                withProgress(message = 'Running IRFinder - Multi-threaded', value = 0, {
                     i_done = 0
                     incProgress(0, 
                         message = paste(i_done, "of", length(selected_rows), "done"))
-                    for(i in selected_rows) {
-                        run_IRFinder(settings_expr$df.files$bam_file[i], 
-                            file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
-                            file.path(output_path, settings_expr$df.files$sample[i]))
-                        i_done = i_done + 1
-                        incProgress(1 / length(selected_rows), 
+                    for(i in seq_len(n_rounds)) {
+                        selected_rows_subset = seq(row_starts[i], 
+                            min(length(selected_rows), row_starts[i] + n_threads - 1)
+                        )
+                        BiocParallel::bplapply(selected_rows_subset, 
+                            function(i, run_IRF, df, reference_file, output_path) {
+                                run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
+                            }, 
+
+                            df = settings_expr$df.files, 
+                            run_IRF = run_IRFinder, 
+                            reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
+                            output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod
+                        )
+                        i_done = i_done + n_threads
+                        incProgress(n_threads / length(selected_rows), 
                             message = paste(i_done, "of", length(selected_rows), "done"))
                     }
                 })
-            } else if(n_threads < length(selected_rows)) {
-                n_rounds = ceiling(length(selected_rows) / n_threads)
-                n_threads = ceiling(length(selected_rows) / n_rounds)
-                
-                BPPARAM = BiocParallel::bpparam()
-                if(is(BPPARAM, "SnowParam")) {
-                    BPPARAM_mod = BiocParallel::SnowParam(n_threads)
-                    message(paste("Using SnowParam", n_threads, "threads"))
-                } else if(is(BPPARAM, "MulticoreParam")) {
-                    BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
-                    message(paste("Using MulticoreParam", n_threads, "threads"))
-                } else {
-                    BPPARAM_mod = BPPARAM
                 }
-            
-                # extract subset to run in parallel
-                row_starts = seq(selected_rows[1], by = n_threads,
-                    length.out = n_rounds)
-            withProgress(message = 'Running IRFinder - Multi-threaded', value = 0, {
-                i_done = 0
-                incProgress(0, 
-                    message = paste(i_done, "of", length(selected_rows), "done"))
-                for(i in seq_len(n_rounds)) {
-                    selected_rows_subset = seq(row_starts[i], 
-                        min(length(selected_rows), row_starts[i] + n_threads - 1)
-                    )
-                    BiocParallel::bplapply(selected_rows_subset, 
-                        function(i, run_IRF, df, reference_file, output_path) {
-                            run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
-                        }, 
-
-                        df = settings_expr$df.files, 
-                        run_IRF = run_IRFinder, 
-                        reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
-                        output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod
-                    )
-                    i_done = i_done + n_threads
-                    incProgress(n_threads / length(selected_rows), 
-                        message = paste(i_done, "of", length(selected_rows), "done"))
-                }
-            })
             }
+            settings_expr$selected_rows = c()
             Expr_Load_IRFs()
         })
 

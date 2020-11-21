@@ -41,6 +41,7 @@ setreactive_expr <- function() {
         irf_path = "",
         anno_file = "",
         collate_path = "",
+        selected_rows = c(),
         df = c(),
         df.files = c(),
         df.anno = c()
