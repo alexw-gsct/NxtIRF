@@ -944,7 +944,7 @@ dash_server = function(input, output, session) {
             } 
 		})
 
-        get_threads() <- function() {
+        get_threads <- function() {
             if(input$thread_option == "Single-Thread"){
                 n_threads = 1
             } else if(input$thread_option == "Multi-Thread (Low)") {
