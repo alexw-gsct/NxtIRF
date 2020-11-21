@@ -1106,6 +1106,11 @@ dash_server = function(input, output, session) {
                     }
                 })
                 }
+                sendSweetAlert(
+                    session = session,
+                    title = "IRFinder run completed",
+                    type = "success"
+                )                
             }
             settings_expr$selected_rows = c()
             Expr_Load_IRFs()
@@ -1387,6 +1392,11 @@ dash_server = function(input, output, session) {
         withProgress(message = 'Collating IRFinder output', value = 0, {
             CollateData(Experiment, reference_path, output_path, n_threads = get_threads())
         })
+        sendSweetAlert(
+            session = session,
+            title = "NxtIRF-Collate run completed",
+            type = "success"
+        )           
         Expr_Load_FSTs()
     })
 		

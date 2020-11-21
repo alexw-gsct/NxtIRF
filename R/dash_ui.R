@@ -58,8 +58,11 @@ ui_tab_system <- function() {
                 radioGroupButtons(
                    inputId = "thread_option",
                    label = "Mode",
-                   choices = c("Single-Thread", 
-                    "Multi-Thread (Low)", "Multi-Thread (High)"),
+                   choices = c( 
+                        "Multi-Thread (High)",
+                        "Multi-Thread (Low)", 
+                        "Single-Thread"
+                    ),
                    justified = TRUE,
                    checkIcon = list(
                       yes = icon("ok", 
