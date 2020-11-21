@@ -1013,11 +1013,15 @@ dash_server = function(input, output, session) {
                     type = "error"
                 )
 			} else {
-
-                msg = paste("Run IRFinder on", length(bam_files), "samples?",
+                n_threads = min(get_threads(), length(selected_rows))
+                if(n_threads < length(selected_rows)) {
+                    n_rounds = ceiling(length(selected_rows) / n_threads)
+                    n_threads = ceiling(length(selected_rows) / n_rounds)
+                }
+                msg = paste("Run IRFinder on", length(selected_rows), "samples?",
                     "Estimated runtime", 10 * 
-                        ceiling(length(bam_files) / get_threads()),
-                    "minutes using", get_threads(), 
+                        ceiling(length(selected_rows) / n_threads),
+                    "minutes using", n_threads, 
                     "threads (10min per BAM @ 100 million reads per sample)"
                 )
                 ask_confirmation(
@@ -1037,7 +1041,6 @@ dash_server = function(input, output, session) {
                 input$hot_files_expr_select$select$r,
                 input$hot_files_expr_select$select$r2                
             )
-            bam_to_run = settings_expr$df.files$bam_file[selected_rows]
             n_threads = min(get_threads(), length(selected_rows))
             if(n_threads == 1) {
                 # run IRFinder using single thread
