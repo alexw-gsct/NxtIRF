@@ -1094,7 +1094,7 @@ dash_server = function(input, output, session) {
                     incProgress(n_threads / length(selected_rows), 
                         message = paste(i_done, "of", length(selected_rows), "done"))
                 }
-            }
+            })
             }
             Expr_Load_IRFs()
         })
