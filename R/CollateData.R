@@ -778,11 +778,7 @@ CollateData <- function(Experiment, reference_path, output_path,
     shiny::incProgress(0.15, message = "Generating NxtIRF FST files")
   }  
   message("Generating NxtIRF FST files")
-	
-  # n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
-  # jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
-	# n_jobs = length(jobs)
-  
+	  
 	agg.list <- suppressWarnings(BiocParallel::bplapply(seq_len(n_jobs),
 		function(x, jobs, df.internal, norm_output_path) {
 			suppressPackageStartupMessages({
@@ -856,23 +852,26 @@ CollateData <- function(Experiment, reference_path, output_path,
 				junc[JG_up != JG_down & JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
 				
         # Then use a simple overlap method to account for the remainder
-        junc.gr = makeGRangesFromDataFrame(as.data.frame(junc))
+        junc.subset = junc[JG_up == JG_down & JG_up != "" & JG_down != ""]
+        junc.gr = makeGRangesFromDataFrame(as.data.frame(junc.subset))
         OL = findOverlaps(junc.gr, junc.gr)
-        OL = OL[OL@to %in% which(junc$JG_up == junc$JG_down) | OL@from %in% which(junc$JG_up == junc$JG_down)]
+        # OL = OL[OL@to %in% which(junc$JG_up == junc$JG_down) | OL@from %in% which(junc$JG_up == junc$JG_down)]
 
         splice.overlaps.DT = data.table(from = OL@from, to = OL@to)
-        splice.overlaps.DT[, count := junc$count[OL@to]]
+        splice.overlaps.DT[, count := junc.subset$count[OL@to]]
         splice.overlaps.DT[, count_sum := sum(count), by = "from"]
         splice.summa = unique(splice.overlaps.DT[, c("from", "count_sum")])        
 
-        junc[splice.summa$from, SO_I := splice.summa$count_sum]
+        junc.subset[splice.summa$from, SO_I := splice.summa$count_sum]
 
+        junc[junc.subset, on = c("Event"), SO_I := i.SO_I]
+        
         junc[SO_L < SO_I, SO_L := SO_I]
         junc[SO_R < SO_I, SO_R := SO_I]
 				junc[, SO_I := NULL]
 
-				write.fst(as.data.frame(junc), 
-						file.path(norm_output_path, "samples", paste(block$sample[i], "junc.fst", sep=".")))
+				# write.fst(as.data.frame(junc), 
+						# file.path(norm_output_path, "samples", paste(block$sample[i], "junc.fst", sep=".")))
 
 				splice = copy(Splice.Anno)
 				
@@ -918,9 +917,20 @@ CollateData <- function(Experiment, reference_path, output_path,
 				splice[EventType %in% c("ALE", "A3SS"), coverage := cov_up]
 				splice[EventType %in% c("AFE", "A5SS"), coverage := cov_down]
 				
-				irf = as.data.table(
-						read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
-				)
+				# irf = as.data.table(
+						# read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
+				# )
+              if(!runStranded) {
+                # fread is faster here
+                irf = suppressWarnings(data.table::as.data.table(
+                    data.table::fread(block$path[i], skip = "Nondir_")))
+                data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+              } else {
+                irf = suppressWarnings(data.table::as.data.table(
+                    data.table::fread(block$path[i], skip = "Dir_Chr")))
+                data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+              }
+                
 				irf[, start := start + 1]
 				irf = irf[irf.common, on = colnames(irf.common)[1:6], EventRegion := i.EventRegion]
 				
@@ -963,11 +973,11 @@ CollateData <- function(Experiment, reference_path, output_path,
 				splice[irf, on = "EventRegion", TotalDepth := i.TotalDepth]
 				splice[splice.no_region, on = "EventName", TotalDepth := i.Depth]
 
-				write.fst(as.data.frame(splice), 
-						file.path(norm_output_path, "samples", paste(block$sample[i], "splice.fst", sep=".")))
+				# write.fst(as.data.frame(splice), 
+						# file.path(norm_output_path, "samples", paste(block$sample[i], "splice.fst", sep=".")))
 				
-				write.fst(as.data.frame(irf),
-						file.path(norm_output_path, "samples", paste(block$sample[i], "irf.fst", sep=".")))
+				# write.fst(as.data.frame(irf),
+						# file.path(norm_output_path, "samples", paste(block$sample[i], "irf.fst", sep=".")))
 						
 				file.remove(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
 				file.remove(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
