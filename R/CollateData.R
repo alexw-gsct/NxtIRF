@@ -177,7 +177,7 @@ CollateData <- function(Experiment, reference_path, output_path,
     df.internal$IRBurden_exitrons = 0
     df.internal$IRBurden_antisense = 0
     
-    n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
+    n_jobs = min(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
     jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
 	n_jobs = length(jobs)
 
