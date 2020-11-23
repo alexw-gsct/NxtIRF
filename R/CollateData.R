@@ -287,6 +287,9 @@ CollateData <- function(Experiment, reference_path, output_path,
         runStranded = TRUE
     }
     
+    # TODO: Simply check version of reference used to generate the IRFinder files
+    
+    
     # Compile junctions and IR lists first, save to temp files
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(0.15, message = "Compiling Junction List")
@@ -333,53 +336,63 @@ CollateData <- function(Experiment, reference_path, output_path,
     gc()
     if(!is.null(shiny::getDefaultReactiveDomain())) {
       shiny::incProgress(0.15, message = "Compiling Intron Retention List")
-    }  
-    message("Compiling Intron Retention List")    
-    irf.list = suppressWarnings(BiocParallel::bplapply(
-        seq_len(n_jobs),
-      function(x, jobs, df.internal, temp_output_path, runStranded, semi_join.DT) {
-        suppressPackageStartupMessages({
-          requireNamespace("data.table")
-          requireNamespace("stats")
-        })
-        work = jobs[[x]]
-        block = df.internal[work]
-        irf.segment = NULL
-        for(i in seq_len(length(work))) {
-        
-        # Compile IRFinder based on strand
-          if(!runStranded) {
-            # fread is faster here
-            irf = suppressWarnings(data.table::as.data.table(
-                data.table::fread(block$path[i], skip = "Nondir_")))
-            data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
-          } else {
-            irf = suppressWarnings(data.table::as.data.table(
-                data.table::fread(block$path[i], skip = "Dir_Chr")))
-            data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
-          }
-          if(is.null(irf.segment)) {
-              irf.segment = irf[,1:6]
-          } else {
-              irf.segment = semi_join.DT(irf.segment, irf[,1:6], by = colnames(irf.segment))
-          }
-          fst::write.fst(as.data.frame(irf), 
-            file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
-        }
-        return(irf.segment)
-      }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, 
-        runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM_mod
-    ))
-    irf.common = NULL
-    for(i in seq_len(length(irf.list))) {
-      if(is.null(irf.common)) {
-        irf.common = irf.list[[i]]
-      } else {
-        irf.common = merge(irf.common, irf.list[[i]], all = TRUE, by = colnames(irf.common))
-      }
     }
-    rm(irf.list)
-    gc()
+    
+    message("Compiling Intron Retention List")
+  if(!runStranded) {
+    irf = suppressWarnings(as.data.table(
+        fread(df.internal$path[i], skip = "Nondir_")))
+    setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+  } else {
+    irf = suppressWarnings(as.data.table(
+        fread(block$path[i], skip = "Dir_Chr")))
+    setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+  }
+  irf.common = irf[,1:6]
+  rm(irf)
+    # irf.list = suppressWarnings(BiocParallel::bplapply(
+        # seq_len(n_jobs),
+      # function(x, jobs, df.internal, temp_output_path, runStranded, semi_join.DT) {
+        # suppressPackageStartupMessages({
+          # requireNamespace("data.table")
+          # requireNamespace("stats")
+        # })
+        # work = jobs[[x]]
+        # block = df.internal[work]
+        # irf.segment = NULL
+        # for(i in seq_len(length(work))) {
+        
+          # if(!runStranded) {
+            # irf = suppressWarnings(data.table::as.data.table(
+                # data.table::fread(block$path[i], skip = "Nondir_")))
+            # data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+          # } else {
+            # irf = suppressWarnings(data.table::as.data.table(
+                # data.table::fread(block$path[i], skip = "Dir_Chr")))
+            # data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+          # }
+          # if(is.null(irf.segment)) {
+              # irf.segment = irf[,1:6]
+          # } else {
+              # irf.segment = semi_join.DT(irf.segment, irf[,1:6], by = colnames(irf.segment))
+          # }
+          # fst::write.fst(as.data.frame(irf), 
+            # file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
+        # }
+        # return(irf.segment)
+      # }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, 
+        # runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM_mod
+    # ))
+    # irf.common = NULL
+    # for(i in seq_len(length(irf.list))) {
+      # if(is.null(irf.common)) {
+        # irf.common = irf.list[[i]]
+      # } else {
+        # irf.common = merge(irf.common, irf.list[[i]], all = TRUE, by = colnames(irf.common))
+      # }
+    # }
+    # rm(irf.list)
+    # gc()
 
     irf.common[, start := start + 1]
     junc.common[, start := start + 1]
