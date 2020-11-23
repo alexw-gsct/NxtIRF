@@ -306,15 +306,16 @@ CollateData <- function(Experiment, reference_path, output_path,
         for(i in seq_len(length(work))) {
           # junc = get_multi_DT_from_gz(block$path[i], c("JC_seqname"))
           # junc = junc$JC_seqname
-          junc = suppressWarnings(as.data.table(fread(block$path[i], skip = "JC_seqname")))
-          setnames(junc, "JC_seqname", "seqnames")
+          junc = suppressWarnings(data.table::as.data.table(
+            data.table::fread(block$path[i], skip = "JC_seqname")))
+          data.table::setnames(junc, "JC_seqname", "seqnames")
           if(is.null(junc.segment)) {
               junc.segment = junc[,1:4]
           } else {
               junc.segment = merge(junc.segment, junc[,1:4], all = TRUE)
           }
         # Write temp file
-            write.fst(as.data.frame(junc), 
+            fst::write.fst(as.data.frame(junc), 
                 file.path(temp_output_path, paste(block$sample[i], "junc.fst.tmp", sep=".")))        
         }
         return(junc.segment)
@@ -349,18 +350,20 @@ CollateData <- function(Experiment, reference_path, output_path,
         # Compile IRFinder based on strand
           if(!runStranded) {
             # fread is faster here
-            irf = suppressWarnings(as.data.table(fread(block$path[i], skip = "Nondir_")))
-            setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+            irf = suppressWarnings(data.table::as.data.table(
+                data.table::fread(block$path[i], skip = "Nondir_")))
+            data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
           } else {
-            irf = suppressWarnings(as.data.table(fread(block$path[i], skip = "Dir_Chr")))
-            setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+            irf = suppressWarnings(data.table::as.data.table(
+                data.table::fread(block$path[i], skip = "Dir_Chr")))
+            data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
           }
           if(is.null(irf.segment)) {
               irf.segment = irf[,1:6]
           } else {
               irf.segment = semi_join.DT(irf.segment, irf[,1:6], by = colnames(irf.segment))
           }
-          write.fst(as.data.frame(irf), 
+          fst::write.fst(as.data.frame(irf), 
             file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
         }
         return(irf.segment)
@@ -509,6 +512,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    junc.common[, gene_group_left := NA]
+    junc.common[, exon_group_left := NA]
     junc.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
     junc.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
 
@@ -521,6 +526,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    junc.common[, gene_group_right := NA]
+    junc.common[, exon_group_right := NA]
     junc.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
     junc.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
     
@@ -549,6 +556,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    irf.common[, gene_group_left := NA]
+    irf.common[, exon_group_left := NA]
     irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
     irf.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
 
@@ -561,6 +570,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    irf.common[, gene_group_right := NA]
+    irf.common[, exon_group_right := NA]
     irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
     irf.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
     
@@ -594,6 +605,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    irf.common[, gene_group_left := NA]
+    irf.common[, exon_group_left := NA]
     irf.common$gene_group_left[OL@from] = Exon.Groups.S$gene_group[OL@to]
     irf.common$exon_group_left[OL@from] = Exon.Groups.S$exon_group[OL@to]
 
@@ -606,6 +619,8 @@ CollateData <- function(Experiment, reference_path, output_path,
             makeGRangesFromDataFrame(as.data.frame(Exon.Groups.S))
         )
     )
+    irf.common[, gene_group_right := NA]
+    irf.common[, exon_group_right := NA]
     irf.common$gene_group_right[OL@from] = Exon.Groups.S$gene_group[OL@to]
     irf.common$exon_group_right[OL@from] = Exon.Groups.S$exon_group[OL@to]
     
