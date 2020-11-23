@@ -114,7 +114,7 @@ CollateData <- function(Experiment, reference_path, output_path,
     n_threads_to_use = as.numeric(n_threads)
     assert_that(!is.na(n_threads_to_use),
         msg = "n_threads must be a numeric value")
-    assert_that(n_threads_to_use <= (parallel::detectCores() - 2),
+    assert_that(n_threads_to_use <= (parallel::detectCores() - 2) | n_threads_to_use == 1,
       msg = paste("NxtIRF does not support more threads than",
         "parallel::detectCores() - 2") )
     
@@ -172,6 +172,10 @@ CollateData <- function(Experiment, reference_path, output_path,
     df.internal$Unanno_Jn_Fraction = 0
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
+
+    df.internal$IRBurden_clean = 0
+    df.internal$IRBurden_exitrons = 0
+    df.internal$IRBurden_antisense = 0
     
     n_jobs = max(ceiling(nrow(df.internal) / samples_per_block), BPPARAM_mod$workers)
     jobs = NxtIRF.SplitVector(seq_len(nrow(df.internal)), n_jobs)	
@@ -664,7 +668,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 	splice.anno.brief = Splice.Anno[, c("EventName", "EventType", "EventRegion")]
 	
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
-  item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
+  item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI")
 
   se_output_path = file.path(norm_output_path, "se")
   if(!dir.exists(se_output_path)) {
@@ -733,6 +737,10 @@ CollateData <- function(Experiment, reference_path, output_path,
 
   write.fst(rowEvent.Extended, file.path(se_output_path, "rowEvent.fst"))
 
+# Write junc_PSI index
+  junc_PSI = junc.common[, c("seqnames", "start", "end", "strand")]
+  write.fst(junc_PSI, file.path(se_output_path, "junc_PSI_index.fst"))
+
 
     rm(candidate.introns, introns.unique)
     gc()
@@ -781,6 +789,10 @@ CollateData <- function(Experiment, reference_path, output_path,
 			Up_Exc = rowEvent[EventType %in% c("MXE")]		# for IR and SE, this defaults to rowEvent.Excluded
 			Down_Exc = rowEvent[EventType %in% c("MXE")]		
 			
+            junc_PSI = as.data.table(read.fst(
+                file.path(se_output_path, "junc_PSI_index.fst")
+            ))
+            
 			for(i in seq_len(length(work))) {
 				junc = as.data.table(
 						read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "junc.fst.tmp", sep=".")))
@@ -981,6 +993,15 @@ CollateData <- function(Experiment, reference_path, output_path,
 				minDepth[, c(block$sample[i]) := c(
 					irf$IntronDepth,
 					splice$minDepth)]
+
+                junc[count == 0, PSI := 0]
+                junc[SO_L > SO_R, PSI := count / SO_L]
+                junc[SO_R >= SO_L & SO_R > 0, PSI := count / SO_R]
+                
+				junc_PSI[junc, on = c("seqnames", "start", "end", "strand"),
+                    c(block$sample[i]) := i.PSI]
+
+                    
 			} # end FOR loop
 			if(low_memory_mode == TRUE) {
 				# Write BuildSE temp files
@@ -1020,6 +1041,12 @@ CollateData <- function(Experiment, reference_path, output_path,
 				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
 					paste("Down_Exc", as.character(x), "txt.gz", sep=".")), 
 					col.names = FALSE, row.names = FALSE)
+
+				value = t(as.matrix(junc_PSI[, -c(1:4)]))
+				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
+					paste("junc_PSI", as.character(x), "txt.gz", sep=".")), 
+					col.names = FALSE, row.names = FALSE)
+
 				return(NULL)
 			} else {
 					final = list(
@@ -1031,7 +1058,8 @@ CollateData <- function(Experiment, reference_path, output_path,
 						Up_Inc = Up_Inc[, -c(1:3)],
 						Down_Inc = Down_Inc[, -c(1:3)],
 						Up_Exc = Up_Exc[, -c(1:3)],
-						Down_Exc = Down_Exc[, -c(1:3)]
+						Down_Exc = Down_Exc[, -c(1:3)],
+                        junc_PSI = junc_PSI[, -c(1:4)]
 					)				
 				# }
 			}

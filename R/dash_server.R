@@ -949,8 +949,10 @@ dash_server = function(input, output, session) {
                 n_threads = 1
             } else if(input$thread_option == "Multi-Thread (Low)") {
                 n_threads = floor( (parallel::detectCores() - 2) / 2)
+                if(n_threads < 1) n_threads = 1
             } else {
-                n_threads = parallel::detectCores()
+                n_threads = parallel::detectCores() - 2
+                if(n_threads < 1) n_threads = 1
             }
             n_threads
         }
@@ -1388,7 +1390,7 @@ dash_server = function(input, output, session) {
         }
 
         # cores_to_use = as.numeric(settings_system$n_threads)
-        if(!is_valid(cores_to_use)) cores_to_use = 1
+        # if(!is_valid(cores_to_use)) cores_to_use = 1
         withProgress(message = 'Collating IRFinder output', value = 0, {
             CollateData(Experiment, reference_path, output_path, n_threads = get_threads())
         })

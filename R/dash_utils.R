@@ -35,6 +35,39 @@ update_select_without_clearing <- function(session, inputId, choices, input) {
     }
 }
 
+get_psi <- function(
+        samples, junc_fsts,
+        view_chr, view_start, view_end, view_strand
+){
+    assert_that(all(file.exists(junc_fsts)),
+        msg = "Some junction fst files do not exist")
+        
+    junc_index = as.data.table(fst::read.fst(junc_fsts[1], 
+        columns = c("seqnames", "start", "end", "strand")))
+    junc_index$index = seq_len(nrow(junc_index))
+    junc_index = junc_index[
+        seqnames == view_chr &
+        start < view_end & end > view_start
+    ]
+    index_start = min(junc_index$index)
+    index_end = max(junc_index$index)
+    
+    junc_index = as.data.table(fst::read.fst(junc_fsts[1], 
+        from = index_start, to = index_end,
+        columns = c("seqnames", "start", "end", "strand")))
+    
+    for(i in seq_len(length(samples))) {
+        sample_data = as.data.table(fst::read.fst(junc_fsts[i],
+            from = index_start, to = index_end,
+            columns = c("count", "SO_L", "SO_R")))
+        sample_data[count == 0, PSI := 0]
+        sample_data[SO_L > SO_R, PSI := count / SO_L]
+        sample_data[SO_R >= SO_L & SO_R > 0, PSI := count / SO_R]
+        
+        junc_index[, c(samples[i]) := sample_data$PSI]
+    }
+}
+
 determine_compatible_events <- function(reduced.DT, highlight_events) {
 
     introns = reduced.DT[get("type") == "intron"]
