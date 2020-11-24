@@ -394,7 +394,13 @@ std::string myLine_QC;
 // [[Rcpp::export]]
 int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads){
 	if(max_threads > 0 && max_threads <= omp_get_max_threads()) {
-		omp_set_num_threads(max_threads);
+		int use_threads;
+		if(max_threads > bam_files.size()) {
+			use_threads = bam_files.size();
+		} else {
+			use_threads = max_threads;
+		}
+		omp_set_num_threads(use_threads);
 	}
 
   std::string s_ref = reference_file;

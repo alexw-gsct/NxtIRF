@@ -1,6 +1,109 @@
 # wrappers to R/C++
 
 #' @export
+run_IRFinder_multithreaded = function(
+    reference_path = "./Reference", 
+    bamfiles = "Unsorted.bam", 
+    output_files = "./Sample",
+    max_threads = max(parallel::detectCores() - 2, 1),
+    run_featureCounts = FALSE,
+            localHub = FALSE,
+            ah = AnnotationHub(localHub = localHub)
+        ) {
+
+    s_bam = normalizePath(bamfiles)
+    s_ref = normalizePath(reference_path)
+    
+    assert_that(max_threads == 1 || max_threads <= parallel::detectCores() - 1,
+        msg = paste(max_threads, " threads is not allowed for this system"))
+    
+    assert_that(all(file.exists(s_bam)),
+        msg = paste(
+            paste(
+                unique(s_bam[!file.exists(s_bam)]),
+                collapse = ""
+            ),
+        " - files not found"))
+
+    assert_that(all(dir.exists(dirname(output_files))),
+        msg = paste(
+            paste(
+                unique(dirname(output_files[!dir.exists(dirname(output_files))])),
+                collapse = ""
+            ),
+        " - directories not found"))   
+       
+    assert_that(file.exists(file.path(s_ref, "settings.Rds")),
+        msg = paste(file.path(s_ref, "settings.Rds"), "not found"))   
+
+    assert_that(file.exists(file.path(s_ref, "IRFinder.ref.gz")),
+        msg = paste(file.path(s_ref, "IRFinder.ref.gz"), "not found"))
+
+    ref_file = normalizePath(file.path(s_ref, "IRFinder.ref.gz"))
+    
+    IRF_main_multithreaded(ref_file, s_bam, output_files, floor(max_threads))
+    
+    if(run_featureCounts == TRUE) {
+
+        NxtIRF.CheckPackageInstalled("Rsubread", "2.4.0")
+        settings = readRDS(file.path(s_ref, "settings.Rds"))
+        ah_transcriptome = settings$ah_transcriptome
+        gtf_file = settings$gtf_file
+
+        if(ah_transcriptome != "") {
+            assert_that(substr(ah_transcriptome,1,2) == "AH",
+                msg = "Given transcriptome AnnotationHub reference is incorrect")
+            assert_that(ah_transcriptome %in% names(ah),
+                msg = paste(ah_transcriptome, "is not a record in given AnnotationHub object")
+            )
+            gtf_file = AnnotationHub::cache(ah[names(ah) == ah_transcriptome])
+        } else {
+            assert_that(file.exists(gtf_file),
+                msg = paste("Given transcriptome gtf file", gtf_file,
+                    "not found"))
+        }
+        
+        assert_that(file.exists(gtf_file),
+            msg = paste("Given gtf reference file", gtf_file, "does not exist. Could not run featureCounts")
+        )
+        
+        # determine paired_ness, strandedness 
+        data.list = get_multi_DT_from_gz(
+            normalizePath(paste0(output_files[1], ".txt.gz")), 
+            c("BAM", "Directionality")
+        )
+        stats = data.list$BAM
+        direct = data.list$Directionality
+
+        if(stats$Value[3] == 0 & stats$Value[4] > 0) {
+            paired = TRUE
+        } else if(stats$Value[3] > 0 && 
+                stats$Value[4] / stats$Value[3] / 1000) {
+            paired = TRUE
+        } else {
+            paired = FALSE
+        }
+        strand = direct$Value[9]
+        if(strand == -1) strand = 2
+        
+        res = Rsubread::featureCounts(
+            s_bam,
+            annot.ext = gtf_file,
+            isGTFAnnotationFile = TRUE,
+            strandSpecific = strand,
+            isPairedEnd = paired,
+            requireBothEndsMapped = paired
+        )
+
+        if(all(c("counts", "annotation", "targets", "stat")) %in% names(res)) {
+            saveRDS(res, file.path(dirname(output_files[1]), "main.FC.Rds"))
+        }
+        
+    }   
+
+}    
+
+#' @export
 run_IRFinder = function(
             bamfile = "Unsorted.bam", 
             ref_file = "./IRFinder.ref.gz", 
