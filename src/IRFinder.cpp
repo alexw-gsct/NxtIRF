@@ -393,14 +393,32 @@ std::string myLine_QC;
 #ifndef GALAXY
 // [[Rcpp::export]]
 int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads){
+	
+	int use_threads = 0;
 	if(max_threads > 0 && max_threads <= omp_get_max_threads()) {
-		int use_threads;
 		if(max_threads > bam_files.size()) {
 			use_threads = bam_files.size();
 		} else {
 			use_threads = max_threads;
 		}
-		omp_set_num_threads(use_threads);
+	} else {
+		use_threads = omp_get_max_threads();
+		if(use_threads < 1) {
+			use_threads = 1;
+		}
+	}
+	omp_set_num_threads(use_threads);
+
+	if(bam_files.size() != output_files.size() || bam_files.size() < 1) {
+		Rcout << "bam_files and output_files are of different sizes\n";
+		return(1);	
+	}
+	
+	std::vector< std::string > v_bam;
+	std::vector< std::string > v_out;
+  for(int z = 0; z < bam_files.size(); z++) {
+		v_bam.push_back(string(bam_files(z)));
+		v_out.push_back(string(output_files(z)));
 	}
 
   std::string s_ref = reference_file;
@@ -410,11 +428,11 @@ int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, S
 	int ret = gz_in.LoadGZ(reference_file, true);
 	if(ret != 0) return(-1);
 
-	Rcout << "Running IRFinder multithreaded using " << omp_get_thread_num() << " threads\n";
+	Rcout << "Running IRFinder multithreaded using " << use_threads << " threads\n";
 	#pragma omp parallel for
-  for(int z = 0; z < bam_files.size(); z++) {
-    std::string s_bam = string(bam_files(z));
-    std::string output_file = string(output_files(z));
+  for(unsigned int z = 0; z < v_bam.size(); z++) {
+    std::string s_bam = v_bam.at(z);
+    std::string output_file = v_out.at(z);
 
 		std::string s_output_txt = output_file + ".txt.gz";
 		std::string s_output_cov = output_file + ".cov";
