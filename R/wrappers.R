@@ -66,7 +66,7 @@ run_IRFinder_multithreaded = function(
                 min(length(s_bam), row_starts[i] + n_threads - 1)
             )
             BiocParallel::bplapply(selected_rows_subset,
-                function(i, run_IRF, s_bam, reference_file, output_files) {
+                function(i, IRF_main, s_bam, reference_file, output_files) {
                     IRF_main(s_bam[i], reference_file, output_files[i])
                 }, 
 
