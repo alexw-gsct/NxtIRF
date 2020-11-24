@@ -90,7 +90,7 @@ public:
   	BAM2blocks();
   	void openFile(BAMReader * _IN);
   	void readBamHeader();  // implied by openFile. So perhaps should be private.
-  	int processAll(std::string& output);
+  	int processAll(std::string& output, bool threaded = false);
 
 	void registerCallbackChrMappingChange( std::function<void(const std::vector<string> &)> callback );
 	void registerCallbackProcessBlocks( std::function<void(const FragmentBlocks &)> callback );

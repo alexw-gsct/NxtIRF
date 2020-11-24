@@ -242,7 +242,7 @@ unsigned int BAM2blocks::processSingle(bam_read_core * read1) {
 
 
 
-int BAM2blocks::processAll(std::string& output) {
+int BAM2blocks::processAll(std::string& output, bool threaded) {
 
 	unsigned long long totalNucleotides = 0;
 	unsigned long j = 0;
@@ -253,7 +253,8 @@ int BAM2blocks::processAll(std::string& output) {
     std::ostringstream oss;
 #ifndef GALAXY
   uint64_t prev_bam_pos = IN->tellg();	// For progress bar
-  Progress p(IN->IS_LENGTH, true);
+	Progress p(IN->IS_LENGTH, true);
+
 #endif
 	while(1) {
 		ret |= IN->read(reads[idx].c_block_size, 4);
@@ -328,8 +329,10 @@ int BAM2blocks::processAll(std::string& output) {
       }
     }
 #ifndef GALAXY
-    p.increment((unsigned long)(IN->tellg() - prev_bam_pos));
-    prev_bam_pos = IN->tellg();
+		if(threaded == true) {
+			p.increment((unsigned long)(IN->tellg() - prev_bam_pos));		
+			prev_bam_pos = IN->tellg();
+		}
 #endif
 	}
 	return(0);
