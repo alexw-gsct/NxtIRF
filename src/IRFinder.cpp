@@ -410,7 +410,7 @@ int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, S
 	int ret = gz_in.LoadGZ(reference_file, true);
 	if(ret != 0) return(-1);
 
-
+	Rcout << "Running IRFinder multithreaded using " << omp_get_thread_num() << " threads\n";
 	#pragma omp parallel for
   for(int z = 0; z < bam_files.size(); z++) {
     std::string s_bam = string(bam_files(z));
