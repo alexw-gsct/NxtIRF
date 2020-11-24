@@ -10,16 +10,16 @@
 
 #ifdef _OPENMP
 #include <omp.h>
-// [[Rcpp::export]]
-int Has_OpenMP() {
-	return omp_get_max_threads();
-}
-#else
-// [[Rcpp::export]]
-int Has_OpenMP() {
-	return 0;
-}
 #endif
+
+// [[Rcpp::export]]
+int Has_OpenMP() {
+#ifdef _OPENMP
+	return omp_get_max_threads();
+#else
+	return 0;
+#endif
+}
 
 // [[Rcpp::export]]
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand) {

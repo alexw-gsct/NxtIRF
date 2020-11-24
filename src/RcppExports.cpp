@@ -6,6 +6,16 @@
 
 using namespace Rcpp;
 
+// Has_OpenMP
+int Has_OpenMP();
+RcppExport SEXP _NxtIRF_Has_OpenMP() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(Has_OpenMP());
+    return rcpp_result_gen;
+END_RCPP
+}
 // IRF_RLE_From_Cov
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand);
 RcppExport SEXP _NxtIRF_IRF_RLE_From_Cov(SEXP s_inSEXP, SEXP seqnameSEXP, SEXP startSEXP, SEXP endSEXP, SEXP strandSEXP) {
@@ -115,6 +125,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_NxtIRF_Has_OpenMP", (DL_FUNC) &_NxtIRF_Has_OpenMP, 0},
     {"_NxtIRF_IRF_RLE_From_Cov", (DL_FUNC) &_NxtIRF_IRF_RLE_From_Cov, 5},
     {"_NxtIRF_IRF_RLEList_From_Cov", (DL_FUNC) &_NxtIRF_IRF_RLEList_From_Cov, 2},
     {"_NxtIRF_IRF_gunzip", (DL_FUNC) &_NxtIRF_IRF_gunzip, 2},
