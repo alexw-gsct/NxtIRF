@@ -329,7 +329,7 @@ int BAM2blocks::processAll(std::string& output, bool threaded) {
       }
     }
 #ifndef GALAXY
-		if(threaded == true) {
+		if(threaded == false) {
 			p.increment((unsigned long)(IN->tellg() - prev_bam_pos));		
 			prev_bam_pos = IN->tellg();
 		}
