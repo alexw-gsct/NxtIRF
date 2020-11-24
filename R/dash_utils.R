@@ -489,3 +489,44 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     return(final_plot)
 
 }
+
+get_default_filters <- function() {
+    filterUnit <- list()
+    filterUnit$filterVars = list(
+        1, 20, "All", "(none)", 80
+    )
+    names(filterUnit$filterVars) = 
+        c("maximum", "minDepth", "minCond", "condition", "pcTRUE")
+    filterUnit$filterClass = "(none)"
+    filterUnit$filterType = "(none)"
+    
+    filters = list()
+    for(i in seq_len(8)) {
+        filters[[i]] = filterUnit
+    }
+
+    filters[[1]]$filterClass = "Data"    
+    filters[[1]]$filterType = "Depth"    
+    filters[[1]]$filterVars$minimum =  20
+
+    filters[[2]]$filterClass = "Data"    
+    filters[[2]]$filterType = "Coverage"
+    filters[[2]]$filterVars$minimum =  90
+    filters[[2]]$filterVars$minDepth =  5
+    filters[[2]]$filterVars$EventTypes =  "IR"
+
+    filters[[3]]$filterClass = "Data"    
+    filters[[3]]$filterType = "Coverage"
+    filters[[3]]$filterVars$minimum =  60
+    filters[[3]]$filterVars$minDepth =  20
+    filters[[3]]$filterVars$EventTypes =
+        c("MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")
+
+    filters[[4]]$filterClass = "Data"    
+    filters[[4]]$filterType = "Consistency"
+    filters[[4]]$filterVars$maximum =  2
+    filters[[4]]$filterVars$minDepth =  20
+    filters[[4]]$filterVars$EventTypes = c("MXE", "SE")
+
+    return(filters)
+}

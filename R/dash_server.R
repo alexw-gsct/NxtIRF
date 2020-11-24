@@ -1675,7 +1675,7 @@ dash_server = function(input, output, session) {
     })
 
     observeEvent(input$loadDefault_Filters, {
-      settings_SE$filters = default_filter
+      settings_SE$filters = get_default_filters()
     })
 
     
