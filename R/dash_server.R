@@ -1386,9 +1386,9 @@ dash_server = function(input, output, session) {
                 title = "Missing NxtIRF Path",
                 text = "Please select NxtIRF path before running NxtIRF::CollateData",
                 type = "error"
-            )        
+            )
         }
-
+        req(settings_expr$collate_path)
         # cores_to_use = as.numeric(settings_system$n_threads)
         # if(!is_valid(cores_to_use)) cores_to_use = 1
         withProgress(message = 'Collating IRFinder output', value = 0, {

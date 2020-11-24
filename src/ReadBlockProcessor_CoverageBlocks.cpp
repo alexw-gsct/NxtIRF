@@ -333,8 +333,6 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 				unsigned int SPleft;
 				unsigned int SPright;
 
-				double intronDepth = 0.0;
-
 				std::string s_buffer;
 				std::string s_name;
 				std::string s_ID;
@@ -383,6 +381,14 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 					<< percentileFromHist(hist, 50) << "\t"
 					<< percentileFromHist(hist, 75) << "\t";
 
+				if(s_clean.compare(0, 5, "clean") == 0) {
+					ID_clean += intronTrimmedMean;				
+				} else if(s_clean.find(KE) != string::npos) {
+					ID_KE += intronTrimmedMean;				
+				} else if(directionality == 0) {
+					ID_AS += intronTrimmedMean;				
+				}
+
 				if (directionality != 0) {
 					SPleft = SP.lookup(BEDrec.chrName, intronStart, measureDir);
 					SPright = SP.lookup(BEDrec.chrName, intronEnd, measureDir);
@@ -421,23 +427,11 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 						<< JCexact << "\t";
 				}
 				if (intronTrimmedMean == 0 && JCleft == 0 && JCright == 0) {
-					// oss << "0" << "\t";
-					intronDepth = 0;
+					oss << "0" << "\t";
 				}else if (intronTrimmedMean < 1) {
-					// oss << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
-					intronDepth = coverage / (coverage + max(JCleft, JCright));
+					oss << ( coverage / (coverage + max(JCleft, JCright)) ) << "\t";
 				}else{
-					// oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
-					intronDepth = intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright));
-				}
-				oss << intronDepth << "\t";
-				
-				if(s_clean.compare(0, 5, "clean") == 0) {
-					ID_clean += intronDepth;				
-				} else if(s_clean.find(KE) != string::npos) {
-					ID_KE += intronDepth;				
-				} else if(directionality == 0) {
-					ID_AS += intronDepth;				
+					oss << ( intronTrimmedMean /(intronTrimmedMean + max(JCleft, JCright)) ) << "\t";
 				}
 				
 				// Final column -- don't try to be tri-state. Just say if it is "not ok".
@@ -475,12 +469,12 @@ int CoverageBlocksIRFinder::WriteOutput(std::string& output, std::string& QC, co
 		}
 	}
 	if(directionality == 0) {
-		oss_qc 	<< "Non-Directional Clean IntronDepth Sum" << "\t" << std::ceil(ID_clean * 100.0) / 100.0 << "\n"
-						<< "Non-Directional Known-Exon IntronDepth Sum" << "\t" << std::ceil(ID_KE * 100.0) / 100.0 << "\n"
-						<< "Non-Directional Anti-Sense IntronDepth Sum" << "\t" << std::ceil(ID_AS * 100.0) / 100.0 << "\n";		
+		oss_qc 	<< "Non-Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
+						<< "Non-Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n"
+						<< "Non-Directional Anti-Sense IntronDepth Sum" << "\t" << ID_AS << "\n";		
 	} else {
-		oss_qc 	<< "Directional Clean IntronDepth Sum" << "\t" << std::ceil(ID_clean * 100.0) / 100.0 << "\n"
-						<< "Directional Known-Exon IntronDepth Sum" << "\t" << std::ceil(ID_KE * 100.0) / 100.0 << "\n";
+		oss_qc 	<< "Directional Clean IntronDepth Sum" << "\t" << ID_clean << "\n"
+						<< "Directional Known-Exon IntronDepth Sum" << "\t" << ID_KE << "\n";
 	}
 	
   output = oss.str();

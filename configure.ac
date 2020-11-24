@@ -9,6 +9,7 @@ fi
 CXX=`"${R_HOME}/bin/R" CMD config CXX`
 CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
 CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
+
 AC_LANG(C++)
 AC_PROG_CPP
 

@@ -118,16 +118,12 @@ CollateData <- function(Experiment, reference_path, output_path,
       msg = paste("NxtIRF does not support more threads than",
         "parallel::detectCores() - 2") )
     
-    if(is(BPPARAM, "SnowParam")) {
+    if(Sys.info()["sysname"] == "Windows") {
       BPPARAM_mod = BiocParallel::SnowParam(n_threads_to_use)
       message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
-    } else if(is(BPPARAM, "MulticoreParam")) {
+    } else {
       BPPARAM_mod = BiocParallel::MulticoreParam(n_threads_to_use)
       message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
-    } else {
-      BPPARAM_mod = BiocParallel::SerialParam()
-      message(paste("Using SerialParam mode with",  
-        BPPARAM_mod$workers, "cores"))
     }
 
     settings = readRDS(file.path(reference_path, "settings.Rds"))
@@ -345,54 +341,62 @@ CollateData <- function(Experiment, reference_path, output_path,
     setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
   } else {
     irf = suppressWarnings(as.data.table(
-        fread(block$path[i], skip = "Dir_Chr")))
+        fread(df.internal$path[i], skip = "Dir_Chr")))
     setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
   }
   irf.common = irf[,1:6]
   rm(irf)
-    # irf.list = suppressWarnings(BiocParallel::bplapply(
-        # seq_len(n_jobs),
-      # function(x, jobs, df.internal, temp_output_path, runStranded, semi_join.DT) {
-        # suppressPackageStartupMessages({
-          # requireNamespace("data.table")
-          # requireNamespace("stats")
-        # })
-        # work = jobs[[x]]
-        # block = df.internal[work]
-        # irf.segment = NULL
-        # for(i in seq_len(length(work))) {
+    irf.list = suppressWarnings(BiocParallel::bplapply(
+        seq_len(n_jobs),
+      function(x, jobs, df.internal, temp_output_path, runStranded) {
+        suppressPackageStartupMessages({
+          requireNamespace("data.table")
+          requireNamespace("stats")
+          requireNamespace("openssl")
+        })
+        work = jobs[[x]]
+        block = df.internal[work]
+        irf.md5 = NULL
+        for(i in seq_len(length(work))) {
         
-          # if(!runStranded) {
-            # irf = suppressWarnings(data.table::as.data.table(
-                # data.table::fread(block$path[i], skip = "Nondir_")))
-            # data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
-          # } else {
-            # irf = suppressWarnings(data.table::as.data.table(
-                # data.table::fread(block$path[i], skip = "Dir_Chr")))
-            # data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
-          # }
-          # if(is.null(irf.segment)) {
-              # irf.segment = irf[,1:6]
-          # } else {
-              # irf.segment = semi_join.DT(irf.segment, irf[,1:6], by = colnames(irf.segment))
-          # }
-          # fst::write.fst(as.data.frame(irf), 
-            # file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
-        # }
-        # return(irf.segment)
-      # }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, 
-        # runStranded = runStranded, semi_join.DT = semi_join.DT, BPPARAM = BPPARAM_mod
-    # ))
-    # irf.common = NULL
-    # for(i in seq_len(length(irf.list))) {
-      # if(is.null(irf.common)) {
-        # irf.common = irf.list[[i]]
-      # } else {
-        # irf.common = merge(irf.common, irf.list[[i]], all = TRUE, by = colnames(irf.common))
-      # }
-    # }
-    # rm(irf.list)
-    # gc()
+          if(!runStranded) {
+            irf = suppressWarnings(data.table::as.data.table(
+                data.table::fread(block$path[i], skip = "Nondir_")))
+            data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+          } else {
+            irf = suppressWarnings(data.table::as.data.table(
+                data.table::fread(block$path[i], skip = "Dir_Chr")))
+            data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+          }
+          if(is.null(irf.md5)) {
+              irf.md5 = openssl::md5(paste(irf$Name, collapse=" "))
+          } else {
+              irf.md5 = unique(c(irf.md5, openssl::md5(paste(irf$Name, collapse=" "))))
+          }
+          fst::write.fst(as.data.frame(irf), 
+            file.path(temp_output_path, paste(block$sample[i], "irf.fst.tmp", sep=".")))
+        }
+        return(irf.md5)
+      }, jobs = jobs, df.internal = df.internal, temp_output_path = temp_output_path, 
+        runStranded = runStranded, BPPARAM = BPPARAM_mod
+    ))
+    irf.md5.check = NULL
+    for(i in seq_len(length(irf.list))) {
+      if(is.null(irf.md5.check)) {
+        irf.md5.check = irf.list[[i]]
+      } else {
+        irf.md5.check = unique(irf.md5.check, irf.list[[i]])
+      }
+    }
+    rm(irf.list)
+    gc()
+
+    assert_that(length(irf.md5.check) == 1,
+        msg = paste(
+            "MD5 check of IRFinder introns are not the same.",
+            "Perhaps some samples were processed by a different reference"
+        )
+    )
 
     irf.common[, start := start + 1]
     junc.common[, start := start + 1]
@@ -917,19 +921,18 @@ CollateData <- function(Experiment, reference_path, output_path,
 				splice[EventType %in% c("ALE", "A3SS"), coverage := cov_up]
 				splice[EventType %in% c("AFE", "A5SS"), coverage := cov_down]
 				
-				# irf = as.data.table(
-						# read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
-				# )
-              if(!runStranded) {
-                # fread is faster here
-                irf = suppressWarnings(data.table::as.data.table(
-                    data.table::fread(block$path[i], skip = "Nondir_")))
-                data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
-              } else {
-                irf = suppressWarnings(data.table::as.data.table(
-                    data.table::fread(block$path[i], skip = "Dir_Chr")))
-                data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
-              }
+				irf = as.data.table(
+						read.fst(file.path(norm_output_path, "temp", paste(block$sample[i], "irf.fst.tmp", sep=".")))
+				)
+              # if(!runStranded) {
+                # irf = suppressWarnings(data.table::as.data.table(
+                    # data.table::fread(block$path[i], skip = "Nondir_")))
+                # data.table::setnames(irf, c("Nondir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))
+              # } else {
+                # irf = suppressWarnings(data.table::as.data.table(
+                    # data.table::fread(block$path[i], skip = "Dir_Chr")))
+                # data.table::setnames(irf, c("Dir_Chr", "Start", "End", "Strand"), c("seqnames","start","end", "strand"))          
+              # }
                 
 				irf[, start := start + 1]
 				irf = irf[irf.common, on = colnames(irf.common)[1:6], EventRegion := i.EventRegion]

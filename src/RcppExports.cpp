@@ -70,6 +70,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// IRF_main_multithreaded
+int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads);
+RcppExport SEXP _NxtIRF_IRF_main_multithreaded(SEXP reference_fileSEXP, SEXP bam_filesSEXP, SEXP output_filesSEXP, SEXP max_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type reference_file(reference_fileSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type bam_files(bam_filesSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type output_files(output_filesSEXP);
+    Rcpp::traits::input_parameter< int >::type max_threads(max_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(IRF_main_multithreaded(reference_file, bam_files, output_files, max_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // IRF_GenerateMappabilityReads
 int IRF_GenerateMappabilityReads(std::string genome_file, std::string out_fa, int read_len, int read_stride, int error_pos);
 RcppExport SEXP _NxtIRF_IRF_GenerateMappabilityReads(SEXP genome_fileSEXP, SEXP out_faSEXP, SEXP read_lenSEXP, SEXP read_strideSEXP, SEXP error_posSEXP) {
@@ -106,6 +120,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_NxtIRF_IRF_gunzip", (DL_FUNC) &_NxtIRF_IRF_gunzip, 2},
     {"_NxtIRF_IRF_gunzip_DF", (DL_FUNC) &_NxtIRF_IRF_gunzip_DF, 2},
     {"_NxtIRF_IRF_main", (DL_FUNC) &_NxtIRF_IRF_main, 3},
+    {"_NxtIRF_IRF_main_multithreaded", (DL_FUNC) &_NxtIRF_IRF_main_multithreaded, 4},
     {"_NxtIRF_IRF_GenerateMappabilityReads", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityReads, 5},
     {"_NxtIRF_IRF_GenerateMappabilityRegions", (DL_FUNC) &_NxtIRF_IRF_GenerateMappabilityRegions, 4},
     {NULL, NULL, 0}

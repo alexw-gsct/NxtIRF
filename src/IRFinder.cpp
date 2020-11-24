@@ -7,6 +7,7 @@
 #include "includedefine.h"
 
 #ifndef GALAXY
+#include <omp.h>
 
 // [[Rcpp::export]]
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand) {
@@ -389,7 +390,207 @@ std::string myLine_QC;
   return(0);
 }
 
-#ifdef GALAXY
+#ifndef GALAXY
+// [[Rcpp::export]]
+int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads){
+	
+	int use_threads = 0;
+	if(max_threads > 0 && max_threads <= omp_get_max_threads()) {
+		if(max_threads > bam_files.size()) {
+			use_threads = bam_files.size();
+		} else {
+			use_threads = max_threads;
+		}
+	} else {
+		use_threads = omp_get_max_threads();
+		if(use_threads < 1) {
+			use_threads = 1;
+		}
+	}
+	omp_set_num_threads(use_threads);
+
+	if(bam_files.size() != output_files.size() || bam_files.size() < 1) {
+		Rcout << "bam_files and output_files are of different sizes\n";
+		return(1);	
+	}
+	
+	std::vector< std::string > v_bam;
+	std::vector< std::string > v_out;
+  for(int z = 0; z < bam_files.size(); z++) {
+		v_bam.push_back(string(bam_files(z)));
+		v_out.push_back(string(output_files(z)));
+	}
+
+  std::string s_ref = reference_file;
+  Rcout << "Reading reference file\n";
+
+	GZReader gz_in;
+	int ret = gz_in.LoadGZ(reference_file, true);
+	if(ret != 0) return(-1);
+
+	Rcout << "Running IRFinder multithreaded using " << use_threads << " threads\n";
+	#pragma omp parallel for
+  for(unsigned int z = 0; z < v_bam.size(); z++) {
+    std::string s_bam = v_bam.at(z);
+    std::string output_file = v_out.at(z);
+
+		std::string s_output_txt = output_file + ".txt.gz";
+		std::string s_output_cov = output_file + ".cov";
+
+	
+    std::string myLine;
+    std::string myBuffer;
+    
+		std::istringstream iss(gz_in.iss.str());
+		
+    getline(iss, myLine, '>');    // discard first >
+    getline(iss, myLine, '\n');   // ignore file names for now
+    getline(iss, myBuffer, '>');  // this is the data block for ref-cover.bed
+
+		CoverageBlocksIRFinder oCoverageBlocks;
+		std::istringstream inCoverageBlocks;
+		inCoverageBlocks.str(myBuffer);
+		oCoverageBlocks.loadRef(inCoverageBlocks);
+
+			getline(iss, myLine, '\n');
+			getline(iss, myBuffer, '>');
+
+		SpansPoint oSpansPoint;
+		oSpansPoint.setSpanLength(5,4);
+		std::istringstream inSpansPoint;
+		inSpansPoint.str(myBuffer);
+		oSpansPoint.loadRef(inSpansPoint);
+
+			getline(iss, myLine, '\n');
+			getline(iss, myBuffer, '>');
+		
+		FragmentsInROI oFragmentsInROI;
+		FragmentsInChr oFragmentsInChr;
+
+			std::istringstream inFragmentsInROI;
+			inFragmentsInROI.str(myBuffer);
+			oFragmentsInROI.loadRef(inFragmentsInROI);
+
+			getline(iss, myLine, '\n');
+			getline(iss, myBuffer, '>');
+
+		JunctionCount oJuncCount;
+		std::istringstream inJuncCount;
+		inJuncCount.str(myBuffer);
+		oJuncCount.loadRef(inJuncCount);
+		
+		FragmentsMap oFragMap;
+		
+  BAM2blocks BB;
+  
+		BB.registerCallbackChrMappingChange( std::bind(&JunctionCount::ChrMapUpdate, &oJuncCount, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&JunctionCount::ProcessBlocks, &oJuncCount, std::placeholders::_1) );
+		
+		BB.registerCallbackChrMappingChange( std::bind(&FragmentsInChr::ChrMapUpdate, &oFragmentsInChr, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&FragmentsInChr::ProcessBlocks, &oFragmentsInChr, std::placeholders::_1) );
+		
+		BB.registerCallbackChrMappingChange( std::bind(&SpansPoint::ChrMapUpdate, &oSpansPoint, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&SpansPoint::ProcessBlocks, &oSpansPoint, std::placeholders::_1) );
+				
+		BB.registerCallbackChrMappingChange( std::bind(&FragmentsInROI::ChrMapUpdate, &oFragmentsInROI, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&FragmentsInROI::ProcessBlocks, &oFragmentsInROI, std::placeholders::_1) );
+		
+		BB.registerCallbackChrMappingChange( std::bind(&CoverageBlocks::ChrMapUpdate, &oCoverageBlocks, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&CoverageBlocks::ProcessBlocks, &oCoverageBlocks, std::placeholders::_1) );
+
+		BB.registerCallbackChrMappingChange( std::bind(&FragmentsMap::ChrMapUpdate, &oFragMap, std::placeholders::_1) );
+		BB.registerCallbackProcessBlocks( std::bind(&FragmentsMap::ProcessBlocks, &oFragMap, std::placeholders::_1) );
+		
+  BAMReader inbam;
+  std::ifstream inbam_stream;
+  inbam_stream.open(s_bam, std::ios::in | std::ios::binary);
+  inbam.SetInputHandle(&inbam_stream);
+  
+  BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
+  BB.processAll(myLine, true);
+
+  std::ofstream out;
+  out.open(s_output_txt, std::ios::binary);
+
+// GZ compression:
+  GZWriter outGZ;
+  outGZ.SetOutputHandle(&out);
+
+// Write stats here:
+
+  outGZ.writeline("BAM_report\tValue");
+  outGZ.writestring(myLine);
+  outGZ.writeline("");
+
+  int directionality = oJuncCount.Directional(myLine);
+  outGZ.writeline("Directionality\tValue");
+  outGZ.writestring(myLine);
+  outGZ.writeline("");
+
+	// Generate output but save this to strings:
+	std::string myLine_ROI;
+	std::string myLine_JC;
+	std::string myLine_SP;
+	std::string myLine_Chr;
+	std::string myLine_ND;
+	std::string myLine_Dir;
+	std::string myLine_QC;
+
+		oFragmentsInROI.WriteOutput(myLine_ROI, myLine_QC);
+		oJuncCount.WriteOutput(myLine_JC, myLine_QC);
+		oSpansPoint.WriteOutput(myLine_SP, myLine_QC);
+		oFragmentsInChr.WriteOutput(myLine_Chr, myLine_QC);
+		oCoverageBlocks.WriteOutput(myLine_ND, myLine_QC, oJuncCount, oSpansPoint);
+		if (directionality != 0) {
+			oCoverageBlocks.WriteOutput(myLine_Dir, myLine_QC, oJuncCount, oSpansPoint, directionality); // Directional.
+		}
+
+		outGZ.writeline("QC\tValue");
+		outGZ.writestring(myLine_QC);
+		outGZ.writeline("");
+		
+		outGZ.writeline("ROIname\ttotal_hits\tpositive_strand_hits\tnegative_strand_hits");
+		outGZ.writestring(myLine_ROI);
+		outGZ.writeline("");
+		
+		outGZ.writeline("JC_seqname\tstart\tend\tstrand\ttotal\tpos\tneg");
+		outGZ.writestring(myLine_JC);
+		outGZ.writeline("");
+		
+		outGZ.writeline("SP_seqname\tpos\ttotal\tpos\tneg");
+		outGZ.writestring(myLine_SP);
+		outGZ.writeline("");
+		
+		outGZ.writeline("ChrCoverage_seqname\ttotal\tpos\tneg");
+		outGZ.writestring(myLine_Chr);
+		outGZ.writeline("");
+		
+		outGZ.writestring(myLine_ND);
+		outGZ.writeline("");
+		
+		if (directionality != 0) {
+			outGZ.writestring(myLine_Dir);
+			outGZ.writeline("");
+		}
+		outGZ.flush(true);
+		out.flush(); out.close();
+		
+		// Write Coverage Binary file:
+		
+		std::ofstream ofCOV;
+		ofCOV.open(s_output_cov, std::ofstream::binary);
+		 
+		covFile outCOV;
+		outCOV.SetOutputHandle(&ofCOV);
+		
+		oFragMap.WriteBinary(&outCOV, BB.chr_names, BB.chr_lens);
+		ofCOV.close();		
+	}
+
+	return(0);
+}
+
+#else
 // Galaxy main
 int main(int argc, char * argv[]) {
 	// Usage:
