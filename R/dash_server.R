@@ -1070,14 +1070,15 @@ dash_server = function(input, output, session) {
                     n_threads = ceiling(length(selected_rows) / n_rounds)
                     
                     BPPARAM = BiocParallel::bpparam()
-                    if(is(BPPARAM, "SnowParam")) {
-                        BPPARAM_mod = BiocParallel::SnowParam(n_threads)
-                        message(paste("Using SnowParam", n_threads, "threads"))
-                    } else if(is(BPPARAM, "MulticoreParam")) {
-                        BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
-                        message(paste("Using MulticoreParam", n_threads, "threads"))
+                    if(n_threads == 1) {
+                      BPPARAM_mod = BiocParallel::SerialParam()
+                      message(paste("Using SerialParam", BPPARAM_mod$workers, "threads"))
+                    } else if(Sys.info()["sysname"] == "Windows") {
+                      BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+                      message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
                     } else {
-                        BPPARAM_mod = BPPARAM
+                      BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+                      message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
                     }
                 
                     # extract subset to run in parallel
@@ -1818,23 +1819,23 @@ dash_server = function(input, output, session) {
 				
 				DESeq2::sizeFactors(dds) = 1
 
-        cores_to_use = as.numeric(input$cores_slider)
-        if(!is_valid(input$cores_slider)) cores_to_use = 1
+        n_threads = as.numeric(input$cores_slider)
+        if(!is_valid(input$cores_slider)) n_threads = 1
         
         BPPARAM = BiocParallel::bpparam()
         
-        if(is(BPPARAM, "SnowParam")) {
-          BPPARAM_mod = BiocParallel::SnowParam(cores_to_use)
-          message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
-        } else if(is(BPPARAM, "MulticoreParam")) {
-          BPPARAM_mod = BiocParallel::MulticoreParam(cores_to_use)
-          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
-        } else {
+        if(n_threads == 1) {
           BPPARAM_mod = BiocParallel::SerialParam()
-          message(paste("Using SerialParam mode with", BPPARAM_mod$workers, "threads"))
+          message(paste("Using SerialParam", BPPARAM_mod$workers, "threads"))
+        } else if(Sys.info()["sysname"] == "Windows") {
+          BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+          message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
+        } else {
+          BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
         }
 				
-				dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
+        dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
 				
         # print(DESeq2::resultsNames(dds))
         message(paste("Factors to contrast are", paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),

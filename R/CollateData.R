@@ -120,10 +120,10 @@ CollateData <- function(Experiment, reference_path, output_path,
     
     if(Sys.info()["sysname"] == "Windows") {
       BPPARAM_mod = BiocParallel::SnowParam(n_threads_to_use)
-      message(paste("Using SnowParam", BPPARAM_mod$workers, "cores"))
+      message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
     } else {
       BPPARAM_mod = BiocParallel::MulticoreParam(n_threads_to_use)
-      message(paste("Using MulticoreParam", BPPARAM_mod$workers, "cores"))
+      message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
     }
 
     settings = readRDS(file.path(reference_path, "settings.Rds"))

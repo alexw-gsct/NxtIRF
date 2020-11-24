@@ -6,6 +6,7 @@ run_IRFinder_multithreaded = function(
     bamfiles = "Unsorted.bam", 
     output_files = "./Sample",
     max_threads = max(parallel::detectCores() - 2, 1),
+    Use_OpenMP = TRUE,
     run_featureCounts = FALSE,
             localHub = FALSE,
             ah = AnnotationHub(localHub = localHub)
@@ -41,7 +42,42 @@ run_IRFinder_multithreaded = function(
 
     ref_file = normalizePath(file.path(s_ref, "IRFinder.ref.gz"))
     
-    IRF_main_multithreaded(ref_file, s_bam, output_files, floor(max_threads))
+    if(Has_OpenMP() > 0 & Use_OpenMP) {
+        IRF_main_multithreaded(ref_file, s_bam, output_files, floor(max_threads))
+    } else {
+        # Use BiocParallel
+        n_rounds = ceiling(length(s_bam) / floor(max_threads))
+        n_threads = ceiling(length(s_bam) / n_rounds)
+
+        BPPARAM = BiocParallel::bpparam()
+        if(Sys.info()["sysname"] == "Windows") {
+          BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+          message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
+        } else {
+          BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
+        }
+
+        row_starts = seq(1, by = n_threads,
+            length.out = n_rounds)
+            
+        for(i in seq_len(n_rounds)) {
+            selected_rows_subset = seq(row_starts[i], 
+                min(length(s_bam), row_starts[i] + n_threads - 1)
+            )
+            BiocParallel::bplapply(selected_rows_subset,
+                function(i, run_IRF, s_bam, reference_file, output_files) {
+                    run_IRF(s_bam[i], reference_file, output_files[i])
+                }, 
+
+                s_bam = s_bam,
+                output_files = output_files,
+                run_IRF = run_IRFinder, 
+                reference_file = ref_file,
+                BPPARAM = BPPARAM_mod
+            )
+        }       
+    }
     
     if(run_featureCounts == TRUE) {
 
