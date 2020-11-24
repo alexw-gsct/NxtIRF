@@ -7,7 +7,19 @@
 #include "includedefine.h"
 
 #ifndef GALAXY
+
+#ifdef _OPENMP
 #include <omp.h>
+// [[Rcpp::export]]
+int Has_OpenMP() {
+	return omp_get_max_threads();
+}
+#else
+// [[Rcpp::export]]
+int Has_OpenMP() {
+	return 0;
+}
+#endif
 
 // [[Rcpp::export]]
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand) {
@@ -391,6 +403,13 @@ std::string myLine_QC;
 }
 
 #ifndef GALAXY
+
+#ifndef _OPENMP
+int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads){
+	Rcout << "NxtIRF was built without OpenMP; exiting...";
+	return(1);
+}
+#else
 // [[Rcpp::export]]
 int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, StringVector output_files, int max_threads){
 	
@@ -589,6 +608,7 @@ int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, S
 
 	return(0);
 }
+#endif
 
 #else
 // Galaxy main
