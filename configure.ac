@@ -9,6 +9,8 @@ fi
 CXX=`"${R_HOME}/bin/R" CMD config CXX`
 CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
 CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
+OPENMP_CPPFLAGS=`-fopenmp`
+
 AC_LANG(C++)
 AC_PROG_CPP
 
@@ -19,8 +21,8 @@ AC_SEARCH_LIBS(deflate, z, [], [AC_ERROR([The zlib library is required.])])
 AC_CHECK_HEADERS(zlib.h, [], [AC_ERROR([The zlib library headers are required.])])
 
 # Write the flags into the src/Makevars file.
-AC_SUBST([PKG_CPPFLAGS], ["${PKG_CPPFLAGS}"])
-AC_SUBST([PKG_LIBS], ["${LIBS} ${PKG_LIBS} ${ac_cv_search_deflate}"])
+AC_SUBST([PKG_CPPFLAGS], ["${PKG_CPPFLAGS} ${OPENMP_CPPFLAGS}"])
+AC_SUBST([PKG_LIBS], ["${LIBS} ${PKG_LIBS} ${ac_cv_search_deflate} ${OPENMP_CPPFLAGS}"])
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
 
