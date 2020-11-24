@@ -1,36 +1,50 @@
-AC_INIT([<package>],[<version>])
+# From https://www.r-bloggers.com/2017/08/setting-up-optional-openmp-support-with-rcpparmadillo/
 
-# Find the compiler and compiler flags used by R.
-: ${R_HOME=`R RHOME`}
+AC_PREREQ([2.69])
+AC_INIT(NxtIRF, m4_esyscmd_s([awk '/^Version:/ {print $2}' DESCRIPTION]))
+
+# Set R_HOME, respecting an environment variable if one is set 
+: ${R_HOME=$(R RHOME)}
 if test -z "${R_HOME}"; then
-  echo "could not determine R_HOME"
-  exit 1
+    AC_MSG_ERROR([Could not determine R_HOME.])   
 fi
-CXX=`"${R_HOME}/bin/R" CMD config CXX`
-CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
-CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
-
+# Use R to set CXX and CXXFLAGS
+CXX=$(${R_HOME}/bin/R CMD config CXX)
+CXXFLAGS=$("${R_HOME}/bin/R" CMD config CXXFLAGS)
+# We are using C++
 AC_LANG(C++)
-AC_PROG_CPP
+AC_REQUIRE_CPP
 
-# Search for a system library, in this case the zlib compression library (which
-# contains the function 'deflate'). This sets the variable 'ac_cv_search_deflate'
-# to what must be passed to ${PKG_LIBS}.
-AC_SEARCH_LIBS(deflate, z, [], [AC_ERROR([The zlib library is required.])])
-AC_CHECK_HEADERS(zlib.h, [], [AC_ERROR([The zlib library headers are required.])])
-
-# Write the flags into the src/Makevars file.
-AC_SUBST([PKG_CPPFLAGS], ["${PKG_CPPFLAGS}"])
-AC_SUBST([PKG_LIBS], ["${LIBS} ${PKG_LIBS} ${ac_cv_search_deflate}"])
+dnl this the meat of R's m4/openmp.m4
+  OPENMP_[]_AC_LANG_PREFIX[]FLAGS=
+  AC_ARG_ENABLE([openmp],
+    [AS_HELP_STRING([--disable-openmp], [do not use OpenMP])])
+  if test "$enable_openmp" != no; then
+    AC_CACHE_CHECK([for $[]_AC_CC[] option to support OpenMP],
+      [ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp],
+      [AC_LINK_IFELSE([_AC_LANG_OPENMP],
+     [ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp='none needed'],
+     [ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp='unsupported'
+      for ac_option in -fopenmp -xopenmp -qopenmp \
+                           -openmp -mp -omp -qsmp=omp -homp \
+               -fopenmp=libomp \
+                           -Popenmp --openmp; do
+        ac_save_[]_AC_LANG_PREFIX[]FLAGS=$[]_AC_LANG_PREFIX[]FLAGS
+        _AC_LANG_PREFIX[]FLAGS="$[]_AC_LANG_PREFIX[]FLAGS $ac_option"
+        AC_LINK_IFELSE([_AC_LANG_OPENMP],
+          [ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp=$ac_option])
+        _AC_LANG_PREFIX[]FLAGS=$ac_save_[]_AC_LANG_PREFIX[]FLAGS
+        if test "$ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp" != unsupported; then
+          break
+        fi
+      done])])
+    case $ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp in #(
+      "none needed" | unsupported)
+    ;; #(
+      *)
+    OPENMP_[]_AC_LANG_PREFIX[]FLAGS=$ac_cv_prog_[]_AC_LANG_ABBREV[]_openmp ;;
+    esac
+  fi
+AC_SUBST(OPENMP_CXXFLAGS)
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
-
-echo "
-  --------------------------------------------------
-  Configuration for ${PACKAGE_NAME} ${PACKAGE_VERSION}
-
-    cppflags: ${CPPFLAGS} ${PKG_CPPFLAGS}
-    libs:     ${PKG_LIBS}
-
-  --------------------------------------------------
-"
