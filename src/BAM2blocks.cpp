@@ -314,21 +314,17 @@ int BAM2blocks::processAll(std::string& output, bool threaded) {
               
               if(it_read != spare_reads.end()){
                   cPairedReads ++;
-                  if (reads[0].core.pos <= it_read->second->core.pos) {
+                  if (reads[0].core.pos <= it_read->second.core.pos) {
                       //cout << "procesPair call1" << endl;        
-                      totalNucleotides += processPair(&reads[0], &(*(it_read->second)));
-											delete (it_read->second);
+                      totalNucleotides += processPair(&reads[0], &(it_read->second));
                       spare_reads.erase(read_name);
                   }else{
                       //cout << "procesPair call2" << endl;                
-                      totalNucleotides += processPair(&(*(it_read->second)), &reads[0]);
-											delete (it_read->second);
+                      totalNucleotides += processPair(&(it_read->second), &reads[0]);
                       spare_reads.erase(read_name);
                   }                
               } else {
-									bam_read_core * store_read = new bam_read_core;
-									*(store_read) = reads[0];
-                  spare_reads[read_name] = store_read;
+                  spare_reads[read_name] = reads[0];
               }
       }
     }
