@@ -143,16 +143,19 @@ dash_server = function(input, output, session) {
                     )
                 })
 			} else if(input$navSelection == "navQC") {
+                if(file.exists(file.path(settings_expr$collate_path, "stats.fst"))) {
+					settings_SE$QC = 
+                        as.data.table(read.fst((file.path(settings_expr$collate_path, "stats.fst"))))                
+					settings_SE$QC = 
+                        merge(as.data.table(settings_expr$df.anno), settings_SE$QC, all = TRUE)
+                }
 				output$DT_QC <- DT::renderDataTable({
 					validate(need(settings_SE$se, "Load Experiment file first"))
 					validate(need(file.exists(
 						file.path(settings_expr$collate_path, "stats.fst")
 						), "stats.fst does not exist in given NxtIRF output directory"))
-					settings_SE$QC = 
-                        as.data.table(read.fst((file.path(settings_expr$collate_path, "stats.fst"))))
-					settings_SE$QC = merge(as.data.table(settings_expr$df.anno), settings_SE$QC, all = TRUE)
 					DT::datatable(
-						settings_SE$QC,
+						as.data.frame(settings_SE$QC),
 						class = 'cell-border stripe',
 						rownames = settings_SE$QC$sample,
 						filter = 'top'
@@ -1521,6 +1524,12 @@ dash_server = function(input, output, session) {
         }
     })
 		
+    # QC plots:
+    
+    observeEvent(input$QCmode, {
+    
+    })
+        
 	# Analyse - Calculate PSIs
 
         observeEvent(settings_SE$se, {

@@ -43,7 +43,8 @@ run_IRFinder_multithreaded = function(
     ref_file = normalizePath(file.path(s_ref, "IRFinder.ref.gz"))
     
     if(Has_OpenMP() > 0 & Use_OpenMP) {
-        IRF_main_multithreaded(ref_file, s_bam, output_files, floor(max_threads))
+        n_threads = floor(max_threads)
+        IRF_main_multithreaded(ref_file, s_bam, output_files, n_threads)
     } else {
         # Use BiocParallel
         n_rounds = ceiling(length(s_bam) / floor(max_threads))
