@@ -44,6 +44,7 @@ run_IRFinder_multithreaded = function(
     
     if(Has_OpenMP() > 0 & Use_OpenMP) {
         n_threads = floor(max_threads)
+        n_threads = min(n_threads, length(s_bam))
         IRF_main_multithreaded(ref_file, s_bam, output_files, n_threads)
     } else {
         # Use BiocParallel
@@ -139,10 +140,31 @@ run_IRFinder_multithreaded = function(
             res.old = readRDS(file.path(dirname(output_files[1]), "main.FC.Rds"))
 
             # Check md5 of annotation to show same reference was used
-            
-            # rbind stats
-            
-            # cbind counts
+            md5.old = openssl::md5(paste(
+                res.old$annotation$GeneID, res.old$annotation$Chr,
+                res.old$annotation$Start, res.old$annotation$End, 
+                res.old$annotation$Strand, collapse=" "
+                ))
+            md5 = openssl::md5(paste(
+                res$annotation$GeneID, res$annotation$Chr,
+                res$annotation$Start, res$annotation$End, 
+                res$annotation$Strand, collapse=" "
+                ))
+            md5.old.stat = openssl::md5(paste(
+                res.old$stat$Status, collapse=" "
+                ))
+            md5.stat = openssl::md5(paste(
+                res$stat$Status, collapse=" "
+                ))
+            if(md5 == md5.old & md5.stat == md5.old.stat) {
+                # cbind stats
+                new_samples = res$targets[!(res$targets %in% res.old$targets)]
+                res$target = c(res.old$targets, new_samples)
+
+                res$stat = cbind(res.old$stat, res$stat[,new_samples])
+                # cbind counts            
+                res$counts = cbind(res.old$counts, res$counts[,new_samples])
+            }
         }
         
         if(all(c("counts", "annotation", "targets", "stat") %in% names(res))) {
@@ -222,14 +244,37 @@ run_IRFinder = function(
             requireBothEndsMapped = paired
         )
 
+        # Append to existing main.FC.Rds if exists:
+        
         if(file.exists(file.path(dirname(output_files[1]), "main.FC.Rds"))) {
             res.old = readRDS(file.path(dirname(output_files[1]), "main.FC.Rds"))
 
             # Check md5 of annotation to show same reference was used
-            
-            # rbind stats
-            
-            # cbind counts
+            md5.old = openssl::md5(paste(
+                res.old$annotation$GeneID, res.old$annotation$Chr,
+                res.old$annotation$Start, res.old$annotation$End, 
+                res.old$annotation$Strand, collapse=" "
+                ))
+            md5 = openssl::md5(paste(
+                res$annotation$GeneID, res$annotation$Chr,
+                res$annotation$Start, res$annotation$End, 
+                res$annotation$Strand, collapse=" "
+                ))
+            md5.old.stat = openssl::md5(paste(
+                res.old$stat$Status, collapse=" "
+                ))
+            md5.stat = openssl::md5(paste(
+                res$stat$Status, collapse=" "
+                ))
+            if(md5 == md5.old & md5.stat == md5.old.stat) {
+                # cbind stats
+                new_samples = res$targets[!(res$targets %in% res.old$targets)]
+                res$target = c(res.old$targets, new_samples)
+
+                res$stat = cbind(res.old$stat, res$stat[,new_samples])
+                # cbind counts            
+                res$counts = cbind(res.old$counts, res$counts[,new_samples])
+            }
         }
 
         if(all(c("counts", "annotation", "targets", "stat") %in% names(res))) {

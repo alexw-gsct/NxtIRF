@@ -1527,7 +1527,36 @@ dash_server = function(input, output, session) {
     # QC plots:
     
     observeEvent(input$QCmode, {
-    
+        req(settings_SE$QC)
+        df = as.data.frame(settings_SE$QC)
+        rownames(df) = df$sample
+        choices = colnames(df)
+        choices = choices[!(choices %in% colnames(settings_expr$df.anno))]
+        choices = choices[!(choices %in% 
+            c("paired", "strand", "path")
+        )]
+        if(input$QCmode == "PCA") {
+            mat = as.matrix(df[, choices])
+            rownames(mat) = df$sample
+            colVar = matrixStats::colVars(mat)
+            mat = mat[,colVar > 0]
+            PCA = prcomp(mat, scale. = TRUE)
+            output$QC_plot <- renderPlotly({
+                print(
+                ggplotly(
+                    ggplot(as.data.frame(PCA$x), aes(x = PC1, y = PC2, text = rownames(PCA$x))) +
+                        geom_point(),
+                    tooltip = "text"
+                )
+                )
+            })
+        } else if(input$QCmode == "Graphs") {
+            output$QC_plot <- renderPlotly({
+                validate(need(is_valid(input$QC_xaxis) | is_valid(input$QC_yaxis),
+                    "Specify X or Y axis"))
+                
+            })
+        }
     })
         
 	# Analyse - Calculate PSIs
