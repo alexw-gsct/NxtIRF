@@ -164,10 +164,10 @@ dash_server = function(input, output, session) {
                 if(is_valid(settings_SE$QC)) {
                     choices = colnames(settings_SE$QC)
                     choices = choices[!(choices %in% colnames(settings_expr$df.anno))]
-                    choice = choices[!(choices %in% 
-                        c("paired", "strand")
+                    choices = choices[!(choices %in% 
+                        c("paired", "strand", "path")
                     )]
-                    choice = c("(none)", choices)
+                    choices = c("(none)", choices)
                     updateSelectInput(session = session, inputId = "QC_xaxis",
                         choices = choices)	        
                     updateSelectInput(session = session, inputId = "QC_yaxis",
@@ -1545,7 +1545,7 @@ dash_server = function(input, output, session) {
                 print(
                 ggplotly(
                     ggplot(as.data.frame(PCA$x), aes(x = PC1, y = PC2, text = rownames(PCA$x))) +
-                        geom_point(),
+                        geom_point() + geom_text(aes(label = rownames(PCA$x))),
                     tooltip = "text"
                 )
                 )
@@ -1554,7 +1554,46 @@ dash_server = function(input, output, session) {
             output$QC_plot <- renderPlotly({
                 validate(need(is_valid(input$QC_xaxis) | is_valid(input$QC_yaxis),
                     "Specify X or Y axis"))
-                
+                if(is_valid(input$QC_xaxis) & is_valid(input$QC_yaxis)) {
+                    df.plot = data.frame(sample = df$sample,
+                        xaxis = unname(unlist(df[,input$QC_xaxis])),
+                        yaxis = unname(unlist(df[,input$QC_yaxis]))
+                    )
+                    colnames(df.plot)[2:3] = c(
+                        input$QC_xaxis, input$QC_yaxis
+                    )
+                    print(ggplotly(
+                        ggplot(df.plot, aes_string(
+                            x = input$QC_xaxis, y = input$QC_yaxis,
+                            text = "sample")) +
+                        geom_point() + geom_text(aes(label = sample)),
+                        tooltip = "text"
+                    )) 
+                } else if(is_valid(input$QC_xaxis)) {
+                     df.plot = data.frame(sample = df$sample,
+                        xaxis = unname(unlist(df[,input$QC_xaxis]))
+                    )
+                    colnames(df.plot)[2] = input$QC_xaxis
+                    print(ggplotly(
+                        ggplot(df.plot, aes_string(
+                            x = input$QC_xaxis, y = "sample",
+                            text = "sample")) +
+                        geom_bar(stat="identity"),
+                        tooltip = "text"
+                    ))          
+                } else if(is_valid(input$QC_yaxis)) {
+                     df.plot = data.frame(sample = df$sample,
+                        yaxis = unname(unlist(df[,input$QC_yaxis]))
+                    )
+                    colnames(df.plot)[2] = input$QC_yaxis
+                    print(ggplotly(
+                        ggplot(df.plot, aes_string(
+                            y = input$QC_yaxis, x = "sample",
+                            text = "sample")) +
+                        geom_bar(stat="identity"),
+                        tooltip = "text"
+                    ))
+                }
             })
         }
     })

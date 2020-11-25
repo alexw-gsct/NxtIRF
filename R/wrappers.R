@@ -131,7 +131,7 @@ run_IRFinder_multithreaded = function(
             strandSpecific = strand,
             isPairedEnd = paired,
             requireBothEndsMapped = paired,
-            nthreads = max(1, n_threads - 1)
+            nthreads = n_threads
         )
 
         # Append to existing main.FC.Rds if exists:
