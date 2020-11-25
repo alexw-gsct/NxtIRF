@@ -1281,8 +1281,8 @@ dash_server = function(input, output, session) {
             colData.Rds = readRDS(file.path(settings_expr$collate_path, "colData.Rds"))
             req_columns = c("df.anno", "df.files")
             if(all(req_columns %in% names(colData.Rds))) {
-                settings_expr$df.files = df.files
-                settings_expr$df.anno = df.anno
+                settings_expr$df.files = colData.Rds$df.files
+                settings_expr$df.anno = colData.Rds$df.anno
                 if("bam_path" %in% names(colData.Rds)) {
                     settings_expr$bam_path = colData.Rds$bam_path
                 }
@@ -1310,6 +1310,46 @@ dash_server = function(input, output, session) {
             output$se_expr_infobox <- renderUI({
                 ui_infobox_expr(0)
             })        
+        }
+    })
+
+    observeEvent(settings_expr$save_expr,{
+        if(is_valid(settings_expr$collate_path) &&
+            file.exists(file.path(settings_expr$collate_path, "colData.Rds"))) {
+            colData.Rds = list(
+                df.anno = settings_expr$df.anno,
+                df.files = settings_expr$df.files,
+                bam_path = settings_expr$bam_path,
+                irf_path = settings_expr$irf_path
+            )
+            saveRDS(colData.Rds, file.path(settings_expr$collate_path, "colData.Rds"))
+        } else {
+        
+        }
+    })
+
+    observeEvent(settings_expr$load_expr,{
+        if(is_valid(settings_expr$collate_path) &&
+            file.exists(file.path(settings_expr$collate_path, "colData.Rds"))) {
+            # Load Experiment from "colData.Rds"
+            colData.Rds = readRDS(file.path(settings_expr$collate_path, "colData.Rds"))
+            req_columns = c("df.anno", "df.files")
+            if(all(req_columns %in% names(colData.Rds))) {
+                settings_expr$df.files = colData.Rds$df.files
+                settings_expr$df.anno = colData.Rds$df.anno
+                if("bam_path" %in% names(colData.Rds)) {
+                    settings_expr$bam_path = colData.Rds$bam_path
+                }
+                if("irf_path" %in% names(colData.Rds)) {
+                    settings_expr$irf_path = colData.Rds$irf_path
+                }
+                output$se_expr_infobox <- renderUI({
+                    ui_infobox_expr(ifelse(is_valid(settings_SE$se),2,1),
+                        "Ready to Build Experiment")
+                })                
+            }
+        } else {
+        
         }
     })
 	
