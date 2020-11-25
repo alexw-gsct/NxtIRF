@@ -471,6 +471,34 @@ ui_tab_expr <- function() {
     )
 }
 
+ui_tab_qc <- function() {
+    tabItem(tabName = "navQC",
+        fluidRow(
+            column(2,
+                selectInput('QCmode', 'Mode', width = '100%',
+                    choices = c("Summary Table", "PCA", "Graphs")), 
+                conditionalPanel(
+                    condition = "['Graphs'].indexOf(input.QCmode) >= 0",
+                    selectInput('QC_xaxis', 'X axis', width = '100%',
+                        choices = c("(none)")), 
+                    selectInput('QC_yaxis', 'Y axis', width = '100%',
+                        choices = c("(none)"))
+                )
+            ),
+            column(10,
+                conditionalPanel(
+                    condition = "['Summary Table'].indexOf(input.QCmode) >= 0",
+                    div(style = 'overflow-x: scroll',  DT::dataTableOutput('DT_QC'))
+                ),
+                conditionalPanel(
+                    condition = "['Summary Table'].indexOf(input.QCmode) < 0",
+                    plotlyOutput("QC_plot", height = "800px")
+                )
+            )
+        )
+    )
+}
+
 ui_tab_filter <- function() {
     tabItem(tabName = "navFilter",
         # Current Experiment

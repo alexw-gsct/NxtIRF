@@ -128,10 +128,23 @@ run_IRFinder_multithreaded = function(
             isGTFAnnotationFile = TRUE,
             strandSpecific = strand,
             isPairedEnd = paired,
-            requireBothEndsMapped = paired
+            requireBothEndsMapped = paired,
+            nthreads = max(1, n_threads - 1)
         )
 
-        if(all(c("counts", "annotation", "targets", "stat")) %in% names(res)) {
+        # Append to existing main.FC.Rds if exists:
+        
+        if(file.exists(file.path(dirname(output_files[1]), "main.FC.Rds"))) {
+            res.old = readRDS(file.path(dirname(output_files[1]), "main.FC.Rds"))
+
+            # Check md5 of annotation to show same reference was used
+            
+            # rbind stats
+            
+            # cbind counts
+        }
+        
+        if(all(c("counts", "annotation", "targets", "stat") %in% names(res))) {
             saveRDS(res, file.path(dirname(output_files[1]), "main.FC.Rds"))
         }
         
@@ -208,8 +221,18 @@ run_IRFinder = function(
             requireBothEndsMapped = paired
         )
 
-        if(all(c("counts", "annotation", "targets", "stat")) %in% names(res)) {
-            saveRDS(res, paste(output_file, "fc.Rds", sep="."))
+        if(file.exists(file.path(dirname(output_files[1]), "main.FC.Rds"))) {
+            res.old = readRDS(file.path(dirname(output_files[1]), "main.FC.Rds"))
+
+            # Check md5 of annotation to show same reference was used
+            
+            # rbind stats
+            
+            # cbind counts
+        }
+
+        if(all(c("counts", "annotation", "targets", "stat") %in% names(res))) {
+            saveRDS(res, file.path(dirname(output_files[1]), "main.FC.Rds"))
         }
         
     }

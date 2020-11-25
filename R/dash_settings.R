@@ -52,7 +52,8 @@ setreactive_SE <- function() {
     reactiveValues(
         se = NULL,
         filterSummary = NULL,
-        filters = list()
+        filters = list(),
+        QC = c()
     )
 }
 

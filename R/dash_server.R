@@ -146,18 +146,36 @@ dash_server = function(input, output, session) {
 				output$DT_QC <- DT::renderDataTable({
 					validate(need(settings_SE$se, "Load Experiment file first"))
 					validate(need(file.exists(
-						file.path(settings_expr$collate_path, "se", "stats.fst")
+						file.path(settings_expr$collate_path, "stats.fst")
 						), "stats.fst does not exist in given NxtIRF output directory"))
-					DT = as.data.table(read.fst((file.path(settings_expr$collate_path, "se", "stats.fst"))))
-					DT = merge(as.data.table(settings_expr$df.anno), DT, all = TRUE)
+					settings_SE$QC = 
+                        as.data.table(read.fst((file.path(settings_expr$collate_path, "stats.fst"))))
+					settings_SE$QC = merge(as.data.table(settings_expr$df.anno), settings_SE$QC, all = TRUE)
 					DT::datatable(
-						DT,
+						settings_SE$QC,
 						class = 'cell-border stripe',
-						rownames = DT$sample,
+						rownames = settings_SE$QC$sample,
 						filter = 'top'
 					)
 				})
-			} else if(input$navSelection == "navFilter") {
+                if(is_valid(settings_SE$QC)) {
+                    choices = colnames(settings_SE$QC)
+                    choices = choices[!(choices %in% colnames(settings_expr$df.anno))]
+                    choice = choices[!(choices %in% 
+                        c("paired", "strand")
+                    )]
+                    choice = c("(none)", choices)
+                    updateSelectInput(session = session, inputId = "QC_xaxis",
+                        choices = choices)	        
+                    updateSelectInput(session = session, inputId = "QC_yaxis",
+                        choices = choices)	        
+                } else {
+                     updateSelectInput(session = session, inputId = "QC_xaxis",
+                        choices = "(none)")	        
+                    updateSelectInput(session = session, inputId = "QC_yaxis",
+                        choices = "(none)")	               
+                }
+ 			} else if(input$navSelection == "navFilter") {
 				if(!is.null(settings_SE$se)) {
 					output$current_expr_Filters = renderText("SummarizedExperiment loaded")
 				} else {
@@ -1495,16 +1513,12 @@ dash_server = function(input, output, session) {
             settings_SE$se = NULL
     })
     observeEvent(input$build_expr, {
-
-        if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
-            nxt_files = settings_expr$df.files$junc_file
-        } else {
-            nxt_files = NULL
-        }            
-        ret = is_valid(nxt_files) && all(file.exists(nxt_files))
-        req(ret == TRUE)
-        colData = as.data.table(settings_expr$df.anno)
-        settings_SE$se = MakeSE(colData, settings_expr$collate_path)
+        if(is_valid(settings_expr$collate_path) &&
+                file.exists(file.path(
+                    settings_expr$collate_path, "colData.Rds"))) {
+            colData = as.data.table(settings_expr$df.anno)
+            settings_SE$se = MakeSE(settings_expr$collate_path, colData)
+        }
     })
 		
 	# Analyse - Calculate PSIs

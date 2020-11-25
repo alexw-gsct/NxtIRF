@@ -1177,9 +1177,9 @@ MakeSE = function(fst_path, colData) {
       assert_that("df.anno" %in% names(colData.Rds),
         msg = "colData.Rds must contain df.anno containing annotations")
     
-      colData = as.data.frame(colData.Rds$df.anno)
+      colData = colData.Rds$df.anno
   }
-
+  colData = as.data.frame(colData)
   colnames(colData)[1] = "sample"
   remove_na = NULL
   if(ncol(colData) > 1) {

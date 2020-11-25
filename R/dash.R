@@ -13,25 +13,20 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 		dashboardBody(
 			tabItems(
                 ui_tab_title(),
+                
                 ui_tab_system(),
-                ui_tab_ref_new(),			
+                
+                ui_tab_ref_new(),		
 
                 ui_tab_expr(),
 				
-				tabItem(tabName = "navQC",
-                    div(style = 'overflow-x: scroll',  DT::dataTableOutput('DT_QC'))
-				),
-
+                ui_tab_qc(),
                 ui_tab_filter(),
-
                 ui_tab_analyse(),
 
                 ui_tab_diag(),
-
                 ui_tab_volcano(),
-
                 ui_tab_heatmap(),
-				
                 ui_tab_coverage()
 			)
 		)

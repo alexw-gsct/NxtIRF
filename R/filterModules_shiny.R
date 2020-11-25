@@ -83,10 +83,10 @@ filterModule_server <- function(id, filterdata, conditionList) {
             }
             if(is_valid(final$filterType) && 
                     final$filterType %in% type_choices) {
+                updateSelectInput(session = session, inputId = "filterType", 
+                    choices = type_choices, selected = final$filterType)
                 updateSelectInput(session = session, inputId = "filterClass", 
                     choices = c("(none)", "Annotation", "Data"), selected = final$filterClass)
-                # updateSelectInput(session = session, inputId = "filterType", 
-                # choices = type_choices, selected = final$filterType)
             } else {
                 # Invalid filter; destroy this record
                 final$filterClass = "(none)"
@@ -98,6 +98,7 @@ filterModule_server <- function(id, filterdata, conditionList) {
 
                 return()
             }
+         
             if(is_valid((final$filterVars$minimum))) {
                 if(final$filterType == "Depth") {
                     shinyWidgets::updateSliderTextInput(
