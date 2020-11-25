@@ -523,12 +523,12 @@ void FragmentsMap::ChrMapUpdate(const std::vector<string> &chrmap) {
   chrID_count[1].resize(0);
   chrID_count[2].resize(0);
   for (unsigned int i = 0; i < chrmap.size(); i++) {
-    (*chrName_count[0])[chrmap.at(i)].insert({0,0}); // Insert dummy pair
-    chrID_count[0].push_back( &(*chrName_count[0])[chrmap.at(i)] );
-    (*chrName_count[1])[chrmap.at(i)].insert({0,0}); // Insert dummy pair
-    chrID_count[1].push_back( &(*chrName_count[1])[chrmap.at(i)] );
-    (*chrName_count[2])[chrmap.at(i)].insert({0,0}); // Insert dummy pair
-    chrID_count[2].push_back( &(*chrName_count[2])[chrmap.at(i)] );
+    chrName_count[0][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[0].push_back( &chrName_count[0][chrmap.at(i)] );
+    chrName_count[1][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[1].push_back( &chrName_count[1][chrmap.at(i)] );
+    chrName_count[2][chrmap.at(i)].insert({0,0}); // Insert dummy pair
+    chrID_count[2].push_back( &chrName_count[2][chrmap.at(i)] );
   }
 }
 
@@ -604,7 +604,7 @@ int FragmentsMap::WriteBinary(covFile *os, const std::vector<std::string> chr_na
 
   unsigned int refID = 0;
   for(unsigned int j = 0; j < 3; j++) {
-    for (auto itChr=(*chrName_count[j]).begin(); itChr!=(*chrName_count[j]).end(); itChr++) {
+    for (auto itChr=chrName_count[j].begin(); itChr!=chrName_count[j].end(); itChr++) {
       unsigned int coordpos = 0;
       unsigned int coorddepth = 0;
       bool writefirst = true;
@@ -662,7 +662,7 @@ int FragmentsMap::WriteOutput(std::ostream *os,
     sort_chr_lens.push_back(chr->second);
   }    
     
-  for (auto itChr=(*chrName_count[2]).begin(); itChr!=(*chrName_count[2]).end(); itChr++) {
+  for (auto itChr=chrName_count[2].begin(); itChr!=chrName_count[2].end(); itChr++) {
     int coverage = 0;
     bool covered = false;
     
@@ -717,15 +717,10 @@ FragmentsInChr::~FragmentsInChr() {
     chrName_count.clear();
 }
 
-FragmentsMap::FragmentsMap() {
-	chrName_count = new std::map<string, std::map<unsigned int, int> >[3];
-}
-
 FragmentsMap::~FragmentsMap() {
-  (*chrName_count[0]).clear();
-  (*chrName_count[1]).clear();
-  (*chrName_count[2]).clear();
-	delete[] chrName_count;
+  chrName_count[0].clear();
+  chrName_count[1].clear();
+  chrName_count[2].clear();
 }
 
 
