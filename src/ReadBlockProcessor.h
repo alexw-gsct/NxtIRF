@@ -114,7 +114,7 @@ class FragmentsInROI : public ReadBlockProcessor {
 class FragmentsMap : public ReadBlockProcessor {
   // Counts mappability.
 private:
-  std::map<string, std::map<unsigned int, int> > * chrName_count[3];  // 0 = +, 1 = -, 2 = both
+  std::map<string, std::map<unsigned int, int> > chrName_count[3];  // 0 = +, 1 = -, 2 = both
   std::vector<std::map<unsigned int, int>*> chrID_count[3];
   
   union stream_uint32 {
@@ -127,7 +127,6 @@ private:
   };
   
 public:
-	FragmentsMap();
   ~FragmentsMap();
   void ProcessBlocks(const FragmentBlocks &blocks);
   void ChrMapUpdate(const std::vector<string> &chrmap);
