@@ -546,18 +546,18 @@ void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
         (*chrID_count[blocks.direction].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
       } else {
         it_position->second += 1;
-        if(it_position->second == 0) {
-          (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
-        }
+        // if(it_position->second == 0) {
+          // (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
+        // }
       }
       it_position = (*chrID_count[blocks.direction].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
       if (it_position == (*chrID_count[blocks.direction].at(blocks.chr_id)).end()) {
         (*chrID_count[blocks.direction].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
       } else {
         it_position->second -= 1;
-        if(it_position->second == 0) {
-          (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
-        }
+        // if(it_position->second == 0) {
+          // (*chrID_count[blocks.direction].at(blocks.chr_id)).erase(it_position);
+        // }
       }
       // Unstranded 
       it_position = (*chrID_count[2].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j]);
@@ -565,18 +565,18 @@ void FragmentsMap::ProcessBlocks(const FragmentBlocks &blocks) {
         (*chrID_count[2].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j], 1});
       } else {
         it_position->second += 1;
-        if(it_position->second == 0) {
-          (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
-        }
+        // if(it_position->second == 0) {
+          // (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
+        // }
       }
       it_position = (*chrID_count[2].at(blocks.chr_id)).find(blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j]);
       if (it_position == (*chrID_count[2].at(blocks.chr_id)).end()) {
         (*chrID_count[2].at(blocks.chr_id)).insert({ blocks.readStart[index] + blocks.rStarts[index][j] + blocks.rLens[index][j], -1});
       } else {
         it_position->second -= 1;
-        if(it_position->second == 0) {
-          (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
-        }
+        // if(it_position->second == 0) {
+          // (*chrID_count[2].at(blocks.chr_id)).erase(it_position);
+        // }
       }
     }
   }
