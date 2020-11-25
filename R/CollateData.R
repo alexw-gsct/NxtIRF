@@ -702,10 +702,10 @@ CollateData <- function(Experiment, reference_path, output_path,
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
   item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI")
 
-  se_output_path = file.path(norm_output_path, "se")
-  if(!dir.exists(se_output_path)) {
-      dir.create(se_output_path)
-  }		
+  se_output_path = norm_output_path
+  # if(!dir.exists(se_output_path)) {
+      # dir.create(se_output_path)
+  # }		
 
   # Annotate anything here in rowEvent.extended that allows for Annotation based filters
   tsl_min <- any_is_PC <- is_protein_coding <- all_is_NMD <- intron_id <- Inc_Is_Protein_Coding <- 
@@ -798,7 +798,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 	ExonToIntronReadsRight <- NULL      
 			
       # Read this from fst file
-      rowEvent = as.data.table(read.fst(file.path(norm_output_path, "se", "rowEvent.fst")))
+      rowEvent = as.data.table(read.fst(file.path(norm_output_path, "rowEvent.fst")))
       junc.common = as.data.table(read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
       irf.common = as.data.table(read.fst(file.path(norm_output_path, "annotation","IR.fst")))
       Splice.Anno = as.data.table(read.fst(file.path(norm_output_path, "annotation","Splice.fst")))
@@ -1149,6 +1149,12 @@ CollateData <- function(Experiment, reference_path, output_path,
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
 	write.fst(as.data.frame(df.internal), outfile)
 	
+    # Create barebones colData.Rds
+    colData = list(
+        df.files = data.table(sample = df.internal$sample),
+        df.anno = data.table(sample = df.internal$sample)
+    )
+    saveRDS(colData, file.path(se_output_path, "colData.Rds"))
   if(!is.null(shiny::getDefaultReactiveDomain())) {
     shiny::incProgress(0.19, message = "NxtIRF Collation Finished")
   }  
@@ -1156,15 +1162,24 @@ CollateData <- function(Experiment, reference_path, output_path,
 }
 
 #' @export
-MakeSE = function(colData, fst_path) {
+MakeSE = function(fst_path, colData) {
 
   item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
     "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
-  files.todo = file.path(normalizePath(fst_path), "se", paste(item.todo, "fst", sep="."))
+  files.todo = file.path(normalizePath(fst_path), paste(item.todo, "fst", sep="."))
   assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
-  colData = as.data.frame(colData)
+  if(missing(colData)) {
+      assert_that(file.exists(file.path(fst_path, "colData.Rds")),
+        msg = "colData.Rds does not exist in given path")
+      colData.Rds = readRds("colData.Rds")
+      assert_that("df.anno" %in% names(colData.Rds),
+        msg = "colData.Rds must contain df.anno containing annotations")
+    
+      colData = as.data.frame(colData.Rds$df.anno)
+  }
+
   colnames(colData)[1] = "sample"
   remove_na = NULL
   if(ncol(colData) > 1) {

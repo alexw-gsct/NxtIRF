@@ -323,7 +323,7 @@ ui_ddb_nxt_path <- function() {
         
         tags$h4("Run NxtIRF CollateData on IRFinder output"),
         actionButton("run_collate_expr", 
-            "Compile NxtIRF FST files"),
+            "Run NxtIRF-Collate"),
         textOutput("txt_run_col_expr")
     )
 }
@@ -359,28 +359,41 @@ ui_ddb_build_expr <- function() {
         color = "danger",
         icon = icon("flask", lib = "font-awesome"),
 
-        shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
-            title = "Load Experiment Data Frame", multiple = FALSE), br(), # done
-        shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
-            filetype = list(dataframe = "csv")), br(),
-        actionButton("clear_expr", "Clear Experiment"),
-        textOutput("txt_run_save_expr"),
-        br(),
-        shinyFilesButton("file_expr_path_load", label = "Choose Sample Annotation Table", 
+        shinyDirButton("dir_collate_path_load", 
+            label = "Choose NxtIRF FST output path", 
+            title = "Choose NxtIRF FST output path"), # done
+        textOutput("txt_collate_path_expr"), br(), # done
+        
+        tags$h4("Run NxtIRF CollateData on IRFinder output"),
+        actionButton("run_collate_expr", 
+            "Compile NxtIRF FST files"),
+        textOutput("txt_run_col_expr"),
+
+        shinyFilesButton("file_expr_path_load", label = "Add Sample Annotations", 
             title = "Choose Sample Annotation Table", multiple = FALSE), # done
         textOutput("txt_sample_anno_expr"), # done
         br(),
+
         actionButton("build_expr", "Build SummarizedExperiment"),
+
+        # shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
+            # title = "Load Experiment Data Frame", multiple = FALSE), br(), # done
+        # shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
+            # filetype = list(dataframe = "csv")), br(),
+        actionButton("load_expr", "Load Experiment"),
+        actionButton("save_expr", "Save Experiment"),
+
+        actionButton("clear_expr", "Clear Experiment")
         
     )
 }
 
-ui_infobox_expr <- function(status = 0) {
+ui_infobox_expr <- function(status = 0, msg = "") {
 
     box1 =  infoBox(
         title = "SummarizedExperiment Object", 
         value = ifelse(status == 0,
-            "MISSING", ifelse(status == 2, "BUILT / LOADED", "Please BUILD Experiment")),
+            "MISSING", ifelse(status == 2, "BUILT / LOADED", msg)),
         icon = icon("flask", lib = "font-awesome"),
         color = ifelse(status == 0,
         "red", ifelse(status == 2, "green", "yellow"))
@@ -407,7 +420,7 @@ ui_tab_expr <- function() {
             uiOutput("ref_expr_infobox"),
             uiOutput("bam_expr_infobox"),
             uiOutput("irf_expr_infobox"),
-            uiOutput("nxt_expr_infobox"),
+            # uiOutput("nxt_expr_infobox"),
             uiOutput("se_expr_infobox"),
         ),
         fluidRow(
@@ -433,7 +446,7 @@ ui_tab_expr <- function() {
                     ui_ddb_ref_load(),
                     ui_ddb_bam_path(),
                     ui_ddb_irf_path(),
-                    ui_ddb_nxt_path(),
+                    # ui_ddb_nxt_path(),
                     ui_ddb_build_expr(),
 
                 )

@@ -132,10 +132,13 @@ dash_server = function(input, output, session) {
                 output$se_expr_infobox <- renderUI({
                     ui_infobox_expr(ifelse(
                         is_valid(settings_SE$se), 2,
-                        ifelse(is_valid(settings_expr$df.files) &&
-                            "junc_file" %in% names(settings_expr$df.files) &&
-                            all(file.exists(settings_expr$df.files$junc_file)),
-                            1,0)
+                        ifelse(
+                                is_valid(settings_expr$collate_path) &&
+                                file.exists(file.path(
+                                    settings_expr$collate_path,
+                                    "colData.Rds"
+                                ))
+                            ,1,0)
                         )
                     )
                 })
@@ -268,7 +271,7 @@ dash_server = function(input, output, session) {
           
           settings_Cov$event.ranges = as.data.table(rowData)
         
-            DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file", "junc_file")])
+            DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file")])
             DT.files = na.omit(DT.files)
           settings_Cov$avail_cov = DT.files$cov_file
           names(settings_Cov$avail_cov) = DT.files$sample
@@ -796,7 +799,7 @@ dash_server = function(input, output, session) {
 
 
 # Design Experiment page
-    files_header = c("bam_file", "irf_file", "cov_file", "junc_file")
+    files_header = c("bam_file", "irf_file", "cov_file")
 
     # Make sure df.anno exists when df.files exist:
     observeEvent(settings_expr$df.files, {
@@ -904,7 +907,7 @@ dash_server = function(input, output, session) {
             } else {
         # start anew
                 DT = data.table(sample = temp.DT$sample,
-                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+                    bam_file = "", irf_file = "", cov_file = "")
                 DT[temp.DT, on = "sample", bam_file := i.bam_file] # Update new bam paths
                 settings_expr$df.files = as.data.frame(DT)
             }
@@ -927,8 +930,10 @@ dash_server = function(input, output, session) {
                     output$bam_expr_infobox <- renderUI({
                         ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
                     })                        
-                } else if("junc_file" %in% colnames(settings_expr$df.files) && 
-                        all(file.exists(settings_expr$df.files$junc_file))) {
+                } else if(is_valid(settings_expr$collate_path) && 
+                        file.exists(file.path(
+                        settings_expr$collate_path, "colData.Rds"
+                        ))){
                     output$bam_expr_infobox <- renderUI({
                         ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
                     })                        
@@ -1158,7 +1163,7 @@ dash_server = function(input, output, session) {
             } else {
         # start anew
                 DT = data.table(sample = temp.DT$sample,
-                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
+                    bam_file = "", irf_file = "", cov_file = "")
                 DT[temp.DT, on = "sample", irf_file := i.irf_file] # Update new irf paths
                 settings_expr$df.files = as.data.frame(DT)      
             }   
@@ -1226,21 +1231,17 @@ dash_server = function(input, output, session) {
       settings_expr$anno_file = as.character(file_selected$datapath)
     })
 
-		observeEvent(settings_expr$anno_file,{
-      # output$txt_sample_anno_expr <- renderText({
-        # validate(need(settings_expr$anno_file, "Please select file where sample annotations are kept"))
-        # settings_expr$anno_file
-      # })    
+	observeEvent(settings_expr$anno_file,{
       req(settings_expr$anno_file)
-			temp.DT = tryCatch(as.data.table(fread(settings_expr$anno_file)),
-				error = function(e) NULL)
-			req(temp.DT)
-			req(nrow(temp.DT) > 0)
-			output$txt_sample_anno_expr <- renderText({
-				validate(need("sample" %in% colnames(temp.DT), "'sample' must be the header of the first column"))
-				""
-			})
-			req("sample" %in% colnames(temp.DT))
+        temp.DT = tryCatch(as.data.table(fread(settings_expr$anno_file)),
+            error = function(e) NULL)
+        req(temp.DT)
+        req(nrow(temp.DT) > 0)
+        output$txt_sample_anno_expr <- renderText({
+            validate(need("sample" %in% colnames(temp.DT), "'sample' must be the header of the first column"))
+            ""
+        })
+        req("sample" %in% colnames(temp.DT))
 			
       anno_header = names(temp.DT)[!(names(temp.DT) %in% files_header)]
 			temp.DT.files = copy(temp.DT)
@@ -1249,7 +1250,7 @@ dash_server = function(input, output, session) {
 				settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT.files)
 			} else {
 				DT = data.table(sample = temp.DT$sample, bam_file = "", irf_file = "",
-					cov_file = "", junc_file = "")
+					cov_file = "")
 				settings_expr$df.files = update_data_frame(DT, temp.DT.files)
 			}
 			
@@ -1261,7 +1262,7 @@ dash_server = function(input, output, session) {
 			} else {
 				settings_expr$df.anno = temp.DT.files
 			}
-		})
+    })
 
     observe({
       shinyDirChoose(input, "dir_collate_path_load", roots = c(default_volumes, addit_volume), 
@@ -1271,80 +1272,46 @@ dash_server = function(input, output, session) {
           settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
             input$dir_collate_path_load)
     })
-    Expr_Load_FSTs = function() {
-				# merge nxtirf paths
-        if(!is_valid(settings_expr$collate_path)) return(-1)
-        temp.DT = FindSamples(settings_expr$collate_path, suffix = ".junc.fst", use_subdir = FALSE)
-        if(!is.null(temp.DT)) {
-            temp.DT = as.data.table(temp.DT)
-            if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-                # Assume output names designate sample names
-            } else {
-                temp.DT = as.data.table(FindSamples(
-                    settings_expr$collate_path, suffix = ".junc.fst", use_subdir = TRUE))
-                if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
-            # Else assume subdirectory names designate sample names					
-                } else {
-                    # output$txt_collate_path_expr <- renderText("NxtIRF FST file names (or its path names) must be unique")							
-                    settings_expr$collate_path = ""
-                    temp.DT = NULL
+
+    observeEvent(settings_expr$collate_path,{
+        # ret = Expr_Load_FSTs()
+        if(is_valid(settings_expr$collate_path) &&
+            file.exists(file.path(settings_expr$collate_path, "colData.Rds"))) {
+            # Load Experiment from "colData.Rds"
+            colData.Rds = readRDS(file.path(settings_expr$collate_path, "colData.Rds"))
+            req_columns = c("df.anno", "df.files")
+            if(all(req_columns %in% names(colData.Rds))) {
+                settings_expr$df.files = df.files
+                settings_expr$df.anno = df.anno
+                if("bam_path" %in% names(colData.Rds)) {
+                    settings_expr$bam_path = colData.Rds$bam_path
+                }
+                if("irf_path" %in% names(colData.Rds)) {
+                    settings_expr$irf_path = colData.Rds$irf_path
                 }
             }
-        } else {
-            temp.DT = NULL
-        }
-			
-		# compile experiment df with fst paths
-        if(!is.null(temp.DT)) {
-            colnames(temp.DT)[2] = "junc_file"
-            if(is_valid(settings_expr$df.files)) {
-        # merge with existing dataframe	
-                settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
-            } else {
-        # start anew
-                DT = data.table(sample = temp.DT$sample,
-                    bam_file = "", irf_file = "", cov_file = "", junc_file = "")
-                DT[temp.DT, on = "sample", junc_file := i.junc_file] # Update new fst paths
-                settings_expr$df.files = as.data.frame(DT)    
-            }
-            return(0)
-        } else {
-            return(-1)
-        }
-    }
-		observeEvent(settings_expr$collate_path,{
-            ret = Expr_Load_FSTs()
-            if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
-                nxt_files = settings_expr$df.files$junc_file
-            } else {
-                nxt_files = NULL
-            }
-           
-            output$nxt_expr_infobox <- renderUI({
-                ui_infobox_nxt(settings_expr$collate_path, nxt_files)
-            })
-            ret = is_valid(nxt_files) && all(file.exists(nxt_files))
-            # if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
-                # output$bam_expr_infobox <- renderUI({
-                    # ui_infobox_bam(escape = TRUE)
-                # })
-            # }
-            if(ret == TRUE && !is_valid(settings_expr$irf_path)) {
-                output$irf_expr_infobox <- renderUI({
-                    ui_infobox_irf(escape = TRUE)
-                })
-            }
             output$se_expr_infobox <- renderUI({
-                ui_infobox_expr(ifelse(
-                    is_valid(settings_SE$se), 2,
-                    ifelse(is_valid(settings_expr$df.files) &&
-                        "junc_file" %in% names(settings_expr$df.files) &&
-                        all(file.exists(settings_expr$df.files$junc_file)),
-                        1,0)
-                    )
-                )
+                ui_infobox_expr(ifelse(is_valid(settings_SE$se),2,1),
+                    "Ready to Build Experiment")
             })
-		})
+        } else if(is_valid(settings_expr$collate_path) &&
+            is_valid(settings_expr$df.files) &&
+            all(file.exists(settings_expr$df.files$irf_file))) {
+            # Ready to run NxtIRF-Collate
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(1, "Ready to run NxtIRF-Collate")
+            })
+        } else if(is_valid(settings_expr$collate_path)) {
+            # Flag that some IRFinder files need to be built
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(1, "IRFinder files incomplete")
+            })
+        } else {
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(0)
+            })        
+        }
+    })
 	
     output$newcol_expr <- renderUI({
       textInput("newcolumnname_expr", "New Column Name", sprintf("newcol%s", 1+ncol(settings_expr$df.anno)))
@@ -1390,77 +1357,91 @@ dash_server = function(input, output, session) {
             )
         }
         req(settings_expr$collate_path)
-        # cores_to_use = as.numeric(settings_system$n_threads)
-        # if(!is_valid(cores_to_use)) cores_to_use = 1
+
         withProgress(message = 'Collating IRFinder output', value = 0, {
             CollateData(Experiment, reference_path, output_path, n_threads = get_threads())
         })
-        sendSweetAlert(
-            session = session,
-            title = "NxtIRF-Collate run completed",
-            type = "success"
-        )           
-        Expr_Load_FSTs()
+        # Update colData with df.files and df.anno
+        if(file.exists(file.path(
+            settings_expr$collate_path, "colData.Rds"))) {
+            colData.Rds = readRDS(file.path(settings_expr$collate_path, "colData.Rds"))
+            if(all(colData.Rds$df.anno$sample %in% settings_expr$df.anno$sample)) {
+                colData.Rds$df.anno = settings_expr$df.anno
+                colData.Rds$df.files = settings_expr$df.files
+                colData.Rds$bam_path = settings_expr$bam_path
+                colData.Rds$irf_path = settings_expr$irf_path
+                saveRDS(colData.Rds, file.path(settings_expr$collate_path, "colData.Rds"))
+                sendSweetAlert(
+                    session = session,
+                    title = "NxtIRF-Collate run completed",
+                    type = "success"
+                )
+            } else {
+                sendSweetAlert(
+                    session = session,
+                    title = "NxtIRF-Collate did not collate all samples",
+                    type = "warning"
+                )
+            }
+        } else {
+
+        }
+        # Expr_Load_FSTs()
     })
 		
-    shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
-      filetypes = c("csv"))
+    # shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+      # filetypes = c("csv"))
       
-    observeEvent(input$loadexpr_expr, {
-      selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
-      req(selectedfile$datapath)
-      DT = fread(selectedfile$datapath, na.strings = c("", "NA"))
-			DT.header = DT[sample == "(Experiment)"]
-			DT = DT[sample != "(Experiment)"]
+    # observeEvent(input$loadexpr_expr, {
+      # selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
+      # req(selectedfile$datapath)
+      # DT = fread(selectedfile$datapath, na.strings = c("", "NA"))
+			# DT.header = DT[sample == "(Experiment)"]
+			# DT = DT[sample != "(Experiment)"]
 
-      if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% names(DT)) & nrow(DT.header) == 1) {
-        if(all(is.na(DT$bam_file))) DT[, bam_file:=as.character(bam_file)]
-        if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
-        if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
-        if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
+      # if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% names(DT)) & nrow(DT.header) == 1) {
+        # if(all(is.na(DT$bam_file))) DT[, bam_file:=as.character(bam_file)]
+        # if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
+        # if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
+        # if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
         
-        DT.files = copy(DT)
-        anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
-        DT.files[, c(anno_col) := NULL]
-        DT.anno = copy(DT)
-        DT.anno[, c(files_header) := NULL]
+        # DT.files = copy(DT)
+        # anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
+        # DT.files[, c(anno_col) := NULL]
+        # DT.anno = copy(DT)
+        # DT.anno[, c(files_header) := NULL]
 
-        settings_expr$df.files = as.data.frame(DT.files)
-        settings_expr$df.anno = as.data.frame(DT.anno)
+        # settings_expr$df.files = as.data.frame(DT.files)
+        # settings_expr$df.anno = as.data.frame(DT.anno)
 
-        settings_expr$bam_path = DT.header$bam_file
-        settings_expr$irf_path = DT.header$irf_file
-        settings_expr$collate_path = DT.header$junc_file
+        # settings_expr$bam_path = DT.header$bam_file
+        # settings_expr$irf_path = DT.header$irf_file
+        # settings_expr$collate_path = DT.header$junc_file
         
-        # output$txt_run_save_expr <- renderText({
-          # paste(selectedfile$datapath, "loaded")
-        # })
-      } else {
-        # output$txt_run_save_expr <- renderText({
-          # paste(selectedfile$datapath, "is not a valid NxtIRF experiment file")
-        # })
-      }
-		})		
+      # } else {
+
+      # }
+    # })
 
 		# Save Experiment
-    shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
-      filetypes = c("csv"))
-    observeEvent(input$saveexpr_expr, {
-      req(settings_expr$df.files)
-      req(settings_expr$df.anno)
-      selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
-      req(selectedfile$datapath)
+    # shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
+      # filetypes = c("csv"))
+    # observeEvent(input$saveexpr_expr, {
+      # req(settings_expr$df.files)
+      # req(settings_expr$df.anno)
+      # selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
+      # req(selectedfile$datapath)
       
-      df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
-      df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
-      if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
-      if(is_valid(settings_expr$irf_path)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_path]
-      if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
-			fwrite(df, selectedfile$datapath)
-			output$txt_run_save_expr <- renderText({
-        paste("Experiment saved to:", selectedfile$datapath)
-      })
-		})		
+      # df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
+      # df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
+      # if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
+      # if(is_valid(settings_expr$irf_path)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_path]
+      # if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
+			# fwrite(df, selectedfile$datapath)
+			# output$txt_run_save_expr <- renderText({
+        # paste("Experiment saved to:", selectedfile$datapath)
+      # })
+	# })
     observeEvent(input$clear_expr, {
 			settings_expr$expr_path = ""
 			settings_expr$bam_path = ""
@@ -1470,28 +1451,19 @@ dash_server = function(input, output, session) {
 			settings_expr$df.files = c()
 			settings_expr$df.anno = c()
             settings_SE$se = NULL
-      output$txt_run_save_expr <- renderText("")
     })
-		observeEvent(input$build_expr, {
-            # output$txt_run_save_expr <- renderText({
-                # validate(need(settings_expr$collate_path, "Please set path to FST main files first"))
-        # colData = as.data.table(settings_expr$df.anno)
-        # colData = colData[, -c("bam_file", "irf_file", "cov_file", "junc_file")]
-        # validate(need(ncol(colData) > 1, "Please assign at least 1 column of annotation to the experiment first"))
-                # se = MakeSE(colData, settings_expr$collate_path)
-                # settings_SE$se = se
-                # "SummarizedExperiment Loaded"
-            # })
-            if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
-                nxt_files = settings_expr$df.files$junc_file
-            } else {
-                nxt_files = NULL
-            }            
-            ret = is_valid(nxt_files) && all(file.exists(nxt_files))
-            req(ret == TRUE)
-            colData = as.data.table(settings_expr$df.anno)
-            settings_SE$se = MakeSE(colData, settings_expr$collate_path)
-		})
+    observeEvent(input$build_expr, {
+
+        if(is_valid(settings_expr$df.files) && "junc_file" %in% colnames(settings_expr$df.files)) {
+            nxt_files = settings_expr$df.files$junc_file
+        } else {
+            nxt_files = NULL
+        }            
+        ret = is_valid(nxt_files) && all(file.exists(nxt_files))
+        req(ret == TRUE)
+        colData = as.data.table(settings_expr$df.anno)
+        settings_SE$se = MakeSE(colData, settings_expr$collate_path)
+    })
 		
 	# Analyse - Calculate PSIs
 
@@ -1511,12 +1483,12 @@ dash_server = function(input, output, session) {
                     ui_infobox_irf(escape = TRUE)
                 })
             }            
-            if(!is_valid(settings_expr$collate_path)) {
-                output$nxt_expr_infobox <- renderUI({
-                    ui_infobox_nxt(escape = TRUE)
-                })
+            # if(!is_valid(settings_expr$collate_path)) {
+                # output$nxt_expr_infobox <- renderUI({
+                    # ui_infobox_nxt(escape = TRUE)
+                # })
 
-            }
+            # }
         })
 
 		
