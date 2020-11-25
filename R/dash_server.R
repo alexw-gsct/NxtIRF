@@ -1313,7 +1313,8 @@ dash_server = function(input, output, session) {
         }
     })
 
-    observeEvent(settings_expr$save_expr,{
+    observeEvent(input$save_expr,{
+        req(input$save_expr)
         if(is_valid(settings_expr$collate_path) &&
             file.exists(file.path(settings_expr$collate_path, "colData.Rds"))) {
             colData.Rds = list(
@@ -1328,7 +1329,8 @@ dash_server = function(input, output, session) {
         }
     })
 
-    observeEvent(settings_expr$load_expr,{
+    observeEvent(input$load_expr,{
+        req(input$load_expr)
         if(is_valid(settings_expr$collate_path) &&
             file.exists(file.path(settings_expr$collate_path, "colData.Rds"))) {
             # Load Experiment from "colData.Rds"
