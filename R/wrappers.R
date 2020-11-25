@@ -159,7 +159,7 @@ run_IRFinder_multithreaded = function(
             if(md5 == md5.old & md5.stat == md5.old.stat) {
                 # cbind stats
                 new_samples = res$targets[!(res$targets %in% res.old$targets)]
-                res$target = c(res.old$targets, new_samples)
+                res$targets = c(res.old$targets, new_samples)
 
                 res$stat = cbind(res.old$stat, res$stat[,new_samples])
                 # cbind counts            
