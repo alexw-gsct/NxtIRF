@@ -388,7 +388,7 @@ std::string myLine_QC;
   outGZ.flush(true);
   out.flush(); out.close();
   
-  Write Coverage Binary file:
+  // Write Coverage Binary file:
   
   std::ofstream ofCOV;
   ofCOV.open(s_output_cov, std::ofstream::binary);
