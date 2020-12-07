@@ -5,8 +5,9 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
 
-    # ah = AnnotationHub(localHub = offline)
-	
+    .GlobalEnv$.ah = AnnotationHub(localHub = offline)
+	on.exit(rm(.ah, envir=.GlobalEnv))
+    
 	ui_dash <- dashboardPage(
 		dashboardHeader(title = "NxtIRF"),
 		ui_sidebar(),

@@ -76,8 +76,8 @@ dash_server = function(input, output, session) {
         )
         initialize_ah <- function() {
             if(!is_valid(settings_app$ah)) {
-                ah = AnnotationHub::AnnotationHub(localHub = FALSE)
-                settings_app$ah = ah
+                # ah = AnnotationHub::AnnotationHub(localHub = FALSE)
+                settings_app$ah = .ah
             }        
         }
 	# tabEvent Observer
