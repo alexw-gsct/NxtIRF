@@ -1953,7 +1953,7 @@ dash_server = function(input, output, session) {
 					), parallel = TRUE, BPPARAM = BPPARAM_mod)
 				)
 				res = cbind(
-                    rowData[,c("EventName","EventType","EventRegion", "NMD_direction")], 
+                        rowData[,c("EventName","EventType","EventRegion", "NMD_direction")], 
                     res)
 				res = res %>% dplyr::arrange(padj)
 				settings_DE$res = res
@@ -1992,8 +1992,8 @@ dash_server = function(input, output, session) {
           
         setorder(res.ASE, -B)
 				
-				rowData.DT = as.data.table(rowData)
-        rowData.DT = rowData.DT[, 1:3]
+		rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
+        # rowData.DT = rowData.DT[, 1:3]
 				res.ASE = rowData.DT[res.ASE, on = "EventName"]
 
 				settings_DE$res = as.data.frame(res.ASE)
@@ -2280,7 +2280,8 @@ dash_server = function(input, output, session) {
         df.volc$selected = FALSE
       }
       if(input$NMD_volc == TRUE) {
-        df.volc
+        df.volc = df.volc[, NMD_direction != 0]
+        df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
       }
       
       settings_Volc$plot_ini = TRUE
@@ -2291,6 +2292,9 @@ dash_server = function(input, output, session) {
 			if(input$facet_volc == TRUE) {
 				p = p + facet_wrap(vars(EventType))
 			}
+			if(input$NMD_volc == TRUE) {
+				p = p + labs(x = "log2FoldChange NMD substrate")
+			}            
 			print(
 				ggplotly(p,
 					tooltip = "text",
