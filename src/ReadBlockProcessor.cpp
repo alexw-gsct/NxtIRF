@@ -70,7 +70,7 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 		}	else if (direction == "+") {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] += 2;
 		}
-		if(!NMD_flag.empty()) {
+		if(!NMD_flag.empty() && !NMD_flag.compare(0, 2, "\"\"")) {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] += 4;
 		}
 	}
@@ -145,16 +145,16 @@ int JunctionCount::Directional(std::string& output) const {
 			if (((itJuncs->second)[1] + (itJuncs->second)[0]) > 8) {
 				if ((itJuncs->second)[0] > (itJuncs->second)[1] * 4) {
 					dir_evidence++;
-					if ((itJuncs->second)[2] == 1) { //Ref is "-"
+					if ((itJuncs->second)[2] & 1) { //Ref is "-"
 						dir_same++;
-					}else if ((itJuncs->second)[2] == 2) {
+					}else if ((itJuncs->second)[2] & 2) {
 						dir_diff++;
 					}
 				}else if ((itJuncs->second)[1] > (itJuncs->second)[0] * 4) {
 					dir_evidence++;
-					if ((itJuncs->second)[2] == 2) { //Ref is "+"
+					if ((itJuncs->second)[2] & 2) { //Ref is "+"
 						dir_same++;
-					}else if ((itJuncs->second)[2] == 1) {
+					}else if ((itJuncs->second)[2] & 1) {
 						dir_diff++;
 					}				
 				}else{
