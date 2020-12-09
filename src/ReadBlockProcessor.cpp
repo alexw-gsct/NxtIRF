@@ -36,7 +36,8 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 	string s_chr;
 	s_chr.reserve(30);
 	string direction;
-
+	string NMD_flag = "";
+	
 	while(!IN.eof() && !IN.fail()) {
 		getline(IN, myLine, '\n');
 
@@ -60,11 +61,17 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 		getline(lineStream, myField, '\t');
 		end = stol(myField);
 		getline(lineStream, direction, '\t');
+		if(!lineStream.eof() && !lineStream.fail()) {
+			getline(lineStream, NMD_flag, '\t');
+		}
 		
 		if (direction == "-")  {
-			chrName_junc_count[s_chr][make_pair(start,end)][2] = 1;
-		}else if (direction == "+") {
-			chrName_junc_count[s_chr][make_pair(start,end)][2] = 2;
+			chrName_junc_count[s_chr][make_pair(start,end)][2] += 1;
+		}	else if (direction == "+") {
+			chrName_junc_count[s_chr][make_pair(start,end)][2] += 2;
+		}
+		if(!NMD_flag.empty()) {
+			chrName_junc_count[s_chr][make_pair(start,end)][2] += 4;
 		}
 	}
 }
@@ -94,23 +101,28 @@ int JunctionCount::WriteOutput(std::string& output, std::string& QC) const {
   std::ostringstream oss; std::ostringstream oss_qc; 
 	int junc_anno = 0;
 	int junc_unanno = 0;
+	int junc_NMD = 0;
 	for (auto itChr=chrName_junc_count.begin(); itChr!=chrName_junc_count.end(); itChr++) {
 		string chr = itChr->first;
 		for (auto itJuncs=itChr->second.begin(); itJuncs!=itChr->second.end(); ++itJuncs) {
 			if((itJuncs->second)[2] != 0) {
 				junc_anno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
+				if((itJuncs->second)[2] & 4) {
+					junc_NMD += ((itJuncs->second)[1] + (itJuncs->second)[0]);
+				}
 			} else {
 				junc_unanno += ((itJuncs->second)[1] + (itJuncs->second)[0]);
 			}
 			oss << chr << "\t" << itJuncs->first.first << "\t" << itJuncs->first.second
-				<< "\t" << ( (itJuncs->second)[2] == 1 ? "-" : (itJuncs->second)[2] == 2 ? "+" : "." )
+				<< "\t" << ( (itJuncs->second)[2] & 1 ? "-" : (itJuncs->second)[2] & 2 ? "+" : "." )
 				<< "\t" << ((itJuncs->second)[1] + (itJuncs->second)[0])
 				<< "\t" << (itJuncs->second)[1]
 				<< "\t" << (itJuncs->second)[0] << "\n";
 		}
 	}
-	oss_qc << "Annotated Junctions" << "\t" << junc_anno << "\n"
-		<< "Unannotated Junctions" << "\t" << junc_unanno << "\n";
+	oss_qc 	<< "Annotated Junctions" << "\t" << junc_anno << "\n"
+					<< "Unannotated Junctions" << "\t" << junc_unanno << "\n"
+					<< "NMD Junctions" << "\t" << junc_NMD << "\n";
 	
   output = oss.str();
 	QC.append(oss_qc.str());

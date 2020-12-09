@@ -1047,7 +1047,17 @@ gen_irf <- function(reference_path, extra_files, genome) {
         read.fst(file.path(reference_path,"fst","junctions.fst")))
 
     ref.sj = candidate.introns[,c("seqnames", "start", "end", "strand")]
-    ref.sj = unique(ref.sj)
+    # annotate NMD-unique junctions
+
+    ref.sj$Is_NMD = ifelse(
+            grepl("nonsense_mediated_decay", 
+                candidate.introns$transcript_biotype),
+        "NMD", "")
+
+    ref.sj = ref.sj[, lapply(.SD, function(x) {
+            ifelse(all(x != ""), "NMD", "")
+        }), by = c("seqnames", "start", "end", "strand")]
+    
     ref.sj[,start := start - 1]
 
     message("done\n")
