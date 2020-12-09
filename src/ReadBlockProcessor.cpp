@@ -70,7 +70,7 @@ void JunctionCount::loadRef(std::istringstream &IN) {
 		}	else if (direction == "+") {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] += 2;
 		}
-		if(!NMD_flag.empty() && !NMD_flag.compare(0, 2, "\"\"")) {
+		if(!NMD_flag.empty() && !(0 == NMD_flag.compare(0, 2, "\"\""))) {
 			chrName_junc_count[s_chr][make_pair(start,end)][2] += 4;
 		}
 	}
