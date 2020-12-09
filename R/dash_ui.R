@@ -632,6 +632,7 @@ ui_tab_heatmap <- function() {
                     choices = c("PSI", "Logit", "Z-score"), 
                     checkIcon = list(yes = icon("ok", lib = "glyphicon"))
                 ),
+                shinyWidgets::switchInput("NMD_heat", label = "NMD Mode", labelWidth = "100px"),                    
                 selectInput('color_heat', 'Palette', 
                     c("RdBu", "BrBG", "PiYG", "PRGn", "PuOr", "
                         RdGy", "RdYlBu", "RdYlGn", "Spectral")
