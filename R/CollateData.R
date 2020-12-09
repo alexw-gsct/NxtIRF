@@ -1219,9 +1219,11 @@ MakeSE = function(fst_path, colData) {
   rownames(Down_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
   
   # Annotate NMD direction
-  rowEvent[, NMD_direction := 0]
-  rowEvent[Inc_Is_NMD & !Exc_Is_NMD, NMD_direction := 1]
-  rowEvent[!Inc_Is_NMD & Exc_Is_NMD, NMD_direction := -1]
+  rowData = as.data.table(rowData)
+  rowData[, NMD_direction := 0]
+  rowData[Inc_Is_NMD & !Exc_Is_NMD, NMD_direction := 1]
+  rowData[!Inc_Is_NMD & Exc_Is_NMD, NMD_direction := -1]
+  rowData = as.data.frame(rowData)
   
   se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
 		Included = Included, Excluded = Excluded, Depth = Depth, Coverage = Coverage, minDepth = minDepth
