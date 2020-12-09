@@ -736,7 +736,9 @@ CollateData <- function(Experiment, reference_path, output_path,
   Splice.Options.Summary = copy(Splice.Options)
   Splice.Options.Summary[, tsl_min := min(transcript_support_level), by = c("EventID", "isoform")]
   Splice.Options.Summary[, any_is_PC := any(is_protein_coding), by = c("EventID", "isoform")]  
-  Splice.Options.Summary[, all_is_NMD := all(grepl("decay", transcript_biotype)), by = c("EventID", "isoform")]  
+  Splice.Options.Summary[, all_is_NMD := 
+    all(grepl("nonsense_mediated_decay", transcript_biotype)), 
+    by = c("EventID", "isoform")]  
 
   rowEvent.Extended = copy(rowEvent)
   
