@@ -604,6 +604,7 @@ ui_tab_volcano <- function() {
                 selectInput("EventType_volc", "Splice Type", width = '100%', multiple = TRUE,
                     choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
                 shinyWidgets::switchInput("facet_volc", label = "Facet by Type", labelWidth = "150px"),
+                shinyWidgets::switchInput("NMD_volc", label = "NMD Mode", labelWidth = "100px"),
                 actionButton("clear_volc", "Clear settings"),
                 textOutput("warning_volc")
             ),

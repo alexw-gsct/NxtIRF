@@ -1952,7 +1952,9 @@ dash_server = function(input, output, session) {
 						paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")
 					), parallel = TRUE, BPPARAM = BPPARAM_mod)
 				)
-				res = cbind(as.data.frame(rowData[,1:3]), res)
+				res = cbind(
+                    rowData[,c("EventName","EventType","EventRegion", "NMD_direction")], 
+                    res)
 				res = res %>% dplyr::arrange(padj)
 				settings_DE$res = res
 
@@ -2277,6 +2279,10 @@ dash_server = function(input, output, session) {
       } else {
         df.volc$selected = FALSE
       }
+      if(input$NMD_volc == TRUE) {
+        df.volc
+      }
+      
       settings_Volc$plot_ini = TRUE
 			
 			p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj), 
