@@ -166,6 +166,7 @@ CollateData <- function(Experiment, reference_path, output_path,
     df.internal$NonPolyA_Fraction = 0
     df.internal$Mitochondrial_Fraction = 0
     df.internal$Unanno_Jn_Fraction = 0
+    df.internal$NMD_Jn_Fraction = 0
     df.internal$Fraction_Splice_Reads = 0
     df.internal$Fraction_Span_Reads = 0
 
@@ -242,6 +243,10 @@ CollateData <- function(Experiment, reference_path, output_path,
                     block$Unanno_Jn_Fraction[i] =
                         QC$Value[QC$QC == "Unannotated Junctions"] / 
                         (QC$Value[QC$QC == "Unannotated Junctions"] +
+                        QC$Value[QC$QC == "Annotated Junctions"])
+                    block$NMD_Jn_Fraction[i] =
+                        QC$Value[QC$QC == "NMD Junctions"] / 
+                        (QC$Value[QC$QC == "NMD Junctions"] +
                         QC$Value[QC$QC == "Annotated Junctions"])
                     block$Fraction_Splice_Reads[i] =
                         QC$Value[QC$QC == "Annotated Junctions"] / 
