@@ -2108,12 +2108,29 @@ dash_server = function(input, output, session) {
       } else {
         df.diag$selected = FALSE
       }
-      
       settings_Diag$plot_ini = TRUE
-			print(
-				ggplotly(
-					ggplot(df.diag, aes(x = nom, y = denom, key = EventName, text = EventName, colour = selected)) + 
-            geom_point() + scale_color_manual(values = c("black", "red")),
+      if(input$NMD_diag == TRUE) {
+        df.diag = df.diag[, NMD_direction != 0]
+        df.diag$nom_NMD = ifelse(df.diag$NMD_direction == 1, df.diag$nom, df.diag$denom)
+        df.diag$denom_NMD = ifelse(df.diag$NMD_direction == -1, df.diag$nom, df.diag$denom)
+        p = ggplot(df.diag, aes(x = nom_NMD, y = denom_NMD, key = EventName, 
+            text = EventName, colour = selected)) + 
+            geom_point() + scale_color_manual(values = c("black", "red")) +
+            labs(   x = paste(input$nom_diag, "NMD substrate"),
+                    y = paste(input$denom_diag, "NMD substrate")
+            )
+      } else {
+        p = ggplot(df.diag, aes(x = nom_NMD, y = denom_NMD, key = EventName, 
+            text = EventName, colour = selected)) + 
+            geom_point() + scale_color_manual(values = c("black", "red")) +
+            labs(   x = paste(input$nom_diag),
+                    y = paste(input$denom_diag)
+            )         
+        }   
+      
+        print(
+            ggplotly(
+					p,
 					tooltip = "text",
           source = "plotly_diagonal"
 				) %>% layout(
@@ -2294,7 +2311,7 @@ dash_server = function(input, output, session) {
 			}
 			if(input$NMD_volc == TRUE) {
 				p = p + labs(x = "log2FoldChange NMD substrate")
-			}            
+			}
 			print(
 				ggplotly(p,
 					tooltip = "text",

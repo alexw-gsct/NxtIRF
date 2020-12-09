@@ -584,6 +584,7 @@ ui_tab_diag <- function() {
                     c("(none)")),
                 selectInput('denom_diag', 'Y-axis condition', 
                     c("(none)")),
+                shinyWidgets::switchInput("NMD_diag", label = "NMD Mode", labelWidth = "100px"),                    
                 actionButton("clear_diag", "Clear settings"),
                 textOutput("warning_diag")
             ),
