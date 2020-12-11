@@ -2407,9 +2407,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     extra_files = fetch_genome_defaults(genome_type, nonPolyARef, 
         MappabilityRef, BlacklistRef, localHub, ah)
 
-    message(extra_files$nonPolyAFile)
-    message(extra_files$MappabilityFile)
-    message(extra_files$BlacklistFile)
+    # message(extra_files$nonPolyAFile)
+    # message(extra_files$MappabilityFile)
+    # message(extra_files$BlacklistFile)
 
     assert_that(
         tryCatch(ifelse(normalizePath(dirname(reference_path)) != "",TRUE, TRUE),

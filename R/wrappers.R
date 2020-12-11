@@ -243,7 +243,7 @@ run_IRFinder = function(
             isPairedEnd = paired,
             requireBothEndsMapped = paired
         )
-
+        
         # Append to existing main.FC.Rds if exists:
         
         if(file.exists(file.path(dirname(output_files[1]), "main.FC.Rds"))) {
@@ -285,6 +285,78 @@ run_IRFinder = function(
     
 }
 
+run_FeatureCounts = function(s_bam, sample_names, s_output, gtf_file, strand, paired) {
+    assert_that(length(s_bam) > 0 && length(s_bam) == length(sample_names),
+        msg = "Mismatch between s_bam and sample_names. Make sure same length")
+    assert_that(all(file.exists(s_bam)),
+        msg = "Some bam files do not exist")
+    assert_that(all(dir.exists(dirname(s_output))),
+        msg = "Root directory of s_output does not exist")
+
+    res = Rsubread::featureCounts(
+        s_bam,
+        annot.ext = gtf_file,
+        isGTFAnnotationFile = TRUE,
+        strandSpecific = strand,
+        isPairedEnd = paired,
+        requireBothEndsMapped = paired
+    )
+    
+    res$targets = sample_names
+    colnames(res$counts) = sample_names
+    colnames(res$stat)[-1] = sample_names
+
+    saveRDS(res, paste0(s_output, ".FC.Rds"))
+}
+
+merge_FeatureCounts = function(record_1 = "main.FC.Rds", 
+        record_2 = "addit.FC.Rds", overwrite = FALSE) {
+    assert_that(all(file.exists(c(record_1, record_2))),
+        msg = "Some records do not exist")
+        
+    res1 = readRDS(record_1)
+    res2 = readRDS(record_2)
+    
+    # Check md5 of annotation to show same reference was used
+    md5.1 = openssl::md5(paste(
+        res1$annotation$GeneID, res1$annotation$Chr,
+        res1$annotation$Start, res1$annotation$End, 
+        res1$annotation$Strand, collapse=" "
+    ))
+    md5.2 = openssl::md5(paste(
+        res2$annotation$GeneID, res2$annotation$Chr,
+        res2$annotation$Start, res2$annotation$End, 
+        res2$annotation$Strand, collapse=" "
+    ))
+    md5.1.stat = openssl::md5(paste(
+        res1$stat$Status, collapse=" "
+    ))
+    md5.2.stat = openssl::md5(paste(
+        res2$stat$Status, collapse=" "
+    ))
+    res = list()
+    assert_that(md5.1 == md5.2 & md5.1.stat == md5.2.stat, 
+        msg = paste("Record annotations do not match.",
+            "Perhaps they were generated under different gene annotations"))
+    # cbind stats
+    if(overwrite) {
+        old_samples = res1$targets[!(res1$targets %in% res2$targets)]
+        res$targets = c(old_samples, res2$targets)
+        res$stat = cbind(res1$stat[,1], res1$stat[,old_samples],
+            res2$stat[-1])
+        res$counts = cbind(res1$counts[,old_samples], res2$counts)
+    } else {
+        new_samples = res2$targets[!(res2$targets %in% res1$targets)]
+        res$targets = c(res1$targets, new_samples)
+        res$stat = cbind(res1$stat, res2$stat[new_samples])
+        res$counts = cbind(res1$counts, res2$counts[, new_samples])
+    }
+    res$annotation = res1$annotation
+
+    return(res)
+}
+
+#' @export
 run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
   return(
     IRF_GenerateMappabilityReads(normalizePath(genome.fa), 
@@ -295,6 +367,7 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
   )
 }
 
+#' @export
 run_IRFinder_MapExclusionRegions = function(bamfile = "", output_file, threshold = 4, includeCov = FALSE) {
   s_bam = normalizePath(bamfile)
   assert_that(file.exists(s_bam),
