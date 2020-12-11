@@ -2108,6 +2108,7 @@ dash_server = function(input, output, session) {
       } else {
         df.diag$selected = FALSE
       }
+      df.diag$NMD_direction = settings_DE$res$NMD_direction
       settings_Diag$plot_ini = TRUE
       if(input$NMD_diag == TRUE) {
         df.diag = df.diag[, NMD_direction != 0]
@@ -2120,7 +2121,7 @@ dash_server = function(input, output, session) {
                     y = paste(input$denom_diag, "NMD substrate")
             )
       } else {
-        p = ggplot(df.diag, aes(x = nom_NMD, y = denom_NMD, key = EventName, 
+        p = ggplot(df.diag, aes(x = nom, y = denom, key = EventName, 
             text = EventName, colour = selected)) + 
             geom_point() + scale_color_manual(values = c("black", "red")) +
             labs(   x = paste(input$nom_diag),
@@ -2285,9 +2286,11 @@ dash_server = function(input, output, session) {
 			}
 			if(input$method_DE == "DESeq2") {
 				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+                    NMD_direction = NMD_direction,
 					log2FoldChange = log2FoldChange, pvalue = pvalue, padj = padj))
 			} else {
 				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+                    NMD_direction = NMD_direction,
 					log2FoldChange = logFC, pvalue = P.Value, padj = adj.P.Val))	
 			}
 			
