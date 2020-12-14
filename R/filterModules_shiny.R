@@ -92,7 +92,7 @@ filterModule_server <- function(id, filterdata, conditionList) {
                 final$filterClass = "(none)"
                 final$filterType = "(none)"
                 updateSelectInput(session = session, inputId = "filterClass", 
-                    choices = c("(none)"))
+                    choices = c("(none)", "Annotation", "Data"))
                 updateSelectInput(session = session, inputId = "filterType", 
                     choices = c("(none)"))
 
