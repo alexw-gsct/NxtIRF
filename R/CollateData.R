@@ -268,7 +268,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                     block$IRBurden_antisense[i] =
                         QC$Value[QC$QC == "Non-Directional Anti-Sense IntronDepth Sum"] / 
                             QC$Value[QC$QC == "Annotated Junctions"]
-                    if(block$strand[i] == 0) {
+                    if(block$strand[i] != 0) {
                         block$IRBurden_clean[i] =
                             QC$Value[QC$QC == "Directional Clean IntronDepth Sum"] / 
                                 QC$Value[QC$QC == "Annotated Junctions"]
