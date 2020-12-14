@@ -8,8 +8,8 @@ run_IRFinder_multithreaded = function(
     max_threads = max(parallel::detectCores() - 2, 1),
     Use_OpenMP = TRUE,
     run_featureCounts = FALSE,
-            localHub = FALSE,
-            ah = AnnotationHub(localHub = localHub)
+    localHub = FALSE,
+    ah = AnnotationHub(localHub = localHub)
         ) {
 
     s_bam = normalizePath(bamfiles)
@@ -285,13 +285,41 @@ run_IRFinder = function(
     
 }
 
-run_FeatureCounts = function(s_bam, sample_names, s_output, gtf_file, strand, paired) {
+#' @export
+run_FeatureCounts = function(s_bam, sample_names, s_output, reference_path, strand, paired,
+        localHub = FALSE,
+        ah = AnnotationHub(localHub = localHub)        
+        max_threads = max(parallel::detectCores() - 2, 1)) {
     assert_that(length(s_bam) > 0 && length(s_bam) == length(sample_names),
         msg = "Mismatch between s_bam and sample_names. Make sure same length")
     assert_that(all(file.exists(s_bam)),
         msg = "Some bam files do not exist")
     assert_that(all(dir.exists(dirname(s_output))),
         msg = "Root directory of s_output does not exist")
+    assert_that(max_threads == 1 || max_threads <= parallel::detectCores() - 1,
+        msg = paste(max_threads, " threads is not allowed for this system"))
+
+    s_ref = normalizePath(reference_path)
+
+    assert_that(file.exists(file.path(s_ref, "settings.Rds")),
+        msg = paste(file.path(s_ref, "settings.Rds"), "not found"))   
+
+    settings = readRDS(file.path(s_ref, "settings.Rds"))
+    ah_transcriptome = settings$ah_transcriptome
+    gtf_file = settings$gtf_file
+
+    if(ah_transcriptome != "") {
+        assert_that(substr(ah_transcriptome,1,2) == "AH",
+            msg = "Given transcriptome AnnotationHub reference is incorrect")
+        assert_that(ah_transcriptome %in% names(ah),
+            msg = paste(ah_transcriptome, "is not a record in given AnnotationHub object")
+        )
+        gtf_file = AnnotationHub::cache(ah[names(ah) == ah_transcriptome])
+    } else {
+        assert_that(file.exists(gtf_file),
+            msg = paste("Given transcriptome gtf file", gtf_file,
+                "not found"))
+    }
 
     res = Rsubread::featureCounts(
         s_bam,
@@ -309,6 +337,7 @@ run_FeatureCounts = function(s_bam, sample_names, s_output, gtf_file, strand, pa
     saveRDS(res, paste0(s_output, ".FC.Rds"))
 }
 
+#' @export
 merge_FeatureCounts = function(record_1 = "main.FC.Rds", 
         record_2 = "addit.FC.Rds", overwrite = FALSE) {
     assert_that(all(file.exists(c(record_1, record_2))),
