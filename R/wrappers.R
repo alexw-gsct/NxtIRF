@@ -288,7 +288,7 @@ run_IRFinder = function(
 #' @export
 run_FeatureCounts = function(s_bam, sample_names, s_output, reference_path, strand, paired,
         localHub = FALSE,
-        ah = AnnotationHub(localHub = localHub)        
+        ah = AnnotationHub(localHub = localHub),       
         max_threads = max(parallel::detectCores() - 2, 1)) {
     assert_that(length(s_bam) > 0 && length(s_bam) == length(sample_names),
         msg = "Mismatch between s_bam and sample_names. Make sure same length")
