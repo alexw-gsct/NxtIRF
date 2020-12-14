@@ -2032,7 +2032,8 @@ dash_server = function(input, output, session) {
 			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$save_DE)
 			req(selectedfile$datapath)
 			
-			save_DE = list(res = settings_DE$res, settings = settings_DE$res_settings)
+			save_DE = list(res = settings_DE$res, settings = settings_DE$res_settings, 
+                filters = settings_SE$filters)
 			saveRDS(save_DE,selectedfile$datapath)
 		})
 
@@ -2068,7 +2069,11 @@ dash_server = function(input, output, session) {
 			settings_DE$nom_DE = settings_DE$res_settings$nom_DE
 			settings_DE$denom_DE = settings_DE$res_settings$denom_DE
 			settings_DE$batchVar1 = settings_DE$res_settings$batchVar1
-			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2			
+			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2
+
+            if("filters" %in% names(load_DE)) {
+                settings_SE$filters = load_DE$filters
+            }
     })
 		
 		observeEvent(input$clear_selected_DE, {
