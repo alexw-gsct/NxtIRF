@@ -260,19 +260,24 @@ CollateData <- function(Experiment, reference_path, output_path,
                     # if(block$strand[i] == 0) {
                     block$IRBurden_clean_unstranded[i] =
                         QC$Value[QC$QC == "Non-Directional Clean IntronDepth Sum"] / 
+                            QC$Value[QC$QC == "Non-Directional Clean IntronDepth Sum"] +
                             QC$Value[QC$QC == "Annotated Junctions"]
                     block$IRBurden_exitrons_unstranded[i] =
                         QC$Value[QC$QC == "Non-Directional Known-Exon IntronDepth Sum"] / 
+                            QC$Value[QC$QC == "Non-Directional Known-Exon IntronDepth Sum"] +
                             QC$Value[QC$QC == "Annotated Junctions"]
                     block$IRBurden_antisense[i] =
                         QC$Value[QC$QC == "Non-Directional Anti-Sense IntronDepth Sum"] / 
+                            QC$Value[QC$QC == "Non-Directional Anti-Sense IntronDepth Sum"] +
                             QC$Value[QC$QC == "Annotated Junctions"]
                     if(block$strand[i] != 0) {
                         block$IRBurden_clean[i] =
                             QC$Value[QC$QC == "Directional Clean IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Directional Clean IntronDepth Sum"] +
                                 QC$Value[QC$QC == "Annotated Junctions"]
                         block$IRBurden_exitrons[i] =
                             QC$Value[QC$QC == "Directional Known-Exon IntronDepth Sum"] / 
+                                QC$Value[QC$QC == "Directional Known-Exon IntronDepth Sum"] +
                                 QC$Value[QC$QC == "Annotated Junctions"]
                     }
                     
