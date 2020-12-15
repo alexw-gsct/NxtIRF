@@ -248,7 +248,6 @@ CollateData <- function(Experiment, reference_path, output_path,
                         QC$Value[QC$QC == "Annotated Junctions"])
                     block$NMD_Jn_Fraction[i] =
                         QC$Value[QC$QC == "NMD Junctions"] / 
-                        (QC$Value[QC$QC == "NMD Junctions"] +
                         QC$Value[QC$QC == "Annotated Junctions"])
                     block$Fraction_Splice_Reads[i] =
                         QC$Value[QC$QC == "Annotated Junctions"] / 
