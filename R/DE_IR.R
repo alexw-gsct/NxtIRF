@@ -17,7 +17,7 @@ limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, bat
       msg = "batch1 is not a condition in colData")
     assert_that(test_factor != batch2, msg = "batch2 and test_factor are the same")      
   }
-  if(batch1 != "" & batch2 != "")) {
+  if(batch1 != "" & batch2 != "") {
     assert_that(batch2 != batch1, msg = "batch1 and batch2 are the same")  
   }
 }
