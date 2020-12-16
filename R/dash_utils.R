@@ -531,28 +531,24 @@ get_default_filters <- function() {
     return(filters)
 }
 
-make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5) {
+make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5, na.percent.max = 0.1) {
 
 	inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
 	exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]
-	
+    mat = inc/(inc + exc)
+    mat[inc + exc < depth_threshold] = NA
+    mat = mat[rowSums(is.na(mat)) < na.percent.max * ncol(mat),]	
 	if(method == "PSI") {
 		# essentially M/Cov
-		mat = inc/(inc + exc)
-		mat[inc + exc < depth_threshold] = NA
 		return(mat)
 	} else if(method == "logit") {
-		mat = inc/(inc + exc)
-		mat[inc + exc < depth_threshold] = NA
 		mat = boot::logit(mat)
 		mat[mat > logit_max] = logit_max
 		mat[mat < -logit_max] = -logit_max
 		return(mat)
 	} else if(method == "Z-score") {
-		mat = inc/(inc + exc)
-		mat[inc + exc < depth_threshold] = NA
-    mat = mat - rowMeans(mat)
-    mat = mat / matrixStats::rowSds(mat)
+        mat = mat - rowMeans(mat)
+        mat = mat / matrixStats::rowSds(mat)
 		return(mat)
 	}
 	
