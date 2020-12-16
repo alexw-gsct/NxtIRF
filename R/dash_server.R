@@ -1970,7 +1970,7 @@ dash_server = function(input, output, session) {
 					paste(rownames(colData), "Included", sep="."),
 					paste(rownames(colData), "Excluded", sep=".")
 				)
-        colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
+                colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
 				colnames(countData) = rownames(colData_use)
 				rownames(countData) = rowData$EventName
 				# countData = round(countData)
