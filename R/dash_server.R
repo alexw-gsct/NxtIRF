@@ -2305,7 +2305,7 @@ dash_server = function(input, output, session) {
         df.volc$selected = FALSE
       }
       if(input$NMD_volc == TRUE) {
-        df.volc = df.volc[, NMD_direction != 0]
+        df.volc = df.volc[, df.volc$NMD_direction != 0]
         df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
       }
       
