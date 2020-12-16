@@ -7,23 +7,23 @@ limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, bat
     msg = "test_nom is not found in any samples")
   assert_that(any(colData[, test_factor] == test_denom),
     msg = "test_denom is not found in any samples")
-  if(!missing(batch1)) {
+  if(batch1 != "") {
     assert_that(batch1 %in% colnames(colData),
       msg = "batch1 is not a condition in colData")
     assert_that(test_factor != batch1, msg = "batch1 and test_factor are the same")      
   }
-  if(!missing(batch2)) {
+  if(batch2 != "") {
     assert_that(batch2 %in% colnames(colData),
       msg = "batch1 is not a condition in colData")
     assert_that(test_factor != batch2, msg = "batch2 and test_factor are the same")      
   }
-  if(!missing(batch1) & !missing(batch2)) {
+  if(batch1 != "" & batch2 != "")) {
     assert_that(batch2 != batch1, msg = "batch1 and batch2 are the same")  
   }
 }
 
 #' @export
-limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1, batch2) {
+limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "") {
     limma_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
 
     # ASE mode
@@ -42,11 +42,11 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1, batch2) {
     
     condition_factor = factor(colData[, test_factor])
     ASE = colData[, "ASE"]
-    if(!missing(batch2)) {    
+    if(batch2 != "") {    
       batch2_factor = colData[, batch2]
       batch1_factor = colData[, batch1]
       design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor + condition_factor:ASE)
-    } else if(!missing(batch1)) {
+    } else if(batch1 != "") {
       batch1_factor = colData[, batch1]    
       design1 = model.matrix(~0 + batch1_factor + condition_factor + condition_factor:ASE)
     } else {
