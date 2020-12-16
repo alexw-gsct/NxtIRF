@@ -2116,7 +2116,7 @@ dash_server = function(input, output, session) {
       df.diag$NMD_direction = settings_DE$res$NMD_direction[match(res$EventName, settings_DE$res$EventName)]
       settings_Diag$plot_ini = TRUE
       if(input$NMD_diag == TRUE) {
-        df.diag = df.diag[, NMD_direction != 0]
+        df.diag = df.diag[, df.diag$NMD_direction != 0]
         df.diag$nom_NMD = ifelse(df.diag$NMD_direction == 1, df.diag$nom, df.diag$denom)
         df.diag$denom_NMD = ifelse(df.diag$NMD_direction == -1, df.diag$nom, df.diag$denom)
         p = ggplot(df.diag, aes(x = nom_NMD, y = denom_NMD, key = EventName, 
