@@ -86,11 +86,11 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     )
     
     condition_factor = factor(colData[, test_factor])
-    if(!missing(batch2)) {    
+    if(batch2 != "") {    
       batch2_factor = colData[, batch2]
       batch1_factor = colData[, batch1]
       design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor)
-    } else if(!missing(batch1)) {
+    } else if(batch1 != "") {
       batch1_factor = colData[, batch1]    
       design1 = model.matrix(~0 + batch1_factor + condition_factor)
     } else {
@@ -112,7 +112,7 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.limma2 = limma::topTable(fit, number = nrow(countData_use$E))
     res.limma2$EventName = rownames(res.limma2)
 
-    res.limma2$AveExpr = res.limma$AveExpr - min(res.limma$AveExpr)
+    res.limma2$AveExpr = res.limma2$AveExpr - min(res.limma2$AveExpr)
     res.limma2 = as.data.table(res.limma2)
 
     # Merge tables together:
@@ -143,17 +143,17 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
 }
 
 
-limma_DT <- function(countData, colData, test_factor, test_nom, test_denom, batch1, batch2, useASE = FALSE) {
+limma_DT <- function(countData, colData, test_factor, test_nom, test_denom, batch1 = "", batch2 = "", useASE = FALSE) {
     limma_assert(colData, test_factor, test_nom, test_denom, batch1, batch2)
   
   # Contrast construction:
   if(!useASE) {
     condition_factor = factor(colData[, test_factor])
-    if(!missing(batch2)) {    
+    if(batch2 != "") {    
       batch2_factor = colData[, batch2]
       batch1_factor = colData[, batch1]
       design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor)
-    } else if(!missing(batch1)) {
+    } else if(batch1 != "") {
       batch1_factor = colData[, batch1]    
       design1 = model.matrix(~0 + batch1_factor + condition_factor)
     } else {
@@ -167,11 +167,11 @@ limma_DT <- function(countData, colData, test_factor, test_nom, test_denom, batc
   } else {
     condition_factor = factor(colData[, test_factor])
     ASE = colData[, "ASE"]
-    if(!missing(batch2)) {    
+    if(batch2 != "") {    
       batch2_factor = colData[, batch2]
       batch1_factor = colData[, batch1]
       design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor + condition_factor:ASE)
-    } else if(!missing(batch1)) {
+    } else if(batch1 != "") {
       batch1_factor = colData[, batch1]    
       design1 = model.matrix(~0 + batch1_factor + condition_factor + condition_factor:ASE)
     } else {
