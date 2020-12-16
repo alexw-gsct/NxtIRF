@@ -82,8 +82,8 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     rownames(colData) = colnames(se)
     colnames(countData) = rownames(colData)
     rownames(countData) = c(
-        paste(rowData$EventName, ".Included"),
-        paste(rowData$EventName, ".Excluded")
+        paste(rowData$EventName, "Included", sep="."),
+        paste(rowData$EventName, "Excluded", sep=".")
     )
     
     condition_factor = factor(colData[, test_factor])
@@ -119,9 +119,9 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     # Merge tables together:
     res.ASE = res.limma
     res.inc = res.limma2[grepl(".Included", EventName)]
-    res.inc[, EventName := sub(".Included","",EventName)]
+    res.inc[, EventName := sub(".Included","",EventName, fixed=TRUE)]
     res.exc = res.limma2[grepl(".Excluded", EventName)]
-    res.exc[, EventName := sub(".Excluded","",EventName)]
+    res.exc[, EventName := sub(".Excluded","",EventName, fixed=TRUE)]
     
     res.ASE[res.inc, on = "EventName",
       paste("Inc", colnames(res.inc)[1:6], sep=".") := 
