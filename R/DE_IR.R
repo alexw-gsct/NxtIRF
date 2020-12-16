@@ -31,7 +31,8 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
         SummarizedExperiment::assay(se, "Excluded"))
     rowData = as.data.frame(SummarizedExperiment::rowData(se))
     
-    colData = rbind(SummarizedExperiment::colData(se), SummarizedExperiment::colData(se))
+    colData = as.data.frame(SummarizedExperiment::colData(se))
+    colData = rbind(colData, colData)
     rownames(colData) = c(
         paste(colnames(se), "Included", sep="."),
         paste(colnames(se), "Excluded", sep=".")
