@@ -437,7 +437,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         )
                         p_track[[i]] = p_track[[i]] %>% layout(
                             yaxis = list(
-                                range = c(0, 1 + max(unlist(df[,track_samples]))), 
+                                range = c(0, 1 + max(unlist(df[,"sample"]))), 
                                 fixedrange = TRUE,
                                 title = paste(track_samples, " Coverage")
                             )
