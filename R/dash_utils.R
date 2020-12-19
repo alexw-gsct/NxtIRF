@@ -429,19 +429,20 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         view_chr, view_start, view_end, view_strand)
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
-
-                    p_track[[i]] = ggplotly(
-                        ggplot(df, aes_string(x = "x", y = "sample")) + geom_line(),
-                        # labs(y = paste(track_samples, " Coverage")),
-                        tooltip = c("x", "y")
-                    )
-                    p_track[[i]] = p_track[[i]] %>% layout(
-                        yaxis = list(
-                            range = c(0, 1 + max(unlist(df[,track_samples]))), 
-                            fixedrange = TRUE,
-                            title = paste(track_samples, " Coverage")
+                    if("sample" %in% colnames(df)) {
+                        p_track[[i]] = ggplotly(
+                            ggplot(df, aes_string(x = "x", y = "sample")) + geom_line(),
+                            # labs(y = paste(track_samples, " Coverage")),
+                            tooltip = c("x", "y")
                         )
-                    )
+                        p_track[[i]] = p_track[[i]] %>% layout(
+                            yaxis = list(
+                                range = c(0, 1 + max(unlist(df[,track_samples]))), 
+                                fixedrange = TRUE,
+                                title = paste(track_samples, " Coverage")
+                            )
+                        )
+                    }
                 }
             }
         }
