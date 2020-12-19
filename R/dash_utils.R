@@ -425,13 +425,13 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 track_samples = tracks[[i]]
                 if(length(avail_files[track_samples]) > 0 &&
                         all(file.exists(avail_files[track_samples]))) {
-                    df = GetCoverage_DF(track_samples, avail_files[track_samples],
+                    df = GetCoverage_DF("sample", avail_files[track_samples],
                         view_chr, view_start, view_end, view_strand)
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
 
                     p_track[[i]] = ggplotly(
-                        ggplot(df, aes_string(x = "x", y = track_samples)) + geom_line(),
+                        ggplot(df, aes_string(x = "x", y = "sample")) + geom_line(),
                         # labs(y = paste(track_samples, " Coverage")),
                         tooltip = c("x", "y")
                     )
