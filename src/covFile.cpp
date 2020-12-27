@@ -169,7 +169,9 @@ void covFile::SetInputHandle(std::istream *in_stream) {
 
     } else {
         Rcout << "EOF bit not detected\n";
-        EOF_POS = 0;  
+        EOF_POS = 0;
+				IS_EOF = 1;
+				IS_FAIL = 1;				
         mode = "";
     }
     IN->seekg (0, std::ios_base::beg);
@@ -179,10 +181,10 @@ int covFile::ReadBuffer() {
     // read compressed buffer
     if((size_t)IN->tellg() >= EOF_POS) {
         IS_EOF = 1;
-        return(0);
+        return(Z_STREAM_END);
     } else if(IN->fail()) {
         IS_FAIL = 1;
-        return(0);
+        return(Z_STREAM_ERROR);
     }
 
     stream_uint16 u16;
@@ -195,7 +197,7 @@ int covFile::ReadBuffer() {
         std::ostringstream oss;
         oss << "Exception during BAM decompression - BGZF header corrupt: (at " << IN->tellg() << " bytes) ";
         // throw(std::runtime_error(oss.str()));
-				return(-1);
+				return(Z_BUF_ERROR);
     }
 
     IN->read(u16.c, 2);
@@ -254,7 +256,7 @@ int covFile::read(char * dest, unsigned int len) {
     // Read next block if buffer empty or if pos is at end of buffer
     if(bufferMax == 0 || bufferPos == bufferMax) {
         ret = ReadBuffer();
-				if(ret != 0) return(ret);
+				if(ret != Z_OK) return(ret);
     }
     
     if (len <= bufferMax - bufferPos) {
@@ -268,7 +270,7 @@ int covFile::read(char * dest, unsigned int len) {
         bufferMax = 0;
         bufferPos = 0;
         ret = ReadBuffer();
-				if(ret != 0) return(ret);
+				if(ret != Z_OK) return(ret);
 
         while(remaining_bytes > bufferMax) {
             memcpy(&dest[dest_pos], &buffer[0], bufferMax);
@@ -277,14 +279,14 @@ int covFile::read(char * dest, unsigned int len) {
             bufferMax = 0;
             bufferPos = 0;
 						ret = ReadBuffer();
-						if(ret != 0) return(ret);
+						if(ret != Z_OK) return(ret);
         }
         
         memcpy(&dest[dest_pos], &buffer[bufferPos], remaining_bytes);
         bufferPos += remaining_bytes;
         dest_pos += remaining_bytes;
     }
-    return(0);
+    return(Z_OK);
 }
 
 
@@ -418,10 +420,14 @@ int covFile::ReadHeader() {
     bufferMax = 0;    
     
     char cov_header[4];
-    read(cov_header,4);
+		int ret = read(cov_header,4);
+		if(ret != Z_OK) {
+        Rcout << "File is not BGZF compressed; unlikely to be COV file\n";
+				return(ret);
+		}
     std::string s_cov_header = "COV\x01";
     if(strncmp(cov_header, s_cov_header.c_str(), 4) != 0) {
-        Rcout << "COV file has incorrect header!";
+        Rcout << "COV file has incorrect header!\n";
 				return(-1);
     }
     

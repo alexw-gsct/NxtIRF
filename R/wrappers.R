@@ -456,9 +456,10 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
       for(i in 1:length(raw_list)) {
         final_list[[i]] = S4Vectors::Rle(raw_list[[i]]$values, raw_list[[i]]$length)
       }
+    } else {
+      return(NULL)
     }
-    # final_RLE = S4Vectors:::new_SimpleList_from_list("SimpleRleList", final_list)
-		final_RLE = as(final_list, "RleList")
+    final_RLE = as(final_list, "RleList")
     names(final_RLE) = names(raw_list)
     return(final_RLE)
   } else if(end == 0) {

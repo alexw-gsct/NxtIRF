@@ -41,8 +41,12 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
   
   covFile inCov;
   inCov.SetInputHandle(&inCov_stream);
-  
-  inCov.ReadHeader();
+
+  int ret = inCov.ReadHeader();
+  if(ret < 0){
+		Rcout << s_in << " appears to not be valid COV file... exiting\n";
+    return(NULL_RLE);
+  }
   
   // Find corresponding seqname
   int ref_index;
@@ -102,7 +106,11 @@ List IRF_RLEList_From_Cov(std::string s_in, int strand) {
   covFile inCov;
   inCov.SetInputHandle(&inCov_stream);
   
-  inCov.ReadHeader();
+  int ret = inCov.ReadHeader();
+  if(ret == -1){
+		Rcout << s_in << " appears to not be valid COV file... exiting";
+    return(NULL_RLE);
+  }
   
   for (unsigned int i = 0; i < inCov.chr_names.size(); i++) {
     uint32_t eff_end = inCov.chr_lens.at(i);
