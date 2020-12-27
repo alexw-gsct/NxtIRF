@@ -2827,7 +2827,8 @@ dash_server = function(input, output, session) {
         selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
         req(selectedfile$datapath)
         
-        saveRDS(isolate(settings_Cov$final_plot$ggplot), selectedfile$datapath)
+        obj = isolate(settings_Cov$final_plot$ggplot)
+        saveRDS(obj, selectedfile$datapath)
         # plotly::orca(input$saveplot_cov, selectedfile$datapath)
     })
   

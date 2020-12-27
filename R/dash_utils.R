@@ -471,7 +471,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
     plot_tracks[[length(plot_tracks) + 1]] = p_ref$pl
-
+    
+    gp_track[[6]] = p_ref$gp
+    
     final_plot = subplot(plot_tracks, nrows = length(plot_tracks), 
         shareX = TRUE, titleY = TRUE)
 
