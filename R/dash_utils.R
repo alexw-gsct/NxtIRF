@@ -71,11 +71,11 @@ get_psi <- function(se_path,
 determine_compatible_events <- function(reduced.DT, highlight_events) {
 
     introns = reduced.DT[get("type") == "intron"]
-    introns[, c("highlight") := FALSE]
+    introns[, c("highlight") := "0"]
     exons = reduced.DT[get("type") == "exon"]
-    exons[, c("highlight") := FALSE]
+    exons[, c("highlight") := "0"]
     misc = reduced.DT[get("type") == "CDS"]
-    misc[, c("highlight") := FALSE]
+    misc[, c("highlight") := "0"]
 
     tr_filter = c()
     if(length(highlight_events) == 1) {
@@ -83,14 +83,15 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
         gr = NxtIRF.CoordToGR(highlight_events[[1]])
         introns.gr = makeGRangesFromDataFrame(as.data.frame(introns))
         OL = findOverlaps(gr, introns.gr)
-        introns[OL@to, c("highlight") := TRUE]
+        introns[OL@to, c("highlight") := 1]
     } else if(length(highlight_events) == 2) {
         # This is AS
+        AS_count = 1;
         for(event in highlight_events) {
             gr = NxtIRF.CoordToGR(event)
             introns.gr = makeGRangesFromDataFrame(as.data.frame(introns))
             OL = findOverlaps(gr, introns.gr, type = "equal")
-            introns[OL@to, c("highlight") := TRUE]
+            introns[OL@to, c("highlight") := as.character(AS_count)]
 
             OL_s1 = findOverlaps(gr[1], introns.gr, type = "equal")
             tr1 = unique(introns$group_id[OL_s1@to])
@@ -106,17 +107,18 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
             }
             exons[get("group_id") %in% tr1 & 
                 (get("start") %in% coord_keys | get("end")%in% coord_keys),
-                c("highlight") := TRUE]   
+                c("highlight") := as.character(AS_count)]
+            AS_count = AS_count + 1
         }  
     }
-    if(any(exons$highlight == TRUE)) {
-        OL_cds = findOverlaps(
-            makeGRangesFromDataFrame(as.data.frame(exons[get("highlight") == TRUE])),
-            makeGRangesFromDataFrame(as.data.frame(misc))
-        )
-        misc[OL_cds@to, c("highlight") := TRUE]
-        misc[!(get("group_id") %in% tr_filter), c("highlight") := FALSE]           
-    }
+    # if(any(exons$highlight != "0")) {
+        # OL_cds = findOverlaps(
+            # makeGRangesFromDataFrame(as.data.frame(exons[get("highlight") != "0"])),
+            # makeGRangesFromDataFrame(as.data.frame(misc))
+        # )
+        # misc[OL_cds@to, c("highlight") := TRUE]
+        # misc[!(get("group_id") %in% tr_filter), c("highlight") := FALSE]           
+    # }
 
     return(rbind(introns, exons, misc))
 }
