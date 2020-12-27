@@ -586,7 +586,7 @@ ui_tab_diag <- function() {
                     c("(none)")),
                 shinyWidgets::switchInput("NMD_diag", label = "NMD Mode", labelWidth = "100px"),
                 shinySaveButton("saveplot_diag", "Save Plot as PDF", "Save Plot as PDF...", 
-                    filetype = list(PDF = "pdf"))                     
+                    filetype = list(PDF = "pdf")),
                 actionButton("clear_diag", "Clear settings"),
                 textOutput("warning_diag")
             ),
@@ -609,7 +609,7 @@ ui_tab_volcano <- function() {
                 shinyWidgets::switchInput("facet_volc", label = "Facet by Type", labelWidth = "150px"),
                 shinyWidgets::switchInput("NMD_volc", label = "NMD Mode", labelWidth = "100px"),
                 shinySaveButton("saveplot_volc", "Save Plot as PDF", "Save Plot as PDF...", 
-                    filetype = list(PDF = "pdf"))                      
+                    filetype = list(PDF = "pdf")),
                 actionButton("clear_volc", "Clear settings"),
                 textOutput("warning_volc")
             ),
