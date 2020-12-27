@@ -408,20 +408,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= max_tracks) {
                         pl_track[[1]]$x$data[[j]]$name = track_names[j]
-                        pl_track[[1]]$x$data[[j + max_tracks]]$name = track_names[j]
-                
+                        pl_track[[1]]$x$data[[j + max_tracks]]$name = track_names[j]                
                     } else {
-                    
+                        pl_track[[1]]$x$data[[j]]$name = paste(condition, tracks[[j]])
+                        pl_track[[1]]$x$data[[j + max_tracks]]$name = paste(condition, tracks[[j]])
                     }
-                }
-                    pl_track[[1]]$x$data[[2]]$name = track_names[2]
-                    pl_track[[1]]$x$data[[3]]$name = track_names[1]
-                    pl_track[[1]]$x$data[[4]]$name = track_names[2]
-                } else {
-                    pl_track[[1]]$x$data[[1]]$name = paste(condition, tracks[[1]]) # paste("Track",1)
-                    pl_track[[1]]$x$data[[2]]$name = paste(condition, tracks[[2]]) 
-                    pl_track[[1]]$x$data[[3]]$name = paste(condition, tracks[[1]]) 
-                    pl_track[[1]]$x$data[[4]]$name = paste(condition, tracks[[2]])
                 }
             }
         } else {
