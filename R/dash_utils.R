@@ -402,12 +402,18 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     dragmode = "zoom",
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
-                pl_track[[1]]$x$data[[1]]$showlegend = FALSE
-                pl_track[[1]]$x$data[[2]]$showlegend = FALSE                
-                pl_track[[1]]$x$data[[3]]$showlegend = TRUE
-                pl_track[[1]]$x$data[[4]]$showlegend = TRUE
-                if(!missing(track_names) && length(track_names) == 2) {
-                    pl_track[[1]]$x$data[[1]]$name = track_names[1]
+                max_tracks = length(unique(df$track))
+                for(j in seq_len(max_tracks)) {
+                    pl_track[[1]]$x$data[[j]]$showlegend = FALSE
+                    pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
+                    if(!missing(track_names) && length(track_names) >= max_tracks) {
+                        pl_track[[1]]$x$data[[j]]$name = track_names[j]
+                        pl_track[[1]]$x$data[[j + max_tracks]]$name = track_names[j]
+                
+                    } else {
+                    
+                    }
+                }
                     pl_track[[1]]$x$data[[2]]$name = track_names[2]
                     pl_track[[1]]$x$data[[3]]$name = track_names[1]
                     pl_track[[1]]$x$data[[4]]$name = track_names[2]
@@ -507,7 +513,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
     p_ref$pl$x$data[[1]]$showlegend = FALSE
-    p_ref$pl$x$data[[2]]$showlegend = FALSE
+    if(length(p_ref$pl$x$data) > 1) p_ref$pl$x$data[[2]]$showlegend = FALSE
     
     plot_tracks[[length(plot_tracks) + 1]] = p_ref$pl
     
