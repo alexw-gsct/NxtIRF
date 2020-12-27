@@ -220,7 +220,7 @@ dash_server = function(input, output, session) {
           updateSelectInput(session = session, inputId = "variable_diag", 
             choices = c("(none)", colnames(colData)), selected = "(none)")
         }
-    } else if(input$navSelection == "navHeat") {
+    } else if(input$navSelection == "navHeatmap") {
         if(is_valid(settings_SE$se)) {
             updateSelectInput(session = session, inputId = "anno_col_heat", 
                 choices = colnames(SummarizedExperiment::colData(settings_SE$se)), selected = NULL)
