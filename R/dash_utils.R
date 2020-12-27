@@ -260,7 +260,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     reduced.DT[group.DT, on = "group_id", 
         c("plot_level") := get("i.plot_level")]
     
-    if(condense_this == TRUE) reduced.DT[, c("highlight") := FALSE]
+    if(missing(highlight_events)) reduced.DT[, c("highlight") := FALSE]
     
     p = ggplot(reduced.DT)
 
@@ -281,7 +281,12 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             )
         )
     }
-      
+
+    if(!missing(highlight_events)) {
+        p = p + scale_color_manual(values = c("black", "red")) +
+            scale_fill_manual(values = c("black", "red"))
+    }      
+
     if(condense_this == TRUE) {
         anno = list(
             x = group.DT$disp_x,
@@ -289,8 +294,6 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             text = group.DT$display_name,
             xref = "x", yref = "y", showarrow = FALSE)
     } else {
-        p = p + scale_color_manual(values = c("black", "red")) +
-            scale_fill_manual(values = c("black", "red"))
         anno = list(
             x = group.DT$disp_x,
             y = group.DT$plot_level - 0.4,
