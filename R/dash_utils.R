@@ -288,8 +288,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     }
 
     if(!missing(highlight_events)) {
-        p = p + scale_color_manual(values = c("black", "red")) +
-            scale_fill_manual(values = c("black", "red"))
+        p = p + scale_color_manual(values = c("black", "red", "blue")) +
+            scale_fill_manual(values = c("black", "red", "blue"))
     }      
 
     if(condense_this == TRUE) {
@@ -513,8 +513,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
-    p_ref$pl$x$data[[1]]$showlegend = FALSE
-    if(length(p_ref$pl$x$data) > 1) p_ref$pl$x$data[[2]]$showlegend = FALSE
+    for(i in length(p_ref$pl$x$data)) {
+        p_ref$pl$x$data[[i]]$showlegend = FALSE
+    }
     
     plot_tracks[[length(plot_tracks) + 1]] = p_ref$pl
     
