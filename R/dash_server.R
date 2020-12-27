@@ -2835,7 +2835,7 @@ dash_server = function(input, output, session) {
         
         obj = isolate(settings_Cov$final_plot)
         # saveRDS(obj, selectedfile$datapath)
-        plotly::orca(settings_Cov$final_plot, selectedfile$datapath)
+        plotly::orca(settings_Cov$final_plot, make.path.relative(getwd(), selectedfile$datapath))
     })
   
     shinyFileSave(input, "saverds_cov", roots = c(default_volumes, addit_volume), session = session,

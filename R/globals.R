@@ -117,3 +117,10 @@ is_valid <- function(x) {
         (isS4(x) || !is.na(x)) && 
         (!is.character(x) || (x != "" && x != "(none)"))
 }
+
+make.path.relative = function(base, target) {
+    common = sub('^([^|]*)[^|]*(?:\\|\\1[^|]*)$', '^\\1/?', paste0(base, '|', target))
+    
+    paste0(gsub('[^/]+/?', '../', sub(common, '', base)),
+           sub(common, '', target))
+}
