@@ -2560,7 +2560,8 @@ dash_server = function(input, output, session) {
             stack_tracks = input$stack_tracks_cov,
             t_test = input$pairwise_t_cov
         )
-      
+        
+        
         output$plot_cov <- renderPlotly({
             settings_Cov$plot_ini = TRUE      
             print(
@@ -2826,7 +2827,7 @@ dash_server = function(input, output, session) {
         selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
         req(selectedfile$datapath)
         
-        saveRDS(settings_Cov$final_plot, selectedfile$datapath)
+        saveRDS(settings_Cov$final_plot$ggplot, selectedfile$datapath)
         # plotly::orca(input$saveplot_cov, selectedfile$datapath)
     })
   
