@@ -318,7 +318,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
 }
 
 plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
-    norm_event, condition, tracks = list(), se, avail_files,
+    norm_event, condition, tracks = list(), track_names = "", se, avail_files,
     transcripts, elems, highlight_events, stack_tracks, graph_mode,
     conf.int = 0.95,
     t_test = FALSE, condensed = FALSE) {
@@ -400,6 +400,21 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     dragmode = "zoom",
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
+                pl_track[[1]]$x$data[[1]]$showlegend = FALSE
+                pl_track[[1]]$x$data[[2]]$showlegend = FALSE                
+                pl_track[[1]]$x$data[[3]]$showlegend = TRUE
+                pl_track[[1]]$x$data[[4]]$showlegend = TRUE
+                if(!missing(track_names) && length(track_names) == 2) {
+                    pl_track[[1]]$x$data[[1]]$name = track_names[1]
+                    pl_track[[1]]$x$data[[2]]$name = track_names[1]
+                    pl_track[[1]]$x$data[[3]]$name = track_names[2]
+                    pl_track[[1]]$x$data[[4]]$name = track_names[2]
+                } else {
+                    pl_track[[1]]$x$data[[1]]$name = paste("Track",1)
+                    pl_track[[1]]$x$data[[2]]$name = paste("Track",1)
+                    pl_track[[1]]$x$data[[3]]$name = paste("Track",2)
+                    pl_track[[1]]$x$data[[4]]$name = paste("Track",2)
+                }
             }
         } else {
             for(i in 1:4) {
@@ -418,6 +433,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                             range = c(0, 1 + max(df$mean + df$ci)), 
                             fixedrange = TRUE)
                     )
+                    pl_track[[i]]$x$data[[1]]$showlegend = FALSE
+                    pl_track[[i]]$x$data[[2]]$showlegend = TRUE
+                    if(!missing(track_names) && length(track_names) >= i) {
+                        pl_track[[i]]$x$data[[1]]$name = track_names[i]
+                        pl_track[[i]]$x$data[[2]]$name = track_names[i]
+                    } else {
+                        pl_track[[i]]$x$data[[1]]$name = paste("Track",i)
+                        pl_track[[i]]$x$data[[2]]$name = paste("Track",i)
+                    }
                 }
             }
         }
@@ -443,6 +467,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                                 title = paste(track_samples, " Coverage")
                             )
                         )
+                        pl_track[[i]]$x$data[[1]]$showlegend = FALSE
+                        pl_track[[i]]$x$data[[2]]$showlegend = TRUE
+                        if(!missing(track_names) && length(track_names) >= i) {
+                            pl_track[[i]]$x$data[[1]]$name = track_names[i]
+                            pl_track[[i]]$x$data[[2]]$name = track_names[i]
+                        } else {
+                            pl_track[[i]]$x$data[[1]]$name = paste("Track",i)
+                            pl_track[[i]]$x$data[[2]]$name = paste("Track",i)
+                        }
                     }
                 }
             }
@@ -466,10 +499,14 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 title = paste("T-test -log10(p)")
             )
         )
+        pl_track[[5]]$x$data[[1]]$showlegend = FALSE
     }
 
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
+    p_ref$pl$x$data[[1]]$showlegend = FALSE
+    p_ref$pl$x$data[[2]]$showlegend = FALSE
+    
     plot_tracks[[length(plot_tracks) + 1]] = p_ref$pl
     
     gp_track[[6]] = p_ref$gp
