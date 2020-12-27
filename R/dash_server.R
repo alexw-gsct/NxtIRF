@@ -2501,7 +2501,7 @@ dash_server = function(input, output, session) {
         req(view_end)
         req(settings_SE$se)
         
-        req(view_start - view_end > 0)
+        req(view_end - view_start > 0)
         
       # refresh in-range events here
         if(is_valid(input$event_norm_cov)) {
