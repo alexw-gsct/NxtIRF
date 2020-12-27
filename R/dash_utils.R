@@ -332,7 +332,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     p_ref = plot_view_ref_fn(
         view_chr, view_start, view_end, 
-        transcripts, elems, highlight_events
+        transcripts, elems, highlight_events,
+        condensed = condensed
     )
     gp_track = list()
     pl_track = list()
