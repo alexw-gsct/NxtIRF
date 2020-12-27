@@ -302,7 +302,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     } else {
         max_plot_level = max(group.DT$plot_level)
     }
-    
+    gp = p + geom_text(data = data.frame(x = anno[["x"]], y = anno[["y"]], text = anno[["text"]]), 
+        aes(x = x, y = y, label = text))
     pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% 
     layout(
         annotations = anno,
@@ -313,7 +314,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             fixedrange = TRUE)
     )
     
-    return(pl)			
+    return(list(gp = gp, pl = pl))		
 }
 
 plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
@@ -326,7 +327,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         view_chr, view_start, view_end, 
         transcripts, elems, highlight_events
     )
-    p_track = list()
+    gp_track = list()
+    pl_track = list()
   
     cur_zoom = floor(log((view_end - view_start)/50) / log(3))
 
@@ -386,15 +388,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         if(stack_tracks == TRUE) {
             df = as.data.frame(rbindlist(data.list))
             if(nrow(df) > 0) {
-                p_track[[1]] = ggplotly(
-                    ggplot(df, aes(x = x)) + 
+                gp_track[[1]] = ggplot(df, aes(x = x)) + 
                     geom_ribbon(alpha = 0.2, 
                         aes(y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
                     geom_line(aes(y = mean, colour = track)) +
-                    labs(y = "Stacked Tracks Normalized Coverage"),
+                    labs(y = "Stacked Tracks Normalized Coverage")
+                pl_track[[1]] = ggplotly(gp_track[[1]],
                     tooltip = c("x", "y", "ymin", "ymax", "colour")
                 )
-                p_track[[1]] = p_track[[1]] %>% layout(
+                pl_track[[1]] = pl_track[[1]] %>% layout(
                     dragmode = "zoom",
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
@@ -403,15 +405,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             for(i in 1:4) {
                 if(length(data.list) >= i && !is.null(data.list[[i]])) {
                     df = as.data.frame(data.list[[i]])
-                    p_track[[i]] = ggplotly(
-                        ggplot(df, aes(x = x)) + 
+                    gp_track[[i]] = ggplot(df, aes(x = x)) + 
                         geom_ribbon(alpha = 0.2, colour = NA, 
                             aes(y = mean, ymin = mean - ci, ymax = mean + ci)) +
                         geom_line(aes(y = mean)) +
-                        labs(y = paste("Track", i, "Normalized Coverage")),
+                        labs(y = paste("Track", i, "Normalized Coverage"))
+                    pl_track[[i]] = ggplotly(gp_track[[i]],
                         tooltip = c("x", "y", "ymin", "ymax")
                     )						
-                    p_track[[i]] = p_track[[i]] %>% layout(
+                    pl_track[[i]] = pl_track[[i]] %>% layout(
                         yaxis = list(
                             range = c(0, 1 + max(df$mean + df$ci)), 
                             fixedrange = TRUE)
@@ -430,12 +432,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
                     if("sample" %in% colnames(df)) {
-                        p_track[[i]] = ggplotly(
-                            ggplot(df, aes_string(x = "x", y = "sample")) + geom_line(),
-                            # labs(y = paste(track_samples, " Coverage")),
+                        gp_track[[i]] = ggplot(df, aes_string(x = "x", y = "sample")) + geom_line()
+                        pl_track[[i]] = ggplotly(gp_track[[i]],
                             tooltip = c("x", "y")
                         )
-                        p_track[[i]] = p_track[[i]] %>% layout(
+                        pl_track[[i]] = pl_track[[i]] %>% layout(
                             yaxis = list(
                                 range = c(0, 1 + max(unlist(df[,"sample"]))), 
                                 fixedrange = TRUE,
@@ -453,14 +454,13 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         t_test = genefilter::rowttests(data.t_test[, -1], fac)
         DT = data.table(x = data.t_test[, 1])
         DT[, c("t_stat") := -log10(t_test$p.value)]
-
-        p_track[[5]] = ggplotly(
-            ggplot(as.data.frame(DT), 
-                aes_string(x = "x", y = "t_stat")) + geom_line(),
+        gp_track[[5]] = ggplot(as.data.frame(DT), 
+                aes_string(x = "x", y = "t_stat")) + geom_line()
+        pl_track[[5]] = ggplotly(gp_track[[5]],
             # labs(y = paste("Pairwise T-test -log10(p)")),
             tooltip = c("x", "y")
         )
-        p_track[[5]] = p_track[[5]] %>% layout(
+        pl_track[[5]] = pl_track[[5]] %>% layout(
             yaxis = list(c(0, 1 + max(DT$t_stat)), 
                 fixedrange = TRUE,
                 title = paste("T-test -log10(p)")
@@ -468,9 +468,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         )
     }
 
-    plot_tracks = p_track[unlist(lapply(p_track, function(x) !is.null(x)))]
+    plot_tracks = pl_track[unlist(lapply(p_track, function(x) !is.null(x)))]
 
-    plot_tracks[[length(plot_tracks) + 1]] = p_ref
+    plot_tracks[[length(plot_tracks) + 1]] = p_ref$pl
 
     final_plot = subplot(plot_tracks, nrows = length(plot_tracks), 
         shareX = TRUE, titleY = TRUE)
@@ -486,8 +486,10 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             layout(dragmode = FALSE) %>%
             config(editable = TRUE)
     }
+
+    # ggplot equivalent: list of ggplots. Allows advanced end-users to apply final edits to ggplots
     
-    return(final_plot)
+    return(list(ggplot = gp_track, final_plot = final_plot))
 
 }
 

@@ -2564,7 +2564,7 @@ dash_server = function(input, output, session) {
         output$plot_cov <- renderPlotly({
             settings_Cov$plot_ini = TRUE      
             print(
-                settings_Cov$final_plot
+                settings_Cov$final_plot$final_plot
             )
         })
     })
@@ -2820,13 +2820,14 @@ dash_server = function(input, output, session) {
   })
   
     shinyFileSave(input, "saveplot_cov", roots = c(default_volumes, addit_volume), session = session,
-        filetypes = c("pdf"))
+        filetypes = c("Rds"))
     observeEvent(input$saveplot_cov, {	
         req(settings_Cov$final_plot)
         selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
         req(selectedfile$datapath)
         
-        plotly::orca(input$saveplot_cov, selectedfile$datapath)
+        saveRDS(settings_Cov$final_plot, selectedfile$datapath)
+        # plotly::orca(input$saveplot_cov, selectedfile$datapath)
     })
   
     
