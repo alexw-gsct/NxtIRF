@@ -2557,6 +2557,7 @@ dash_server = function(input, output, session) {
         obj = plot_cov_fn(
             view_chr, view_start, view_end, input$strand_cov,
             norm_event, input$condition_cov, tracks = tracks, 
+            track_names = "",
             se = settings_SE$se, settings_Cov$avail_cov,
             settings_Cov$transcripts.DT, settings_Cov$elem.DT,
             events_to_highlight,
