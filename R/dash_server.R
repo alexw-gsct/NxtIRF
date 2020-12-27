@@ -220,6 +220,11 @@ dash_server = function(input, output, session) {
           updateSelectInput(session = session, inputId = "variable_diag", 
             choices = c("(none)", colnames(colData)), selected = "(none)")
         }
+    } else if(input$navSelection == "navHeat") {
+        if(is_valid(settings_SE$se)) {
+            updateSelectInput(session = session, "anno_col_heat", 
+                choices = colnames(SummarizedExperiment::colData(settings_SE$se)), selected = NULL)
+        }
     } else if(input$navSelection == "navCoverage") {
         initialize_ah()
         ah = settings_app$ah
@@ -2386,8 +2391,11 @@ dash_server = function(input, output, session) {
         # ggplotly(ggplotify::ggplotify(
           # pheatmap::pheatmap(mat, annotation_col = colData, color = color)
         # ))
-
-  			heatmaply::heatmaply(mat, color = color, col_side_colors = colData)        
+            if(is_valid(input$anno_col_heat) && all(input$anno_col_heat %in% colnames(colData))) {
+                heatmaply::heatmaply(mat, color = color, col_side_colors = colData[, input$anno_col_heat])
+            } else {
+                heatmaply::heatmaply(mat, color = color)            
+            }
   		)
 		})
 

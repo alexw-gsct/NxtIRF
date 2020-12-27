@@ -625,6 +625,8 @@ ui_tab_heatmap <- function() {
                     choices = c("Highlighted", "Top N Filtered Results", "Top N All Results"), 
                     checkIcon = list(yes = icon("ok", lib = "glyphicon"))
                 ),
+                selectInput("anno_col_heat", "Sample Annotation Rows", width = '100%', multiple = TRUE,
+                    choices = c()),
                 shinyWidgets::sliderTextInput("slider_num_events_heat", 
                     "Num Events", choices = c(5, 10,25,50,100,200,500), selected = 25),
                 shinyWidgets::radioGroupButtons("mode_heat", 
