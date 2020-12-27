@@ -449,9 +449,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         for(i in 1:4) {
             if(length(tracks) >= i && is_valid(tracks[[i]])) {
                 track_samples = tracks[[i]]
-                if(length(avail_files[track_samples]) > 0 &&
-                        all(file.exists(avail_files[track_samples]))) {
-                    df = GetCoverage_DF("sample", avail_files[track_samples],
+                filename = avail_files[which(names(avail_files) == track_samples)]
+                if(length(filename) == 1 && file.exists(filename)) {
+                    df = GetCoverage_DF("sample", filename,
                         view_chr, view_start, view_end, view_strand)
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
