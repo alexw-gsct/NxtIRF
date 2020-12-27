@@ -434,7 +434,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                             fixedrange = TRUE)
                     )
                     pl_track[[i]]$x$data[[1]]$showlegend = FALSE
-                    pl_track[[i]]$x$data[[2]]$showlegend = TRUE
+                    pl_track[[i]]$x$data[[2]]$showlegend = FALSE
                     if(!missing(track_names) && length(track_names) >= i) {
                         pl_track[[i]]$x$data[[1]]$name = track_names[i]
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]
