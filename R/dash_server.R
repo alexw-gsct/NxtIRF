@@ -2396,7 +2396,8 @@ dash_server = function(input, output, session) {
           # pheatmap::pheatmap(mat, annotation_col = colData, color = color)
         # ))
             if(is_valid(input$anno_col_heat) && all(input$anno_col_heat %in% colnames(colData))) {
-                heatmaply::heatmaply(mat, color = color, col_side_colors = colData[, input$anno_col_heat])
+                heatmaply::heatmaply(mat, color = color, 
+                    col_side_colors = colData[, input$anno_col_heat, drop=FALSE])
             } else {
                 heatmaply::heatmaply(mat, color = color)            
             }
