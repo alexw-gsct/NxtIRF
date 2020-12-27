@@ -260,8 +260,11 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     reduced.DT[group.DT, on = "group_id", 
         c("plot_level") := get("i.plot_level")]
     
-    if(missing(highlight_events)) reduced.DT[, c("highlight") := FALSE]
-    
+    if(missing(highlight_events)) {
+        reduced.DT[, c("highlight") := FALSE]
+    } else {
+        setorderv(reduced.DT, "highlight")
+    }
     p = ggplot(reduced.DT)
 
     if(nrow(subset(as.data.frame(reduced.DT), type = "intron")) > 0) {
