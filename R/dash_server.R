@@ -12,6 +12,10 @@ dash_server = function(input, output, session) {
         settings_Diag = setreactive_Diag()
         settings_Volc = setreactive_Diag()
         settings_Cov <- setreactive_Cov()
+        
+        settings_SaveObj <- reactiveValues(
+            obj = NULL
+        )
 
         # settings_to_file <- function(filename) {
             # final = list(
@@ -2550,7 +2554,7 @@ dash_server = function(input, output, session) {
             tracks[[i]] = get_track_selection(i)       
         }
      
-        settings_Cov$final_plot = plot_cov_fn(
+        plot_cov_fn(
             view_chr, view_start, view_end, input$strand_cov,
             norm_event, input$condition_cov, tracks = tracks, 
             se = settings_SE$se, settings_Cov$avail_cov,
@@ -2561,11 +2565,13 @@ dash_server = function(input, output, session) {
             t_test = input$pairwise_t_cov
         )
         
+        settings_Cov$final_plot = obj$final_plot
+        settings_SaveObj$obj = obj$ggplot
         
         output$plot_cov <- renderPlotly({
             settings_Cov$plot_ini = TRUE      
             print(
-                settings_Cov$final_plot$final_plot
+                settings_Cov$final_plot
             )
         })
     })
@@ -2823,11 +2829,11 @@ dash_server = function(input, output, session) {
     shinyFileSave(input, "saveplot_cov", roots = c(default_volumes, addit_volume), session = session,
         filetypes = c("Rds"))
     observeEvent(input$saveplot_cov, {	
-        req(settings_Cov$final_plot)
+        req(settings_SaveObj$obj)
         selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
         req(selectedfile$datapath)
         
-        obj = isolate(settings_Cov$final_plot$ggplot)
+        obj = isolate(settings_SaveObj$obj)
         saveRDS(obj, selectedfile$datapath)
         # plotly::orca(input$saveplot_cov, selectedfile$datapath)
     })
