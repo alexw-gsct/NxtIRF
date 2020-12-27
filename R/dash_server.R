@@ -11,6 +11,7 @@ dash_server = function(input, output, session) {
         settings_DE <- setreactive_DE()
         settings_Diag = setreactive_Diag()
         settings_Volc = setreactive_Diag()
+        settings_Heat = setreactive_Diag()
         settings_Cov <- setreactive_Cov()
         
         # settings_SaveObj <- reactiveValues(
@@ -2142,17 +2143,25 @@ dash_server = function(input, output, session) {
                     y = paste(input$denom_diag)
             )         
         }   
-      
+        settings_Diag$final_plot = ggplotly(p, tooltip = "text",
+            source = "plotly_diagonal") %>% layout(
+                yaxis = list(scaleanchor="x", scaleratio=1)
+            )      
         print(
-            ggplotly(
-					p,
-					tooltip = "text",
-          source = "plotly_diagonal"
-				) %>% layout(
-					yaxis = list(scaleanchor="x", scaleratio=1)
-				)
+                settings_Diag$final_plot
 			)
 		})
+
+        shinyFileSave(input, "saveplot_diag", roots = c(default_volumes, addit_volume), session = session,
+            filetypes = c("pdf"))
+        observeEvent(input$saveplot_diag, {	
+            req(settings_Volc$final_plot)
+            selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_diag)
+            req(selectedfile$datapath)
+            
+            obj = isolate(settings_Diag$final_plot)
+            plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
+        })
 		
     settings_Diag$plotly_click = reactive({
       plot_exist = settings_Diag$plot_ini
@@ -2329,14 +2338,24 @@ dash_server = function(input, output, session) {
 			if(input$NMD_volc == TRUE) {
 				p = p + labs(x = "log2FoldChange NMD substrate")
 			}
+            settings_Volc$final_plot = ggplotly(p, tooltip = "text",
+                source = "plotly_volcano") %>% layout(dragmode = "lasso")
 			print(
-				ggplotly(p,
-					tooltip = "text",
-          source = "plotly_volcano"
-				) %>% layout(dragmode = "lasso")
+				settings_Volc$final_plot
 			)
 		})
-		
+
+        shinyFileSave(input, "saveplot_volc", roots = c(default_volumes, addit_volume), session = session,
+            filetypes = c("pdf"))
+        observeEvent(input$saveplot_volc, {	
+            req(settings_Volc$final_plot)
+            selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_volc)
+            req(selectedfile$datapath)
+            
+            obj = isolate(settings_Volc$final_plot)
+            plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
+        })
+    
 		observeEvent(input$clear_volc, {
 			updateSelectInput(session = session, "EventType_volc", selected = NULL)
 			shinyWidgets::updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
@@ -2391,20 +2410,28 @@ dash_server = function(input, output, session) {
         })
         mat = mat[-which(na.exclude),]
       }
-			print(
-        # ggplotly(ggplotify::ggplotify(
-          # pheatmap::pheatmap(mat, annotation_col = colData, color = color)
-        # ))
+
             if(is_valid(input$anno_col_heat) && all(input$anno_col_heat %in% colnames(colData))) {
-                heatmaply::heatmaply(mat, color = color, 
+                settings_Heat$final_plot = heatmaply::heatmaply(mat, color = color, 
                     col_side_colors = colData[, input$anno_col_heat, drop=FALSE])
             } else {
-                heatmaply::heatmaply(mat, color = color)            
-            }
-  		)
+                settings_Heat$final_plot = heatmaply::heatmaply(mat, color = color)            
+            }      
+			print(
+                settings_Heat$final_plot
+            )
 		})
 
-
+    shinyFileSave(input, "saveplot_heat", roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("pdf"))
+    observeEvent(input$saveplot_heat, {	
+        req(settings_Heat$final_plot)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_heat)
+        req(selectedfile$datapath)
+        
+        obj = isolate(settings_Heat$final_plot)
+        plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
+    })
 		
 		# RNA-seq Coverage Plots
     
@@ -2577,6 +2604,8 @@ dash_server = function(input, output, session) {
             )
         })
     })
+
+
 		
     observeEvent(input$graph_mode_cov, {
       req(settings_Cov$plot_ini == TRUE)
@@ -2836,21 +2865,20 @@ dash_server = function(input, output, session) {
         req(selectedfile$datapath)
         
         obj = isolate(settings_Cov$final_plot)
-        # saveRDS(obj, selectedfile$datapath)
         plotly::orca(settings_Cov$final_plot, make.path.relative(getwd(), selectedfile$datapath))
     })
   
-    shinyFileSave(input, "saverds_cov", roots = c(default_volumes, addit_volume), session = session,
-        filetypes = c("Rds"))
-    observeEvent(input$saverds_cov, {	
-        req(settings_Cov$final_plot)
-        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saverds_cov)
-        req(selectedfile$datapath)
+    # shinyFileSave(input, "saverds_cov", roots = c(default_volumes, addit_volume), session = session,
+        # filetypes = c("Rds"))
+    # observeEvent(input$saverds_cov, {	
+        # req(settings_Cov$final_plot)
+        # selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saverds_cov)
+        # req(selectedfile$datapath)
         
-        obj = isolate(settings_Cov$final_plot)
-        saveRDS(obj, selectedfile$datapath)
-        # plotly::orca(settings_Cov$final_plot, selectedfile$datapath)
-    })
+        # obj = isolate(settings_Cov$final_plot)
+        # saveRDS(obj, selectedfile$datapath)
+        
+    # })
     
 # End of server function		
   }

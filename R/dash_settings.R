@@ -73,7 +73,14 @@ setreactive_DE <- function() {
 setreactive_Diag <- function() {
     reactiveValues(
         plot_ini = FALSE,
-		plotly_click = NULL
+		plotly_click = NULL,
+        final_plot = NULL
+    )
+}
+
+setreactive_Heat <- function() {
+    reactiveValues(
+        final_plot = NULL
     )
 }
 

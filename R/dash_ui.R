@@ -584,7 +584,9 @@ ui_tab_diag <- function() {
                     c("(none)")),
                 selectInput('denom_diag', 'Y-axis condition', 
                     c("(none)")),
-                shinyWidgets::switchInput("NMD_diag", label = "NMD Mode", labelWidth = "100px"),                    
+                shinyWidgets::switchInput("NMD_diag", label = "NMD Mode", labelWidth = "100px"),
+                shinySaveButton("saveplot_diag", "Save Plot as PDF", "Save Plot as PDF...", 
+                    filetype = list(PDF = "pdf"))                     
                 actionButton("clear_diag", "Clear settings"),
                 textOutput("warning_diag")
             ),
@@ -606,6 +608,8 @@ ui_tab_volcano <- function() {
                     choices = c("IR", "MXE", "SE", "AFE", "ALE", "A5SS", "A3SS")),
                 shinyWidgets::switchInput("facet_volc", label = "Facet by Type", labelWidth = "150px"),
                 shinyWidgets::switchInput("NMD_volc", label = "NMD Mode", labelWidth = "100px"),
+                shinySaveButton("saveplot_volc", "Save Plot as PDF", "Save Plot as PDF...", 
+                    filetype = list(PDF = "pdf"))                      
                 actionButton("clear_volc", "Clear settings"),
                 textOutput("warning_volc")
             ),
@@ -638,7 +642,9 @@ ui_tab_heatmap <- function() {
                 selectInput('color_heat', 'Palette', 
                     c("RdBu", "BrBG", "PiYG", "PRGn", "PuOr", "
                         RdGy", "RdYlBu", "RdYlGn", "Spectral")
-                )            
+                ),
+                shinySaveButton("saveplot_heat", "Save Plot as PDF", "Save Plot as PDF...", 
+                    filetype = list(PDF = "pdf"))                
             ),
             column(9, 
                 textOutput("warning_heat"),
@@ -721,8 +727,8 @@ ui_tab_coverage <- function() {
                 shinyWidgets::switchInput("pairwise_t_cov", label = "Pairwise t-test", labelWidth = "150px"),
                 shinySaveButton("saveplot_cov", "Save Plot as PDF", "Save Plot as PDF...", 
                     filetype = list(PDF = "pdf")),
-                shinySaveButton("saverds_cov", "Save Plot as RDS", "Save Plot as RDS...", 
-                    filetype = list(RDS = "Rds")),
+                # shinySaveButton("saverds_cov", "Save Plot as RDS", "Save Plot as RDS...", 
+                    # filetype = list(RDS = "Rds")),
             ),
             column(10, 
                 plotlyOutput("plot_cov", height = "800px"),
