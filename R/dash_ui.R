@@ -725,6 +725,7 @@ ui_tab_coverage <- function() {
                     choices = c("(none)")),
                 shinyWidgets::switchInput("stack_tracks_cov", label = "Stack Traces", labelWidth = "150px"),
                 shinyWidgets::switchInput("pairwise_t_cov", label = "Pairwise t-test", labelWidth = "150px"),
+                shinyWidgets::switchInput("condense_cov", label = "Condensed Tracks", labelWidth = "150px"),
                 shinySaveButton("saveplot_cov", "Save Plot as PDF", "Save Plot as PDF...", 
                     filetype = list(PDF = "pdf")),
                 # shinySaveButton("saverds_cov", "Save Plot as RDS", "Save Plot as RDS...", 

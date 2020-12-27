@@ -2583,7 +2583,7 @@ dash_server = function(input, output, session) {
         }
      
         obj = plot_cov_fn(
-            view_chr, view_start, view_end, input$strand_cov,
+            view_chr, view_start, view_end, input$strand_cov, 
             norm_event, input$condition_cov, tracks = tracks, 
             track_names = "",
             se = settings_SE$se, settings_Cov$avail_cov,
@@ -2591,7 +2591,8 @@ dash_server = function(input, output, session) {
             events_to_highlight,
             graph_mode = graph_mode,
             stack_tracks = input$stack_tracks_cov,
-            t_test = input$pairwise_t_cov
+            t_test = input$pairwise_t_cov,
+            condensed = input$condense_cov
         )
         
         settings_Cov$final_plot = obj$final_plot

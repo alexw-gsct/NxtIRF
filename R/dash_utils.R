@@ -140,46 +140,46 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         get("type") %in% c("CDS", "start_codon", "stop_codon", "exon")
     ]
     if(condensed != TRUE & nrow(transcripts.DT) <= 100) {
-        condense_this = FALSE
-        transcripts.DT[, c("group_id") := get("transcript_id")]
-        screen.DT[, c("group_id") := get("transcript_id")]
-        reduced.DT = copy(screen.DT)
-        reduced.DT[get("type") %in% c("CDS", "start_codon", "stop_codon"), c("type") := "CDS"]
-        reduced.DT[get("type") != "CDS", c("type") := "exon"]
-        
+        condense_this = FALSE       
     } else {
         condense_this = TRUE
-        transcripts.DT[, c("group_id") := get("gene_id")]     
-        screen.DT[transcripts.DT, on = "transcript_id", 
-            c("group_id") := get("gene_id")]
-        # reduce screen.DT 
-        reduced.gr = disjoin(
-            makeGRangesFromDataFrame(
-                as.data.frame(screen.DT)
-            )
-        )
-        reduced.gr$type = "exon"
-        OL = findOverlaps(
-          reduced.gr,
-          makeGRangesFromDataFrame(
-            as.data.frame(screen.DT)
-          )
-        )
-        reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
-        OL = findOverlaps(
-            reduced.gr,
-            makeGRangesFromDataFrame(
-                as.data.frame(screen.DT[
-                        get("type") %in% c("CDS", "start_codon", "stop_codon")
-                    ]
-                )
-            )
-        )
-        reduced.gr$type[OL@from] = "CDS"
+        # transcripts.DT[, c("group_id") := get("gene_id")]     
+        # screen.DT[transcripts.DT, on = "transcript_id", 
+            # c("group_id") := get("gene_id")]
 
-        reduced.DT = as.data.table(reduced.gr)
+        # reduced.gr = disjoin(
+            # makeGRangesFromDataFrame(
+                # as.data.frame(screen.DT)
+            # )
+        # )
+        # reduced.gr$type = "exon"
+        # OL = findOverlaps(
+          # reduced.gr,
+          # makeGRangesFromDataFrame(
+            # as.data.frame(screen.DT)
+          # )
+        # )
+        # reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
+        # OL = findOverlaps(
+            # reduced.gr,
+            # makeGRangesFromDataFrame(
+                # as.data.frame(screen.DT[
+                        # get("type") %in% c("CDS", "start_codon", "stop_codon")
+                    # ]
+                # )
+            # )
+        # )
+        # reduced.gr$type[OL@from] = "CDS"
+
+        # reduced.DT = as.data.table(reduced.gr)
     }
 
+    transcripts.DT[, c("group_id") := get("transcript_id")]
+    screen.DT[, c("group_id") := get("transcript_id")]
+    reduced.DT = copy(screen.DT)
+    reduced.DT[get("type") %in% c("CDS", "start_codon", "stop_codon"), c("type") := "CDS"]
+    reduced.DT[get("type") != "CDS", c("type") := "exon"]
+    
     # add introns to reduced.DT
     introns.DT = as.data.table(grlGaps(
         split(makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
@@ -195,7 +195,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
 
     # Highlight events here
     # highlight_events is of syntax chrX:10000-11000/-
-    if(!missing(highlight_events) & condensed == FALSE) {
+    # if(!missing(highlight_events) & condense_this == FALSE) {
+    if(!missing(highlight_events)) {    
         reduced.DT = determine_compatible_events(reduced.DT, highlight_events)
     }
 
@@ -233,13 +234,13 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     }
       
     if(condense_this == TRUE) {
-    group.DT[transcripts.DT, on = "group_id", 
-        c("group_name", "group_biotype") :=
-        list(get("i.gene_name"), get("i.gene_biotype"))]
+        group.DT[transcripts.DT, on = "group_id", 
+            c("group_name", "group_biotype") :=
+            list(get("i.gene_name"), get("i.gene_biotype"))]
     } else {
-    group.DT[transcripts.DT, on = "group_id", 
-        c("group_name", "group_biotype") :=
-        list(get("i.transcript_name"), get("i.transcript_biotype"))]      
+        group.DT[transcripts.DT, on = "group_id", 
+            c("group_name", "group_biotype") :=
+            list(get("i.transcript_name"), get("i.transcript_biotype"))]      
     }
 
     group.DT = group.DT[get("end") > view_start & get("start") < view_end]
