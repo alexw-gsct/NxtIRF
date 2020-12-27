@@ -2490,7 +2490,7 @@ dash_server = function(input, output, session) {
     })
     
     
-    observe({
+    observeEvent(input$refresh_coverage, {
         view_chr = input$chr_cov
         view_start = suppressWarnings(as.numeric(input$start_cov))
         view_end = suppressWarnings(as.numeric(input$end_cov))
@@ -2500,7 +2500,9 @@ dash_server = function(input, output, session) {
         req(view_start)
         req(view_end)
         req(settings_SE$se)
-      
+        
+        req(view_start - view_end > 0)
+        
       # refresh in-range events here
         if(is_valid(input$event_norm_cov)) {
             norm_event = input$event_norm_cov

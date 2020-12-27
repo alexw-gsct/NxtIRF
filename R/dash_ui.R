@@ -697,6 +697,7 @@ ui_tab_coverage <- function() {
         ),
         fluidRow(
             column(2, 
+                actionButton("refresh_coverage"),
                 selectInput('mode_cov', 'View', width = '100%',
                     choices = c("Individual", "By Condition")),					
                 conditionalPanel(
