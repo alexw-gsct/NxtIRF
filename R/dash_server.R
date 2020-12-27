@@ -222,7 +222,7 @@ dash_server = function(input, output, session) {
         }
     } else if(input$navSelection == "navHeat") {
         if(is_valid(settings_SE$se)) {
-            updateSelectInput(session = session, "anno_col_heat", 
+            updateSelectInput(session = session, inputId = "anno_col_heat", 
                 choices = colnames(SummarizedExperiment::colData(settings_SE$se)), selected = NULL)
         }
     } else if(input$navSelection == "navCoverage") {
