@@ -2554,7 +2554,7 @@ dash_server = function(input, output, session) {
             tracks[[i]] = get_track_selection(i)       
         }
      
-        plot_cov_fn(
+        obj = plot_cov_fn(
             view_chr, view_start, view_end, input$strand_cov,
             norm_event, input$condition_cov, tracks = tracks, 
             se = settings_SE$se, settings_Cov$avail_cov,
