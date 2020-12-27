@@ -406,14 +406,14 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 pl_track[[1]]$x$data[[4]]$showlegend = TRUE
                 if(!missing(track_names) && length(track_names) == 2) {
                     pl_track[[1]]$x$data[[1]]$name = track_names[1]
-                    pl_track[[1]]$x$data[[2]]$name = track_names[1]
-                    pl_track[[1]]$x$data[[3]]$name = track_names[2]
+                    pl_track[[1]]$x$data[[2]]$name = track_names[2]
+                    pl_track[[1]]$x$data[[3]]$name = track_names[1]
                     pl_track[[1]]$x$data[[4]]$name = track_names[2]
                 } else {
-                    pl_track[[1]]$x$data[[1]]$name = paste("Track",1)
-                    pl_track[[1]]$x$data[[2]]$name = paste("Track",1)
-                    pl_track[[1]]$x$data[[3]]$name = paste("Track",2)
-                    pl_track[[1]]$x$data[[4]]$name = paste("Track",2)
+                    pl_track[[1]]$x$data[[1]]$name = paste(condition, tracks[[1]]) # paste("Track",1)
+                    pl_track[[1]]$x$data[[2]]$name = paste(condition, tracks[[2]]) 
+                    pl_track[[1]]$x$data[[3]]$name = paste(condition, tracks[[1]]) 
+                    pl_track[[1]]$x$data[[4]]$name = paste(condition, tracks[[2]])
                 }
             }
         } else {
@@ -439,8 +439,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         pl_track[[i]]$x$data[[1]]$name = track_names[i]
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]
                     } else {
-                        pl_track[[i]]$x$data[[1]]$name = paste("Track",i)
-                        pl_track[[i]]$x$data[[2]]$name = paste("Track",i)
+                        pl_track[[i]]$x$data[[1]]$name = paste(condition, tracks[[i]]) # paste("Track",i)
+                        pl_track[[i]]$x$data[[2]]$name = paste(condition, tracks[[i]])
                     }
                 }
             }
@@ -473,8 +473,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                             pl_track[[i]]$x$data[[1]]$name = track_names[i]
                             pl_track[[i]]$x$data[[2]]$name = track_names[i]
                         } else {
-                            pl_track[[i]]$x$data[[1]]$name = paste("Track",i)
-                            pl_track[[i]]$x$data[[2]]$name = paste("Track",i)
+                            pl_track[[i]]$x$data[[1]]$name = track_samples # paste("Track",i)
+                            pl_track[[i]]$x$data[[2]]$name = track_samples
                         }
                     }
                 }
