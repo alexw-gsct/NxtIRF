@@ -13,9 +13,9 @@ dash_server = function(input, output, session) {
         settings_Volc = setreactive_Diag()
         settings_Cov <- setreactive_Cov()
         
-        settings_SaveObj <- reactiveValues(
-            obj = NULL
-        )
+        # settings_SaveObj <- reactiveValues(
+            # obj = NULL
+        # )
 
         # settings_to_file <- function(filename) {
             # final = list(
@@ -2566,7 +2566,7 @@ dash_server = function(input, output, session) {
         )
         
         settings_Cov$final_plot = obj$final_plot
-        settings_SaveObj$obj = obj$ggplot
+        # settings_SaveObj$obj = obj$ggplot
         
         output$plot_cov <- renderPlotly({
             settings_Cov$plot_ini = TRUE      
@@ -2827,15 +2827,15 @@ dash_server = function(input, output, session) {
   })
   
     shinyFileSave(input, "saveplot_cov", roots = c(default_volumes, addit_volume), session = session,
-        filetypes = c("Rds"))
+        filetypes = c("pdf"))
     observeEvent(input$saveplot_cov, {	
-        req(settings_SaveObj$obj)
+        req(settings_Cov$final_plot)
         selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_cov)
         req(selectedfile$datapath)
         
-        obj = isolate(settings_SaveObj$obj)
-        saveRDS(obj, selectedfile$datapath)
-        # plotly::orca(input$saveplot_cov, selectedfile$datapath)
+        obj = isolate(settings_Cov$final_plot)
+        # saveRDS(obj, selectedfile$datapath)
+        plotly::orca(settings_Cov$final_plot, selectedfile$datapath)
     })
   
     
