@@ -2838,6 +2838,17 @@ dash_server = function(input, output, session) {
         plotly::orca(settings_Cov$final_plot, selectedfile$datapath)
     })
   
+    shinyFileSave(input, "saverds_cov", roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("Rds"))
+    observeEvent(input$saverds_cov, {	
+        req(settings_Cov$final_plot)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saverds_cov)
+        req(selectedfile$datapath)
+        
+        obj = isolate(settings_Cov$final_plot)
+        saveRDS(obj, selectedfile$datapath)
+        # plotly::orca(settings_Cov$final_plot, selectedfile$datapath)
+    })
     
 # End of server function		
   }
