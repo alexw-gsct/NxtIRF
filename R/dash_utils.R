@@ -423,7 +423,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     gp_track[[i]] = ggplot() + 
                         geom_ribbon(data = df, alpha = 0.2, colour = NA, 
                             aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci)) +
-                        geom_line(data = df, aes(y = mean)) +
+                        geom_line(data = df, aes(x = x, y = mean)) +
                         labs(y = paste("Track", i, "Normalized Coverage"))
                     pl_track[[i]] = ggplotly(gp_track[[i]],
                         tooltip = c("x", "y", "ymin", "ymax")
