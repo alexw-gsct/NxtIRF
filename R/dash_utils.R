@@ -268,7 +268,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             scale_fill_manual(values = c("black", "red", "blue"))
     }      
 
-    p = p + theme_white +
+    p = p + theme_white_legend +
             theme(axis.text.y = element_blank(), axis.title.y = element_blank())
 
     if(condense_this == TRUE) {
@@ -393,7 +393,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
                 for(j in seq_len(max_tracks)) {
-                    pl_track[[1]]$x$data[[j]]$showlegend = TRUE
+                    pl_track[[1]]$x$data[[j]]$showlegend = FALSE
                     pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= max_tracks) {
                         pl_track[[1]]$x$data[[j]]$name = track_names[j]
@@ -495,7 +495,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
-    for(i in seq_len(min(3, length(p_ref$pl$x$data)))) {
+    for(i in seq_len(length(p_ref$pl$x$data))) {
         p_ref$pl$x$data[[i]]$showlegend = FALSE
     }
     
