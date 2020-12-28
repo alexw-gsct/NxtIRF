@@ -288,7 +288,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         max_plot_level = max(group.DT$plot_level)
     }
     gp = p + geom_text(data = data.frame(x = anno[["x"]], y = anno[["y"]], text = anno[["text"]]), 
-        aes(x = x, y = y, label = text)) + theme_white
+        aes(x = x, y = y, label = text)) + theme_white +
+        theme(axis.text.y = element_blank(), axis.title.y = element_blank())
     pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% 
     layout(
         annotations = anno,
@@ -410,7 +411,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         geom_ribbon(data = df, alpha = 0.2, colour = NA, 
                             aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci)) +
                         geom_line(data = df, aes(x = x, y = mean)) +
-                        labs(y = paste("Track", i, "Normalized Coverage"))
+                        labs(y = paste("Track", i, "Normalized Coverage")) +
+                        theme_white_legend
                     pl_track[[i]] = ggplotly(gp_track[[i]],
                         tooltip = c("x", "y", "ymin", "ymax")
                     )						
@@ -442,7 +444,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
                     if("sample" %in% colnames(df)) {
-                        gp_track[[i]] = ggplot() + geom_line(data = df, aes_string(x = "x", y = "sample"))
+                        gp_track[[i]] = ggplot() + geom_line(data = df, aes_string(x = "x", y = "sample")) +
+                        theme_white_legend
                         pl_track[[i]] = ggplotly(gp_track[[i]],
                             tooltip = c("x", "y")
                         )
@@ -474,7 +477,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         DT = data.table(x = data.t_test[, 1])
         DT[, c("t_stat") := -log10(t_test$p.value)]
         gp_track[[5]] = ggplot() + geom_line(data = as.data.frame(DT), 
-                mapping = aes_string(x = "x", y = "t_stat"))
+                mapping = aes_string(x = "x", y = "t_stat")) +
+                theme_white_legend
         pl_track[[5]] = ggplotly(gp_track[[5]],
             # labs(y = paste("Pairwise T-test -log10(p)")),
             tooltip = c("x", "y")
