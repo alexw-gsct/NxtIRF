@@ -288,7 +288,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         max_plot_level = max(group.DT$plot_level)
     }
     gp = p + geom_text(data = data.frame(x = anno[["x"]], y = anno[["y"]], text = anno[["text"]]), 
-        aes(x = x, y = y, label = text))
+        aes(x = x, y = y, label = text)) + theme_white
     pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% 
     layout(
         annotations = anno,
@@ -380,7 +380,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     geom_ribbon(data = df, alpha = 0.2, 
                         aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
                     geom_line(data = df, aes(x = x, y = mean, colour = track)) +
-                    labs(y = "Stacked Tracks Normalized Coverage")
+                    labs(y = "Stacked Tracks Normalized Coverage") +
+                    theme_white_legend
                 pl_track[[1]] = ggplotly(gp_track[[1]],
                     tooltip = c("x", "y", "ymin", "ymax", "colour")
                 )

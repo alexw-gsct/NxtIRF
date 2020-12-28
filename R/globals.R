@@ -124,3 +124,36 @@ make.path.relative = function(base, target) {
     paste0(gsub('[^/]+/?', '../', sub(common, '', base)),
            sub(common, '', target))
 }
+
+# GGPLOT themes
+
+theme_white = theme(axis.line.x = element_line(colour = "black"),
+			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
+			panel.grid.minor = element_blank(),
+			panel.border = element_blank(),
+			panel.background = element_blank(),
+			legend.position = "none",
+			axis.title.x.top = element_blank(),
+			# axis.text.x.bottom = element_blank(),
+			# axis.text.y = element_blank(),
+			axis.line.x.bottom = element_blank(),
+			axis.text=element_text(size=rel(1.0)),
+            plot.title = element_text(hjust = 0.5),
+			# axis.title.x=element_blank(),
+			# axis.title.y=element_blank()
+            )
+theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
+			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
+			panel.grid.minor = element_blank(),
+			panel.border = element_blank(),
+			panel.background = element_blank(),
+			# legend.position = "none",
+			axis.title.x.top = element_blank(),
+			# axis.text.x.bottom = element_blank(),
+			# axis.text.y = element_blank(),
+			axis.line.x.bottom = element_blank(),
+			axis.text=element_text(size=rel(1.0)),
+            plot.title = element_text(hjust = 0.5),
+			# axis.title.x=element_blank(),
+			# axis.title.y=element_blank()
+            )
