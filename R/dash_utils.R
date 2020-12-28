@@ -264,9 +264,9 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     }
 
     if(!missing(highlight_events)) {
-        p = p + scale_color_manual(values = c("black", "red", "blue")) +
-            scale_fill_manual(values = c("black", "red", "blue"))
-    }      
+        p = p + scale_color_manual(values = c("black", "blue", "red")) +
+            scale_fill_manual(values = c("black", "blue", "red"))
+    }
 
     p = p + theme_white_legend +
             theme(axis.text.y = element_blank(), axis.title.y = element_blank())
