@@ -326,6 +326,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     fac = NULL
     
     if(is_valid(condition) & is_valid(norm_event)) {
+        max_tracks = 0
         for(i in 1:4) {
             if(length(tracks) >= i && is_valid(tracks[[i]])) {
                 track_samples = tracks[[i]]
@@ -371,6 +372,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     DT = as.data.table(df)
                     DT = DT[, c("x", "mean", "ci", "track")]
                     data.list[[i]] <- DT 
+                    max_tracks = max_tracks + 1
                 }
             }
         }
@@ -390,7 +392,6 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     dragmode = "zoom",
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
-                max_tracks = length(unique(df$track))
                 for(j in seq_len(max_tracks)) {
                     pl_track[[1]]$x$data[[j]]$showlegend = FALSE
                     pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
@@ -422,7 +423,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                             fixedrange = TRUE)
                     )
                     pl_track[[i]]$x$data[[1]]$showlegend = FALSE
-                    pl_track[[i]]$x$data[[2]]$showlegend = FALSE
+                    pl_track[[i]]$x$data[[2]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= i) {
                         pl_track[[i]]$x$data[[1]]$name = track_names[i]
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]

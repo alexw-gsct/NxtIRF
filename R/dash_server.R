@@ -2155,7 +2155,7 @@ dash_server = function(input, output, session) {
         shinyFileSave(input, "saveplot_diag", roots = c(default_volumes, addit_volume), session = session,
             filetypes = c("pdf"))
         observeEvent(input$saveplot_diag, {	
-            req(settings_Volc$final_plot)
+            req(settings_Diag$final_plot)
             selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_diag)
             req(selectedfile$datapath)
             
