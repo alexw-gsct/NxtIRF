@@ -495,7 +495,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
 
-    for(i in seq_len(length(p_ref$pl$x$data))) {
+    for(i in seq_len(min(3, length(p_ref$pl$x$data)))) {
         p_ref$pl$x$data[[i]]$showlegend = FALSE
     }
     
