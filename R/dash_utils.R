@@ -497,8 +497,31 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     
     gp_track[[6]] = p_ref$gp
     
+    # Work out which x axis ticks to use, based on zoom level
+    # cur_zoom = 0 {50, 150}    10
+    # cur_zoom = 1 {151, 450}   50
+    # cur_zoom = 2 {451, 1350}  100
+    # cur_zoom = 3 {1351, 1350}  100
+    view_range = view_end - view_start
+    min_tick_size = view_range / 15
+    # round up tick size to nearest 1, 2, 5
+    if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 5) {
+        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 10
+    } else if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 2) {
+        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 5
+    } else {
+        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 2
+    }
+    first_tick = ceiling(view_start / tick_size) * tick_size
+    
     final_plot = subplot(plot_tracks, nrows = length(plot_tracks), 
-        shareX = TRUE, titleY = TRUE)
+        shareX = TRUE, titleY = TRUE) %>%
+      layout(
+        xaxis = list(
+          dtick = tick_size, 
+          tick0 = first_tick, 
+          tickmode = "linear"
+      ))
 
     if(graph_mode == "Pan") {
         final_plot = final_plot %>% 
