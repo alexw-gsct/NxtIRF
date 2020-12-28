@@ -507,11 +507,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     min_tick_size = view_range / 15
     # round up tick size to nearest 1, 2, 5
     if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 5) {
-        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 10
+        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 10
     } else if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 2) {
-        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 5
+        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 5
     } else {
-        tick_size = (10 ^ floor(log10(a))) * (min_tick_size) * 2
+        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 2
     }
     first_tick = ceiling(view_start / tick_size) * tick_size
     
