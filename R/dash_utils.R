@@ -84,6 +84,9 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
         introns.gr = makeGRangesFromDataFrame(as.data.frame(introns))
         OL = findOverlaps(gr, introns.gr)
         introns[OL@to, c("highlight") := 1]
+        OL2 = findOverlaps(gr, introns.gr, type = "equal")
+        introns[OL2@to, c("highlight") := 2]
+
     } else if(length(highlight_events) == 2) {
         # This is AS
         AS_count = 1;
