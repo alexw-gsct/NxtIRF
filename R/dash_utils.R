@@ -142,12 +142,14 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         get("type") %in% c("CDS", "start_codon", "stop_codon", "exon")
     ]
     if(condensed != TRUE & nrow(transcripts.DT) <= 100) {
-        condense_this = FALSE       
+        condense_this = FALSE
+        transcripts.DT[, c("group_id") := get("transcript_id")]
+        screen.DT[, c("group_id") := get("transcript_id")]        
     } else {
         condense_this = TRUE
-        # transcripts.DT[, c("group_id") := get("gene_id")]     
-        # screen.DT[transcripts.DT, on = "transcript_id", 
-            # c("group_id") := get("gene_id")]
+        transcripts.DT[, c("group_id") := get("gene_id")]     
+        screen.DT[transcripts.DT, on = "transcript_id", 
+            c("group_id") := get("gene_id")]
 
         # reduced.gr = disjoin(
             # makeGRangesFromDataFrame(
@@ -176,8 +178,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         # reduced.DT = as.data.table(reduced.gr)
     }
 
-    transcripts.DT[, c("group_id") := get("transcript_id")]
-    screen.DT[, c("group_id") := get("transcript_id")]
+
     reduced.DT = copy(screen.DT)
     reduced.DT[get("type") %in% c("CDS", "start_codon", "stop_codon"), c("type") := "CDS"]
     reduced.DT[get("type") != "CDS", c("type") := "exon"]
