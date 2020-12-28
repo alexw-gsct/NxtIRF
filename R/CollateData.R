@@ -90,7 +90,7 @@ FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
 #' @param n_threads: The number of threads to use.
 #'   records to be used.
 #' @export
-CollateData <- function(Experiment, reference_path, output_path, 
+CollateData <- function(Experiment, reference_path, output_path, coverage_files = "",
         IRMode = c("SpliceOverMax", "SpliceMax"), 
         localHub = FALSE, ah = AnnotationHub(localHub = localHub), 
         low_memory_mode = FALSE, samples_per_block = 16, n_threads = 1) {
@@ -1159,9 +1159,26 @@ CollateData <- function(Experiment, reference_path, output_path,
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
 	write.fst(as.data.frame(df.internal), outfile)
 	
-    # Create barebones colData.Rds
+    # Create barebones colData.Rds - save coverage files as well
+    if(length(coverage_files) == nrow(df.internal) &&
+        all(file.exists(coverage_files))) {
+        df.files = data.table(
+            sample = df.internal$sample,
+            bam_file = "",
+            irf_file = df.internal$path,
+            cov_file = coverage_files
+        )
+    } else {
+        df.files = data.table(
+            sample = df.internal$sample,
+            bam_file = "",
+            irf_file = df.internal$path,
+            cov_file = ""
+        )
+    }
+    # 
     colData = list(
-        df.files = data.table(sample = df.internal$sample),
+        df.files = df.files,
         df.anno = data.table(sample = df.internal$sample)
     )
     saveRDS(colData, file.path(se_output_path, "colData.Rds"))
