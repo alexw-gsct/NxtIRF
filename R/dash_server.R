@@ -838,6 +838,10 @@ dash_server = function(input, output, session) {
       if(!is_valid(settings_expr$df.anno)) {
         DT = as.data.table(settings_expr$df.files)
         settings_expr$df.anno = DT[, "sample"]
+      } else {
+        # merge with existing samples
+        DT = as.data.table(settings_expr$df.files)
+        settings_expr$df.anno = update_data_frame(settings_expr$df.anno, DT[, "sample"])
       }
     })
     
