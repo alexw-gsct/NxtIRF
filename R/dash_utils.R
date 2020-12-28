@@ -268,6 +268,9 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
             scale_fill_manual(values = c("black", "red", "blue"))
     }      
 
+    p = p + theme_white +
+            theme(axis.text.y = element_blank(), axis.title.y = element_blank())
+
     if(condense_this == TRUE) {
         anno = list(
             x = group.DT$disp_x,
@@ -288,8 +291,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         max_plot_level = max(group.DT$plot_level)
     }
     gp = p + geom_text(data = data.frame(x = anno[["x"]], y = anno[["y"]], text = anno[["text"]]), 
-        aes(x = x, y = y, label = text)) + theme_white +
-        theme(axis.text.y = element_blank(), axis.title.y = element_blank())
+        aes(x = x, y = y, label = text))
     pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% 
     layout(
         annotations = anno,
