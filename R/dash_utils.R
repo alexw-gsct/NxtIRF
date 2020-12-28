@@ -393,7 +393,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
                 )
                 for(j in seq_len(max_tracks)) {
-                    pl_track[[1]]$x$data[[j]]$showlegend = FALSE
+                    pl_track[[1]]$x$data[[j]]$showlegend = TRUE
                     pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= max_tracks) {
                         pl_track[[1]]$x$data[[j]]$name = track_names[j]
