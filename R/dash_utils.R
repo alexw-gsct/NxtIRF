@@ -150,34 +150,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         transcripts.DT[, c("group_id") := get("gene_id")]     
         screen.DT[transcripts.DT, on = "transcript_id", 
             c("group_id") := get("gene_id")]
-
-        # reduced.gr = disjoin(
-            # makeGRangesFromDataFrame(
-                # as.data.frame(screen.DT)
-            # )
-        # )
-        # reduced.gr$type = "exon"
-        # OL = findOverlaps(
-          # reduced.gr,
-          # makeGRangesFromDataFrame(
-            # as.data.frame(screen.DT)
-          # )
-        # )
-        # reduced.gr$group_id[OL@from] = screen.DT$group_id[OL@to]
-        # OL = findOverlaps(
-            # reduced.gr,
-            # makeGRangesFromDataFrame(
-                # as.data.frame(screen.DT[
-                        # get("type") %in% c("CDS", "start_codon", "stop_codon")
-                    # ]
-                # )
-            # )
-        # )
-        # reduced.gr$type[OL@from] = "CDS"
-
-        # reduced.DT = as.data.table(reduced.gr)
     }
-
 
     reduced.DT = copy(screen.DT)
     reduced.DT[get("type") %in% c("CDS", "start_codon", "stop_codon"), c("type") := "CDS"]
@@ -186,10 +159,12 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     # add introns to reduced.DT
     introns.DT = as.data.table(grlGaps(
         split(makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
-            reduced.DT$group_id)
+            reduced.DT$transcript_id)
     ))
     introns.DT[, c("type") := "intron"]
-    setnames(introns.DT, "group_name", "group_id")
+    setnames(introns.DT, "group_name", "transcript_id")
+    introns.DT[reduced.DT, on = "transcript_id",
+        "group_id" := get("i.group_id")]
 
     reduced.DT = rbind(reduced.DT[, 
         c("seqnames", "start", "end", "strand", "type", "group_id", "transcript_id")], 
