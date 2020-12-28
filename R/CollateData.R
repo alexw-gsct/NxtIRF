@@ -841,7 +841,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 				junc = junc[junc.common, on = colnames(junc.common)[1:3]]
 				if(block$strand[i] == 0) {
 						junc$count = junc$total    
-				} else if(df.internal$strand[i] == -1) {
+				} else if(block$strand[i] == -1) {
 						junc$count = 0
 						junc[strand == "+", count := neg]
 						junc[strand == "-", count := pos]
