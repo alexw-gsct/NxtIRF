@@ -708,10 +708,12 @@ ui_tab_coverage <- function() {
                 actionButton("refresh_coverage", "Refresh Plot"),
                 selectInput('mode_cov', 'View', width = '100%',
                     choices = c("Individual", "By Condition")),					
+                selectInput('event_norm_cov', 'Normalize Event', width = '100%',
+                    choices = c("(none)")),
                 conditionalPanel(
                     condition = "['By Condition'].indexOf(input.mode_cov) >= 0",
-                    selectInput('event_norm_cov', 'Normalize Event', width = '100%',
-                        choices = c("(none)")),
+                    # selectInput('event_norm_cov', 'Normalize Event', width = '100%',
+                        # choices = c("(none)")),
                     selectInput('condition_cov', 'Condition', width = '100%',
                         choices = c("(none)"))					
                 ),
