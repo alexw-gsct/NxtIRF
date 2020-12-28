@@ -192,9 +192,9 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     setnames(introns.DT, "group_name", "group_id")
 
     reduced.DT = rbind(reduced.DT[, 
-        c("seqnames", "start", "end", "strand", "type", "group_id")], 
+        c("seqnames", "start", "end", "strand", "type", "group_id", "transcript_id")], 
     introns.DT[, 
-        c("seqnames", "start", "end", "strand", "type", "group_id")])
+        c("seqnames", "start", "end", "strand", "type", "group_id", "transcript_id")])
 
     # Highlight events here
     # highlight_events is of syntax chrX:10000-11000/-
