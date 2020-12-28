@@ -323,8 +323,6 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     data.t_test = NULL
     fac = NULL
     
-    print(tracks)
-    
     if(is_valid(condition) & is_valid(norm_event)) {
         for(i in 1:4) {
             if(length(tracks) >= i && is_valid(tracks[[i]])) {
