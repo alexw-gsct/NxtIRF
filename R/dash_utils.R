@@ -509,13 +509,14 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     # cur_zoom = 3 {1351, 1350}  100
     view_range = view_end - view_start
     min_tick_size = view_range / 15
+    tick_order_magn = 10 ^ floor(log10(min_tick_size))
     # round up tick size to nearest 1, 2, 5
-    if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 5) {
-        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 10
-    } else if(min_tick_size / 10 ^ floor(log10(min_tick_size)) > 2) {
-        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 5
+    if(min_tick_size / tick_order_magn > 5) {
+        tick_size = tick_order_magn * 10
+    } else if(min_tick_size / tick_order_magn > 2) {
+        tick_size = tick_order_magn * 5
     } else {
-        tick_size = (10 ^ floor(log10(min_tick_size))) * (min_tick_size) * 2
+        tick_size = tick_order_magn * 2
     }
     first_tick = ceiling(view_start / tick_size) * tick_size
     
