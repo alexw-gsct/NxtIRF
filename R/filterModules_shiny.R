@@ -65,6 +65,21 @@ filterModule_server <- function(id, filterdata, conditionList) {
             filterVars = list()
         )
 
+        observeEvent(conditionList(), {
+            choices_conds = c("(none)", conditionList())
+            if(is_valid(final$filterVars$condition) && final$filterVars$condition %in% choices_conds) {
+                updateSelectInput(session = session, 
+                    inputId = "select_conds", 
+                    choices = choices_conds, 
+                    selected = final$filterVars$condition)
+            } else {
+                updateSelectInput(session = session, 
+                    inputId = "select_conds", 
+                    choices = choices_conds, 
+                    selected = "(none)")            
+            }       
+        })
+
         # inputs from final -> UI			
         observeEvent(filterdata(), {
             final = filterdata()
@@ -129,14 +144,17 @@ filterModule_server <- function(id, filterdata, conditionList) {
                     session = session, inputId = "slider_mincond", 
                     selected = final$filterVars$minCond)
             }
-            if(is_valid(final$filterVars$condition)) {
-                choices_conds = c("(none)", conditionList())
-                if(final$filterVars$condition %in% choices_conds) {
-                    updateSelectInput(session = session, 
-                        inputId = "select_conds", 
-                        choices = choices_conds, 
-                        selected = final$filterVars$condition)
-                }
+            choices_conds = c("(none)", conditionList())
+            if(is_valid(final$filterVars$condition) && final$filterVars$condition %in% choices_conds) {
+                updateSelectInput(session = session, 
+                    inputId = "select_conds", 
+                    choices = choices_conds, 
+                    selected = final$filterVars$condition)
+            } else {
+                updateSelectInput(session = session, 
+                    inputId = "select_conds", 
+                    choices = choices_conds, 
+                    selected = "(none)")            
             }
             if(is_valid(final$filterVars$pcTRUE)){
                 updateSliderInput(session = session, 
