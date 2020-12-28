@@ -94,10 +94,10 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
             introns[OL@to, c("highlight") := as.character(AS_count)]
 
             OL_s1 = findOverlaps(gr[1], introns.gr, type = "equal")
-            tr1 = unique(introns$group_id[OL_s1@to])
+            tr1 = unique(introns$transcript_id[OL_s1@to])
             if(length(gr) == 2) {
                 OL_s2 = findOverlaps(gr[2], introns.gr, type = "equal")
-                tr1 = unique(intersect(tr1, introns$group_id[OL_s2@to]))
+                tr1 = unique(intersect(tr1, introns$transcript_id[OL_s2@to]))
             }
             tr_filter = c(tr_filter, tr1)
             coord_keys = c(BiocGenerics::start(gr[1]) - 1, BiocGenerics::end(gr[1]) + 1)
@@ -105,7 +105,7 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
                 coord_keys = c(coord_keys,
                     BiocGenerics::start(gr[2]) - 1, BiocGenerics::end(gr[2]) + 1)
             }
-            exons[get("group_id") %in% tr1 & 
+            exons[get("transcript_id") %in% tr1 & 
                 (get("start") %in% coord_keys | get("end")%in% coord_keys),
                 c("highlight") := as.character(AS_count)]
             AS_count = AS_count + 1
@@ -117,7 +117,7 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
             # makeGRangesFromDataFrame(as.data.frame(misc))
         # )
         # misc[OL_cds@to, c("highlight") := TRUE]
-        # misc[!(get("group_id") %in% tr_filter), c("highlight") := FALSE]           
+        # misc[!(get("transcript_id") %in% tr_filter), c("highlight") := FALSE]           
     # }
 
     return(rbind(introns, exons, misc))
