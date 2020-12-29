@@ -1882,7 +1882,7 @@ dash_server = function(input, output, session) {
 			if(input$batch1_DE != "(none)" & input$batch1_DE != input$variable_DE) {
 				settings_DE$batchVar1 = input$batch1_DE
 			} else {
-				settings_DE$batchVar1 = NULL
+				settings_DE$batchVar1 = ""
         updateSelectInput(session = session, inputId = "batch1_DE", 
           selected = "(none)")
 			}
@@ -1890,7 +1890,7 @@ dash_server = function(input, output, session) {
 					input$batch2_DE != input$batch1_DE) {
 				settings_DE$batchVar2 = input$batch2_DE
 			} else {
-				settings_DE$batchVar2 = NULL
+				settings_DE$batchVar2 = ""
         updateSelectInput(session = session, inputId = "batch2_DE", 
           selected = "(none)")
 			}
@@ -1977,38 +1977,40 @@ dash_server = function(input, output, session) {
 			} else if(settings_DE$method == "limma") {
 				NxtIRF.CheckPackageInstalled("limma", "3.44.0")
         
-				countData = cbind(SummarizedExperiment::assay(se, "Included"), 
-					SummarizedExperiment::assay(se, "Excluded"))
-				colData_use = rbind(colData, colData)
-				rownames(colData_use) = c(
-					paste(rownames(colData), "Included", sep="."),
-					paste(rownames(colData), "Excluded", sep=".")
-				)
-                colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
-				colnames(countData) = rownames(colData_use)
-				rownames(countData) = rowData$EventName
-				# countData = round(countData)
-				# mode(countData) = "integer"
         
-        res.ASE = limma_DT(countData, colData_use, settings_DE$DE_Var, 
-          settings_DE$nom_DE, settings_DE$denom_DE, useASE = TRUE)
-        res.inc = limma_DT(countData[, seq_len(nrow(colData))], 
-          colData_use[seq_len(nrow(colData)),], settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE)
-        res.exc = limma_DT(countData[, seq(nrow(colData) + 1, nrow(colData) * 2)], 
-          colData_use[seq(nrow(colData) + 1, nrow(colData) * 2),], 
-            settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE)
+				# countData = cbind(SummarizedExperiment::assay(se, "Included"), 
+					# SummarizedExperiment::assay(se, "Excluded"))
+				# colData_use = rbind(colData, colData)
+				# rownames(colData_use) = c(
+					# paste(rownames(colData), "Included", sep="."),
+					# paste(rownames(colData), "Excluded", sep=".")
+				# )
+                # colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
+				# colnames(countData) = rownames(colData_use)
+				# rownames(countData) = rowData$EventName
+        
+        # res.ASE = limma_DT(countData, colData_use, settings_DE$DE_Var, 
+          # settings_DE$nom_DE, settings_DE$denom_DE, useASE = TRUE)
+        # res.inc = limma_DT(countData[, seq_len(nrow(colData))], 
+          # colData_use[seq_len(nrow(colData)),], settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE)
+        # res.exc = limma_DT(countData[, seq(nrow(colData) + 1, nrow(colData) * 2)], 
+          # colData_use[seq(nrow(colData) + 1, nrow(colData) * 2),], 
+            # settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE)
        
-        res.ASE[res.inc, on = "EventName",
-          paste("Inc", colnames(res.inc)[1:6], sep=".") := list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
+        # res.ASE[res.inc, on = "EventName",
+          # paste("Inc", colnames(res.inc)[1:6], sep=".") := list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
           
-        res.ASE[res.exc, on = "EventName",
-          paste("Exc", colnames(res.exc)[1:6], sep=".") := list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
+        # res.ASE[res.exc, on = "EventName",
+          # paste("Exc", colnames(res.exc)[1:6], sep=".") := list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
           
-        setorder(res.ASE, -B)
+        # setorder(res.ASE, -B)
 				
-		rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
-        # rowData.DT = rowData.DT[, 1:3]
-				res.ASE = rowData.DT[res.ASE, on = "EventName"]
+		# rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
+
+				# res.ASE = rowData.DT[res.ASE, on = "EventName"]
+
+        res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
+            settings_DE$batchVar1, settings_DE$batchVar2)
 
 				settings_DE$res = as.data.frame(res.ASE)
 
