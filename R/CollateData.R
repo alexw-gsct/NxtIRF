@@ -859,26 +859,37 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				junc[, SO_R := 0]
 				junc[, SO_I := 0]
         
+        # SpliceLeft and SpliceRight calculations
+                # junc[, SL := sum(count), by = "start"]
+                # junc[, SR := sum(count), by = "end"]
+        
+        
         # first overlap any junction that has non-same-island junctions
 				junc[JG_up != JG_down & JG_up != "" & strand == "+", SO_L := sum(count), by = "JG_up"]
 				junc[JG_up != JG_down & JG_down != "" & strand == "+", SO_R := sum(count), by = "JG_down"]
 				junc[JG_up != JG_down & JG_up != "" & strand == "-", SO_R := sum(count), by = "JG_up"]
 				junc[JG_up != JG_down & JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
+
+        message("Calculating SpliceOver for annotated IR events")
 				
         # Then use a simple overlap method to account for the remainder
         junc.subset = junc[JG_up == JG_down & JG_up != "" & JG_down != ""]
-        junc.gr = makeGRangesFromDataFrame(as.data.frame(junc.subset))
-        OL = findOverlaps(junc.gr, junc.gr)
+        junc.from = makeGRangesFromDataFrame(as.data.frame(junc.subset))
+        junc.to = makeGRangesFromDataFrame(as.data.frame(junc))
+        
+        OL = findOverlaps(junc.from, junc.to)
         # OL = OL[OL@to %in% which(junc$JG_up == junc$JG_down) | OL@from %in% which(junc$JG_up == junc$JG_down)]
 
         splice.overlaps.DT = data.table(from = OL@from, to = OL@to)
-        splice.overlaps.DT[, count := junc.subset$count[OL@to]]
+        splice.overlaps.DT[, count := junc$count[OL@to]]
         splice.overlaps.DT[, count_sum := sum(count), by = "from"]
         splice.summa = unique(splice.overlaps.DT[, c("from", "count_sum")])        
 
         junc.subset[splice.summa$from, SO_I := splice.summa$count_sum]
 
         junc[junc.subset, on = c("Event"), SO_I := i.SO_I]
+        
+        # For annotated junctions, take SpliceOver as max of SpliceLeft, SpliceRight, or SpliceOver
         
         junc[SO_L < SO_I, SO_L := SO_I]
         junc[SO_R < SO_I, SO_R := SO_I]
