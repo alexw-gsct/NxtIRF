@@ -393,7 +393,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 )
                 pl_track[[1]] = pl_track[[1]] %>% layout(
                     dragmode = "zoom",
-                    yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
+                    # yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), fixedrange = TRUE)
+                    yaxis = list(rangemode = "tozero")
                 )
                 for(j in seq_len(max_tracks)) {
                     pl_track[[1]]$x$data[[j]]$showlegend = FALSE
@@ -421,9 +422,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         tooltip = c("x", "y", "ymin", "ymax")
                     )						
                     pl_track[[i]] = pl_track[[i]] %>% layout(
-                        yaxis = list(
-                            range = c(0, 1 + max(df$mean + df$ci)), 
-                            fixedrange = TRUE)
+                        # yaxis = list(range = c(0, 1 + max(df$mean + df$ci)), 
+                            # fixedrange = TRUE)
+                        yaxis = list(rangemode = "tozero")
                     )
                     pl_track[[i]]$x$data[[1]]$showlegend = FALSE
                     pl_track[[i]]$x$data[[2]]$showlegend = TRUE
@@ -488,8 +489,10 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             tooltip = c("x", "y")
         )
         pl_track[[5]] = pl_track[[5]] %>% layout(
-            yaxis = list(c(0, 1 + max(DT$t_stat)), 
-                fixedrange = TRUE,
+            yaxis = list(
+                # c(0, 1 + max(DT$t_stat)), 
+                # fixedrange = TRUE,
+                rangemode = "tozero",
                 title = paste("T-test -log10(p)")
             )
         )
@@ -544,6 +547,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             layout(dragmode = FALSE) %>%
             config(editable = TRUE)
     }
+    
+    # Zero all but last subplot
+    n_plots = length(plot_tracks) - 1
+    
+    final_plot = final_plot %>% layout(yaxis = list(rangemode = "tozero"))
+    if(n_plots > 1) final_plot = final_plot %>% layout(yaxis2 = list(rangemode = "tozero"))
+    if(n_plots > 2) final_plot = final_plot %>% layout(yaxis3 = list(rangemode = "tozero"))
+    if(n_plots > 3) final_plot = final_plot %>% layout(yaxis4 = list(rangemode = "tozero"))
+    if(n_plots > 4) final_plot = final_plot %>% layout(yaxis5 = list(rangemode = "tozero"))
 
     # ggplot equivalent: list of ggplots. Allows advanced end-users to apply final edits to ggplots
     
