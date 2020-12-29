@@ -551,11 +551,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     # Zero all but last subplot
     n_plots = length(plot_tracks) - 1
     
-    final_plot = final_plot %>% layout(yaxis = list(rangemode = "tozero"))
-    if(n_plots > 1) final_plot = final_plot %>% layout(yaxis2 = list(rangemode = "tozero"))
-    if(n_plots > 2) final_plot = final_plot %>% layout(yaxis3 = list(rangemode = "tozero"))
-    if(n_plots > 3) final_plot = final_plot %>% layout(yaxis4 = list(rangemode = "tozero"))
-    if(n_plots > 4) final_plot = final_plot %>% layout(yaxis5 = list(rangemode = "tozero"))
+    final_plot = final_plot %>% layout(yaxis = list(rangemode = "tozero", tick0 = 0))
+    if(n_plots > 1) final_plot = final_plot %>% layout(yaxis2 = list(rangemode = "tozero", tick0 = 0))
+    if(n_plots > 2) final_plot = final_plot %>% layout(yaxis3 = list(rangemode = "tozero", tick0 = 0))
+    if(n_plots > 3) final_plot = final_plot %>% layout(yaxis4 = list(rangemode = "tozero", tick0 = 0))
+    if(n_plots > 4) final_plot = final_plot %>% layout(yaxis5 = list(rangemode = "tozero", tick0 = 0))
 
     # ggplot equivalent: list of ggplots. Allows advanced end-users to apply final edits to ggplots
     
