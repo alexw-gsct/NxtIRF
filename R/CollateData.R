@@ -860,8 +860,8 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				junc[, SO_I := 0]
         
         # SpliceLeft and SpliceRight calculations
-                junc[, SL := sum(count), by = "start"]
-                junc[, SR := sum(count), by = "end"]
+                junc[, SL := sum(count), by = c("seqnames", "start", "strand")]
+                junc[, SR := sum(count), by = c("seqnames", "end", "strand")]
         
         
         # first overlap any junction that has non-same-island junctions
