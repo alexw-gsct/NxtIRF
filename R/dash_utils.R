@@ -383,6 +383,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             df = as.data.frame(rbindlist(data.list))
             if(nrow(df) > 0) {
                 gp_track[[1]] = ggplot() + 
+                    geom_hline(yintercept = 0) +
                     geom_ribbon(data = df, alpha = 0.2, 
                         aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
                     geom_line(data = df, aes(x = x, y = mean, colour = track)) +
@@ -413,6 +414,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 if(length(data.list) >= i && !is.null(data.list[[i]])) {
                     df = as.data.frame(data.list[[i]])
                     gp_track[[i]] = ggplot() + 
+                        geom_hline(yintercept = 0) +
                         geom_ribbon(data = df, alpha = 0.2, colour = NA, 
                             aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci)) +
                         geom_line(data = df, aes(x = x, y = mean)) +
@@ -449,7 +451,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
                     data.list[[i]] <- as.data.table(df)
                     if("sample" %in% colnames(df)) {
-                        gp_track[[i]] = ggplot() + geom_line(data = df, aes_string(x = "x", y = "sample")) +
+                        gp_track[[i]] = ggplot() + 
+                        geom_hline(yintercept = 0) +
+                        geom_line(data = df, aes_string(x = "x", y = "sample")) +
                         theme_white_legend
                         pl_track[[i]] = ggplotly(gp_track[[i]],
                             tooltip = c("x", "y")
@@ -481,7 +485,9 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         t_test = genefilter::rowttests(data.t_test[, -1], fac)
         DT = data.table(x = data.t_test[, 1])
         DT[, c("t_stat") := -log10(t_test$p.value)]
-        gp_track[[5]] = ggplot() + geom_line(data = as.data.frame(DT), 
+        gp_track[[5]] = ggplot() + 
+            geom_hline(yintercept = 0) +
+            geom_line(data = as.data.frame(DT), 
                 mapping = aes_string(x = "x", y = "t_stat")) +
                 theme_white_legend
         pl_track[[5]] = ggplotly(gp_track[[5]],
