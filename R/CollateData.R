@@ -860,8 +860,8 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				junc[, SO_I := 0]
         
         # SpliceLeft and SpliceRight calculations
-                # junc[, SL := sum(count), by = "start"]
-                # junc[, SR := sum(count), by = "end"]
+                junc[, SL := sum(count), by = "start"]
+                junc[, SR := sum(count), by = "end"]
         
         
         # first overlap any junction that has non-same-island junctions
@@ -870,7 +870,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				junc[JG_up != JG_down & JG_up != "" & strand == "-", SO_R := sum(count), by = "JG_up"]
 				junc[JG_up != JG_down & JG_down != "" & strand == "-", SO_L := sum(count), by = "JG_down"]
 
-        message("Calculating SpliceOver for annotated IR events")
+        # message("Calculating SpliceOver for annotated IR events")
 				
         # Then use a simple overlap method to account for the remainder
         junc.subset = junc[JG_up == JG_down & JG_up != "" & JG_down != ""]
@@ -893,6 +893,11 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
         
         junc[SO_L < SO_I, SO_L := SO_I]
         junc[SO_R < SO_I, SO_R := SO_I]
+
+        # Finally, for extreme cases, make SO_L = SL if underestimates
+        junc[SO_L < SL, SO_L := SL]
+        junc[SO_R < SR, SO_R := SR]
+
 				junc[, SO_I := NULL]
 
 				# write.fst(as.data.frame(junc), 
