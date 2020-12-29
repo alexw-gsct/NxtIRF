@@ -26,52 +26,6 @@ limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, bat
 limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "") {
     limma_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
 
-    # ASE mode
-    countData = cbind(SummarizedExperiment::assay(se, "Included"), 
-        SummarizedExperiment::assay(se, "Excluded"))
-    rowData = as.data.frame(SummarizedExperiment::rowData(se))
-    
-    colData = as.data.frame(SummarizedExperiment::colData(se))
-    colData = rbind(colData, colData)
-    rownames(colData) = c(
-        paste(colnames(se), "Included", sep="."),
-        paste(colnames(se), "Excluded", sep=".")
-    )
-    colData$ASE = rep(c("Included", "Excluded"), each = ncol(se))
-    colnames(countData) = rownames(colData)
-    rownames(countData) = rowData$EventName
-    
-    condition_factor = factor(colData[, test_factor])
-    ASE = colData[, "ASE"]
-    if(batch2 != "") {    
-      batch2_factor = colData[, batch2]
-      batch1_factor = colData[, batch1]
-      design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor + condition_factor:ASE)
-    } else if(batch1 != "") {
-      batch1_factor = colData[, batch1]    
-      design1 = model.matrix(~0 + batch1_factor + condition_factor + condition_factor:ASE)
-    } else {
-      design1 = model.matrix(~0 + condition_factor + condition_factor:ASE)    
-    }
-    colnames(design1) = sub(":",".",colnames(design1))
-    contrast = rep(0, ncol(design1))
-    contrast_a = paste0("condition_factor", test_nom, ".ASEIncluded")
-    contrast_b = paste0("condition_factor", test_denom, ".ASEIncluded")
-    contrast[which(colnames(design1) == contrast_b)] = -1
-    contrast[which(colnames(design1) == contrast_a)] = 1		
-
-    countData_use = limma::voom(countData, design1, lib.size = 1)
-
-    fit = limma::lmFit(countData_use$E, design = design1)
-
-    fit = limma::contrasts.fit(fit, contrast)
-    fit = limma::eBayes(fit)
-
-    res.limma = limma::topTable(fit, number = nrow(countData_use$E))
-    res.limma$EventName = rownames(res.limma)
-
-    res.limma$AveExpr = res.limma$AveExpr - min(res.limma$AveExpr)
-    res.limma = as.data.table(res.limma)
     
     # Inc / Exc mode
     countData = rbind(SummarizedExperiment::assay(se, "Included"), 
@@ -116,12 +70,65 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.limma2$AveExpr = res.limma2$AveExpr - min(res.limma2$AveExpr)
     res.limma2 = as.data.table(res.limma2)
 
-    # Merge tables together:
-    res.ASE = res.limma
     res.inc = res.limma2[grepl(".Included", EventName)]
     res.inc[, EventName := sub(".Included","",EventName, fixed=TRUE)]
+    res.inc = res.inc[AveExpr > 1]
     res.exc = res.limma2[grepl(".Excluded", EventName)]
     res.exc[, EventName := sub(".Excluded","",EventName, fixed=TRUE)]
+    res.exc = res.exc[AveExpr > 1]
+
+    # ASE mode
+    rowData = as.data.frame(SummarizedExperiment::rowData(se))
+    se.use = se[rowData$EventName %in% res.inc$EventName &
+        rowData$EventName %in% res.exc$EventName,]
+    rowData = as.data.frame(SummarizedExperiment::rowData(se.use))
+    countData = cbind(SummarizedExperiment::assay(se.use, "Included"), 
+        SummarizedExperiment::assay(se.use, "Excluded"))
+
+    colData = as.data.frame(SummarizedExperiment::colData(se.use))
+    colData = rbind(colData, colData)
+    rownames(colData) = c(
+        paste(colnames(se.use), "Included", sep="."),
+        paste(colnames(se.use), "Excluded", sep=".")
+    )
+    colData$ASE = rep(c("Included", "Excluded"), each = ncol(se.use))
+    colnames(countData) = rownames(colData)
+    rownames(countData) = rowData$EventName
+    
+    condition_factor = factor(colData[, test_factor])
+    ASE = colData[, "ASE"]
+    if(batch2 != "") {    
+      batch2_factor = colData[, batch2]
+      batch1_factor = colData[, batch1]
+      design1 = model.matrix(~0 + batch1_factor + batch2_factor + condition_factor + condition_factor:ASE)
+    } else if(batch1 != "") {
+      batch1_factor = colData[, batch1]    
+      design1 = model.matrix(~0 + batch1_factor + condition_factor + condition_factor:ASE)
+    } else {
+      design1 = model.matrix(~0 + condition_factor + condition_factor:ASE)    
+    }
+    colnames(design1) = sub(":",".",colnames(design1))
+    contrast = rep(0, ncol(design1))
+    contrast_a = paste0("condition_factor", test_nom, ".ASEIncluded")
+    contrast_b = paste0("condition_factor", test_denom, ".ASEIncluded")
+    contrast[which(colnames(design1) == contrast_b)] = -1
+    contrast[which(colnames(design1) == contrast_a)] = 1		
+
+    countData_use = limma::voom(countData, design1, lib.size = 1)
+
+    fit = limma::lmFit(countData_use$E, design = design1)
+
+    fit = limma::contrasts.fit(fit, contrast)
+    fit = limma::eBayes(fit)
+
+    res.limma = limma::topTable(fit, number = nrow(countData_use$E))
+    res.limma$EventName = rownames(res.limma)
+
+    res.limma$AveExpr = res.limma$AveExpr - min(res.limma$AveExpr)
+    res.limma = as.data.table(res.limma)
+
+    # Merge tables together:
+    res.ASE = res.limma
     
     res.ASE[res.inc, on = "EventName",
       paste("Inc", colnames(res.inc)[1:6], sep=".") := 
@@ -138,7 +145,6 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.ASE = rowData.DT[res.ASE, on = "EventName"]
     
     # Apply custom filters
-    # res.ASE = res.ASE[Inc.AveExpr > 1 & Exc.AveExpr > 1]
     
     res.ASE
 }
