@@ -1966,7 +1966,7 @@ dash_server = function(input, output, session) {
 			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
 			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$nom_DE))
 			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$denom_DE))
-			req(load_DE$settings$method %in% c("DESeq2", "limma", "DSS"))
+			req(load_DE$settings$method %in% c("DESeq2", "limma"))
 			
 			settings_DE$res = load_DE$res
 			settings_DE$res_settings$method = load_DE$settings$method
