@@ -229,8 +229,10 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
         dds_formula = paste0("~", test_factor)
     }
     
+    countData = as.matrix(countData)
+    mode(countData) = "integer"
     dds = DESeq2::DESeqDataSetFromMatrix(
-        countData = countData,
+        countData = round(countData),
         colData = colData,
         design = as.formula(dds_formula)
     )
@@ -290,6 +292,8 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
             sep="+"))
     }
     
+    countData = as.matrix(countData)
+    mode(countData) = "integer"
     dds = DESeq2::DESeqDataSetFromMatrix(
         countData = countData,
         colData = colData,
