@@ -1831,7 +1831,9 @@ dash_server = function(input, output, session) {
                 n_threads = get_threads()
             )
             if(!input$adjP_DE) {
-                setorder(res.ASE, P.Value)
+                setorder(res.ASE, pvalue)
+            } else {
+                setorder(res.ASE, padj)            
             }
             settings_DE$res = as.data.frame(res.ASE)
             
@@ -1841,11 +1843,11 @@ dash_server = function(input, output, session) {
                 settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
                 settings_DE$batchVar1, settings_DE$batchVar2,
             )
-
             if(!input$adjP_DE) {
-                setorder(res.ASE, pvalue)
+                setorder(res.ASE, P.Value)
+            } else {
+                setorder(res.ASE, adj.P.Val)
             }
-
         }
         
         settings_DE$res = as.data.frame(res.ASE)
