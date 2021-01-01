@@ -23,17 +23,28 @@ limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, bat
 }
 
 #' @export
-limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "") {
+limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "",
+    filter_antiover = TRUE, filter_antinear = FALSE, filter_anootated_IR = FALSE) {
     limma_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
 
+    se_use = se
+    if(filter_antiover) {
+        se_use = se_use[grepl("anti-over", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
+    if(filter_antinear) {
+        se_use = se_use[grepl("anti-near", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
+    if(filter_anootated_IR) {
+        se_use = se_use[grepl("known-exon", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
     
     # Inc / Exc mode
-    countData = rbind(SummarizedExperiment::assay(se, "Included"), 
-        SummarizedExperiment::assay(se, "Excluded"))
-    rowData = as.data.frame(SummarizedExperiment::rowData(se))
+    countData = rbind(SummarizedExperiment::assay(se_use, "Included"), 
+        SummarizedExperiment::assay(se_use, "Excluded"))
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
     
-    colData = SummarizedExperiment::colData(se)
-    rownames(colData) = colnames(se)
+    colData = SummarizedExperiment::colData(se_use)
+    rownames(colData) = colnames(se_use)
     colnames(countData) = rownames(colData)
     rownames(countData) = c(
         paste(rowData$EventName, "Included", sep="."),
@@ -78,20 +89,20 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.exc = res.exc[AveExpr > 1]
 
     # ASE mode
-    rowData = as.data.frame(SummarizedExperiment::rowData(se))
-    se.use = se[rowData$EventName %in% res.inc$EventName &
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    se_use = se_use[rowData$EventName %in% res.inc$EventName &
         rowData$EventName %in% res.exc$EventName,]
-    rowData = as.data.frame(SummarizedExperiment::rowData(se.use))
-    countData = cbind(SummarizedExperiment::assay(se.use, "Included"), 
-        SummarizedExperiment::assay(se.use, "Excluded"))
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    countData = cbind(SummarizedExperiment::assay(se_use, "Included"), 
+        SummarizedExperiment::assay(se_use, "Excluded"))
 
-    colData = as.data.frame(SummarizedExperiment::colData(se.use))
+    colData = as.data.frame(SummarizedExperiment::colData(se_use))
     colData = rbind(colData, colData)
     rownames(colData) = c(
-        paste(colnames(se.use), "Included", sep="."),
-        paste(colnames(se.use), "Excluded", sep=".")
+        paste(colnames(se_use), "Included", sep="."),
+        paste(colnames(se_use), "Excluded", sep=".")
     )
-    colData$ASE = rep(c("Included", "Excluded"), each = ncol(se.use))
+    colData$ASE = rep(c("Included", "Excluded"), each = ncol(se_use))
     colnames(countData) = rownames(colData)
     rownames(countData) = rowData$EventName
     
@@ -143,8 +154,7 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
  
     res.ASE = rowData.DT[res.ASE, on = "EventName"]
-    
-    # Apply custom filters
+
     
     res.ASE
 }
