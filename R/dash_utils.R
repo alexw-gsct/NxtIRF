@@ -272,7 +272,8 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     }
 
     p = p + theme_white_legend +
-            theme(axis.text.y = element_blank(), axis.title.y = element_blank())
+        theme(axis.text.y = element_blank(), axis.title.y = element_blank()) +
+        labs(fill = "")
 
     if(condense_this == TRUE) {
         anno = list(
