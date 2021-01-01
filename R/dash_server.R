@@ -990,9 +990,11 @@ dash_server = function(input, output, session) {
             } else if(input$thread_option == "Multi-Thread (Low)") {
                 n_threads = floor( (parallel::detectCores() - 2) / 2)
                 if(n_threads < 1) n_threads = 1
-            } else {
+            } else if(input$thread_option == "Multi-Thread (High)") {
                 n_threads = parallel::detectCores() - 2
                 if(n_threads < 1) n_threads = 1
+            } else if(input$thread_option == "Custom") {
+                n_threads = input$cores_numeric
             }
             n_threads
         }

@@ -61,23 +61,28 @@ ui_tab_system <- function() {
                    choices = c( 
                         "Multi-Thread (High)",
                         "Multi-Thread (Low)", 
-                        "Single-Thread"
+                        "Single-Thread", "Custom"
                     ),
                    justified = TRUE,
                    checkIcon = list(
                       yes = icon("ok", 
                     lib = "glyphicon"))
                 ),
-            ),
-            tags$div(title = paste("Memory maximum (per-thread)",
-                "for NxtIRF-collate"),
-                sliderTextInput(
-                   inputId = "mem_option",
-                   label = "Memory Limit:", 
-                   choices = c("2Gb", "4Gb", "8Gb", "16Gb", "Unlimited"),
-                   selected = "4Gb"
-                )
+                conditionalPanel(
+                    condition = "['Custom'].indexOf(input.thread_option) >= 0",,
+                    numericInput("cores_numeric", "# Threads", min = 1, 
+                        max = parallel::detectCores(), value = 1)
+                )                
             )
+            # tags$div(title = paste("Memory maximum (per-thread)",
+                # "for NxtIRF-collate"),
+                # sliderTextInput(
+                   # inputId = "mem_option",
+                   # label = "Memory Limit:", 
+                   # choices = c("2Gb", "4Gb", "8Gb", "16Gb", "Unlimited"),
+                   # selected = "4Gb"
+                # )
+            # )
         )
     )
 }
