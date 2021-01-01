@@ -1898,92 +1898,20 @@ dash_server = function(input, output, session) {
 			settings_DE$method = input$method_DE
 			
 			if(settings_DE$method == "DESeq2") {
-				NxtIRF.CheckPackageInstalled("DESeq2", "1.28.0")
-				# build design
-				if(!is_valid(settings_DE$batchVar2)) {
-					dds_formula = paste0("~", paste(
-						settings_DE$batchVar1, settings_DE$batchVar2, settings_DE$DE_Var,
-						paste0(settings_DE$DE_Var, ":ASE"),
-						sep="+"))
-				} else if(!is_valid(settings_DE$batchVar1)) {
-					dds_formula = paste0("~", paste(
-						settings_DE$batchVar1, settings_DE$DE_Var,
-						paste0(settings_DE$DE_Var, ":ASE"),
-						sep="+"))				
-				} else {
-					dds_formula = paste0("~", paste(settings_DE$DE_Var,
-						paste0(settings_DE$DE_Var, ":ASE"),
-						sep="+"))						
-				}
-				
-				# construct dds
-				countData = cbind(SummarizedExperiment::assay(se, "Included"), 
-					SummarizedExperiment::assay(se, "Excluded"))
-				colData_use = rbind(colData, colData)
-				rownames(colData_use) = c(
-					paste(rownames(colData), "Included", sep="."),
-					paste(rownames(colData), "Excluded", sep=".")
-				)
-        colData_use$ASE = rep(c("Included", "Excluded"), each = nrow(colData))
-				colnames(countData) = rownames(colData_use)
-				rownames(countData) = rowData$EventName
-				countData = round(countData)
-				mode(countData) = "integer"
 
-				dds = DESeq2::DESeqDataSetFromMatrix(
-					countData = countData,
-					colData = colData_use,
-					design = as.formula(dds_formula)
-				)
-				
-				DESeq2::sizeFactors(dds) = 1
+                res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
+                    settings_DE$batchVar1, settings_DE$batchVar2)
 
-        n_threads = as.numeric(input$cores_slider)
-        if(!is_valid(input$cores_slider)) n_threads = 1
-        
-        BPPARAM = BiocParallel::bpparam()
-        
-        if(n_threads == 1) {
-          BPPARAM_mod = BiocParallel::SerialParam()
-          message(paste("Using SerialParam", BPPARAM_mod$workers, "threads"))
-        } else if(Sys.info()["sysname"] == "Windows") {
-          BPPARAM_mod = BiocParallel::SnowParam(n_threads)
-          message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
-        } else {
-          BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
-          message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
-        }
-				
-        dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
-				
-        # print(DESeq2::resultsNames(dds))
-        message(paste("Factors to contrast are", paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),
-          paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")))
-        
-				res = as.data.frame(DESeq2::results(dds,
-					list(
-						paste0(settings_DE$DE_Var, settings_DE$nom_DE, ".ASEIncluded"),
-						paste0(settings_DE$DE_Var, settings_DE$denom_DE, ".ASEIncluded")
-					), parallel = TRUE, BPPARAM = BPPARAM_mod)
-				)
-				res = cbind(
-                        rowData[,c("EventName","EventType","EventRegion", "NMD_direction")], 
-                    res)
-				res = res %>% dplyr::arrange(padj)
-				settings_DE$res = res
-
-        output$warning_DE = renderText({"Finished"})
+                settings_DE$res = as.data.frame(res.ASE)
         
 			} else if(settings_DE$method == "limma") {
 				NxtIRF.CheckPackageInstalled("limma", "3.44.0")
         
-        res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
-            settings_DE$batchVar1, settings_DE$batchVar2)
-
-				settings_DE$res = as.data.frame(res.ASE)
-
-        output$warning_DE = renderText({"Finished"})
-      }
+                res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
+                    settings_DE$batchVar1, settings_DE$batchVar2)
+            }
+            settings_DE$res = as.data.frame(res.ASE)
+            output$warning_DE = renderText({"Finished"})
 			
 			req(settings_DE$res)
 			# save settings for current res

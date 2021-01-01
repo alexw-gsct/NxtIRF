@@ -544,7 +544,7 @@ ui_tab_analyse <- function() {
             column(4,	
                 textOutput("warning_DE"),
                 selectInput('method_DE', 'Method', 
-                    c("DESeq2", "limma", "DSS")),
+                    c("limma", "DESeq2")),
                 selectInput('variable_DE', 'Variable', 
                     c("(none)")),
                 selectInput('nom_DE', 'Nominator', 

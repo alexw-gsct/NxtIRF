@@ -1,4 +1,4 @@
-limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, batch2) {
+DE_assert <- function(colData, test_factor, test_nom, test_denom, batch1, batch2) {
   assert_that(is_valid(test_factor) & is_valid(test_nom) & is_valid(test_denom),
     msg = "test_factor, test_nom, test_denom must be defined")
   assert_that(test_factor %in% colnames(colData),
@@ -20,12 +20,20 @@ limma_assert <- function(colData, test_factor, test_nom, test_denom, batch1, bat
   if(batch1 != "" & batch2 != "") {
     assert_that(batch2 != batch1, msg = "batch1 and batch2 are the same")  
   }
+  return(TRUE)
 }
 
 #' @export
 limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "",
     filter_antiover = TRUE, filter_antinear = FALSE, filter_anootated_IR = FALSE) {
-    limma_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
+    
+    NxtIRF.CheckPackageInstalled("limma", "3.44.0")
+    test_assert = FALSE
+    test_assert = DE_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
+
+    if(!test_assert) {
+        return(NULL)
+    }
 
     se_use = se
     if(filter_antiover) {
@@ -159,3 +167,164 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.ASE
 }
 
+#' @export
+DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "",
+    n_threads = 1,
+    filter_antiover = TRUE, filter_antinear = FALSE, filter_anootated_IR = FALSE) {
+    
+    NxtIRF.CheckPackageInstalled("DESeq2", "1.30.0")
+    test_assert = FALSE
+    test_assert = DE_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
+
+    if(!test_assert) {
+        return(NULL)
+    }
+    
+    BPPARAM = BiocParallel::bpparam()
+
+    if(n_threads == 1) {
+      BPPARAM_mod = BiocParallel::SerialParam()
+      message(paste("DESeq_ASE:", "Using SerialParam", BPPARAM_mod$workers, "threads"))
+    } else if(Sys.info()["sysname"] == "Windows") {
+      BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+      message(paste("DESeq_ASE:", "Using SnowParam", BPPARAM_mod$workers, "threads"))
+    } else {
+      BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+      message(paste("DESeq_ASE:", "Using MulticoreParam", BPPARAM_mod$workers, "threads"))
+    }
+
+    se_use = se
+    if(filter_antiover) {
+        se_use = se_use[grepl("anti-over", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
+    if(filter_antinear) {
+        se_use = se_use[grepl("anti-near", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
+    if(filter_anootated_IR) {
+        se_use = se_use[grepl("known-exon", SummarizedExperiment::rowData(se_use)$EventName),]
+    }
+    
+    # Inc / Exc mode
+    countData = rbind(SummarizedExperiment::assay(se_use, "Included"), 
+        SummarizedExperiment::assay(se_use, "Excluded"))
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    
+    colData = SummarizedExperiment::colData(se_use)
+    rownames(colData) = colnames(se_use)
+    colnames(countData) = rownames(colData)
+    rownames(countData) = c(
+        paste(rowData$EventName, "Included", sep="."),
+        paste(rowData$EventName, "Excluded", sep=".")
+    )
+
+    if(batch2 != "") {
+        dds_formula = paste0("~", paste(
+            batch1, batch2, test_factor,
+            sep="+"))
+
+    } else if(batch1 != "") {
+        dds_formula = paste0("~", paste(
+            batch1, test_factor,
+            sep="+"))
+    } else {
+        dds_formula = paste0("~", test_factor)
+    }
+    
+    dds = DESeq2::DESeqDataSetFromMatrix(
+        countData = countData,
+        colData = colData,
+        design = as.formula(dds_formula)
+    )
+    message("DESeq_ASE: Profiling expression of Included and Excluded counts")
+    
+    dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
+
+    res.IncExc = as.data.frame(DESeq2::results(dds,
+        contrast = c(test_factor, test_nom, test_denom), 
+        parallel = TRUE, BPPARAM = BPPARAM_mod)
+    )
+    
+    res.IncExc$EventName = rownames(res.IncExc)
+
+    res.IncExc = as.data.table(res.IncExc)
+
+    res.inc = res.IncExc[grepl(".Included", EventName)]
+    res.inc[, EventName := sub(".Included","",EventName, fixed=TRUE)]
+    # res.inc = res.inc[baseMean > 1]
+    res.exc = res.IncExc[grepl(".Excluded", EventName)]
+    res.exc[, EventName := sub(".Excluded","",EventName, fixed=TRUE)]
+    # res.exc = res.exc[baseMean > 1]
+
+    # ASE mode
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    se_use = se_use[rowData$EventName %in% res.inc$EventName &
+        rowData$EventName %in% res.exc$EventName,]
+    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    countData = cbind(SummarizedExperiment::assay(se_use, "Included"), 
+        SummarizedExperiment::assay(se_use, "Excluded"))
+
+    colData = as.data.frame(SummarizedExperiment::colData(se_use))
+    colData = rbind(colData, colData)
+    rownames(colData) = c(
+        paste(colnames(se_use), "Included", sep="."),
+        paste(colnames(se_use), "Excluded", sep=".")
+    )
+    colData$ASE = rep(c("Included", "Excluded"), each = ncol(se_use))
+    colnames(countData) = rownames(colData)
+    rownames(countData) = rowData$EventName
+    
+    if(batch2 != "") {
+        dds_formula = paste0("~", paste(
+            batch1, batch2, test_factor,
+                paste0(test_factor, ":ASE"),
+            sep="+"))
+
+    } else if(batch1 != "") {
+        dds_formula = paste0("~", paste(
+            batch1, test_factor, 
+            paste0(test_factor, ":ASE"),
+            sep="+"))
+    } else {
+        dds_formula = paste0("~", paste(
+            test_factor, 
+            paste0(test_factor, ":ASE"),
+            sep="+"))
+    }
+    
+    dds = DESeq2::DESeqDataSetFromMatrix(
+        countData = countData,
+        colData = colData,
+        design = as.formula(dds_formula)
+    )
+    message("DESeq_ASE: Profiling differential ASE")
+    
+    dds = DESeq2::DESeq(dds, parallel = TRUE, BPPARAM = BPPARAM_mod)
+
+    res.ASE = as.data.frame(DESeq2::results(dds,
+        list(
+            paste0(test_factor, test_nom, ".ASEIncluded"),
+            paste0(test_factor, test_denom, ".ASEIncluded")
+        ),
+        parallel = TRUE, BPPARAM = BPPARAM_mod)
+    )
+
+    res.ASE$EventName = rownames(res.ASE)
+
+    res.ASE = as.data.table(res.ASE)
+    
+    res.ASE[res.inc, on = "EventName",
+      paste("Inc", colnames(res.inc)[1:6], sep=".") := 
+        list(i.baseMean, i.log2FoldChange, i.lfcSE, i.stat, i.pvalue, i.padj)]
+      
+    res.ASE[res.exc, on = "EventName",
+      paste("Exc", colnames(res.exc)[1:6], sep=".") := 
+        list(i.baseMean, i.log2FoldChange, i.lfcSE, i.stat, i.pvalue, i.padj)]
+      
+    setorder(res.ASE, -pvalue)
+            
+    rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
+ 
+    res.ASE = rowData.DT[res.ASE, on = "EventName"]
+
+    res.ASE
+}
