@@ -398,14 +398,14 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     yaxis = list(rangemode = "tozero")
                 )
                 for(j in seq_len(max_tracks)) {
-                    pl_track[[1]]$x$data[[j]]$showlegend = FALSE
-                    pl_track[[1]]$x$data[[j + max_tracks]]$showlegend = TRUE
+                    pl_track[[1]]$x$data[[1 + j]]$showlegend = FALSE
+                    pl_track[[1]]$x$data[[1 + j + max_tracks]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= max_tracks) {
-                        pl_track[[1]]$x$data[[j]]$name = track_names[j]
-                        pl_track[[1]]$x$data[[j + max_tracks]]$name = track_names[j]                
+                        pl_track[[1]]$x$data[[1 + j]]$name = track_names[j]
+                        pl_track[[1]]$x$data[[1 + j + max_tracks]]$name = track_names[j]                
                     } else {
-                        pl_track[[1]]$x$data[[j]]$name = paste(condition, tracks[[j]])
-                        pl_track[[1]]$x$data[[j + max_tracks]]$name = paste(condition, tracks[[j]])
+                        pl_track[[1]]$x$data[[1 + j]]$name = paste(condition, tracks[[j]])
+                        pl_track[[1]]$x$data[[1 + j + max_tracks]]$name = paste(condition, tracks[[j]])
                     }
                 }
             }
@@ -428,14 +428,14 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                             # fixedrange = TRUE)
                         yaxis = list(rangemode = "tozero")
                     )
-                    pl_track[[i]]$x$data[[1]]$showlegend = FALSE
-                    pl_track[[i]]$x$data[[2]]$showlegend = TRUE
+                    pl_track[[i]]$x$data[[2]]$showlegend = FALSE
+                    pl_track[[i]]$x$data[[3]]$showlegend = TRUE
                     if(!missing(track_names) && length(track_names) >= i) {
-                        pl_track[[i]]$x$data[[1]]$name = track_names[i]
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]
+                        pl_track[[i]]$x$data[[3]]$name = track_names[i]
                     } else {
-                        pl_track[[i]]$x$data[[1]]$name = paste(condition, tracks[[i]]) # paste("Track",i)
-                        pl_track[[i]]$x$data[[2]]$name = paste(condition, tracks[[i]])
+                        pl_track[[i]]$x$data[[2]]$name = paste(condition, tracks[[i]]) # paste("Track",i)
+                        pl_track[[i]]$x$data[[3]]$name = paste(condition, tracks[[i]])
                     }
                 }
             }
@@ -465,13 +465,13 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                                 title = paste(track_samples, " Coverage")
                             )
                         )
-                        pl_track[[i]]$x$data[[1]]$showlegend = FALSE
+                        pl_track[[i]]$x$data[[2]]$showlegend = FALSE
                         # pl_track[[i]]$x$data[[2]]$showlegend = TRUE
                         if(!missing(track_names) && length(track_names) >= i) {
-                            pl_track[[i]]$x$data[[1]]$name = track_names[i]
+                            pl_track[[i]]$x$data[[2]]$name = track_names[i]
                             # pl_track[[i]]$x$data[[2]]$name = track_names[i]
                         } else {
-                            pl_track[[i]]$x$data[[1]]$name = track_samples # paste("Track",i)
+                            pl_track[[i]]$x$data[[2]]$name = track_samples # paste("Track",i)
                             # pl_track[[i]]$x$data[[2]]$name = track_samples
                         }
                     }
@@ -502,7 +502,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 title = paste("T-test -log10(p)")
             )
         )
-        pl_track[[5]]$x$data[[1]]$showlegend = FALSE
+        pl_track[[5]]$x$data[[2]]$showlegend = FALSE
     }
 
     plot_tracks = pl_track[unlist(lapply(pl_track, function(x) !is.null(x)))]
@@ -516,20 +516,16 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     gp_track[[6]] = p_ref$gp
     
     # Work out which x axis ticks to use, based on zoom level
-    # cur_zoom = 0 {50, 150}    10
-    # cur_zoom = 1 {151, 450}   50
-    # cur_zoom = 2 {451, 1350}  100
-    # cur_zoom = 3 {1351, 1350}  100
     view_range = view_end - view_start
     min_tick_size = view_range / 15
     tick_order_magn = 10 ^ floor(log10(min_tick_size))
     # round up tick size to nearest 1, 2, 5
     if(min_tick_size / tick_order_magn > 5) {
-        tick_size = tick_order_magn * 10
+        tick_size = tick_order_magn * 20
     } else if(min_tick_size / tick_order_magn > 2) {
-        tick_size = tick_order_magn * 5
+        tick_size = tick_order_magn * 10
     } else {
-        tick_size = tick_order_magn * 2
+        tick_size = tick_order_magn * 5
     }
     first_tick = ceiling(view_start / tick_size) * tick_size
     
