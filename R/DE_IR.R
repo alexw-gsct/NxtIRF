@@ -183,7 +183,7 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
 
     if(n_threads == 1) {
       BPPARAM_mod = BiocParallel::SerialParam()
-      message(paste("DESeq_ASE:", "Using SerialParam", BPPARAM_mod$workers, "threads"))
+      message(paste("DESeq_ASE:", "Using SerialParam - 1 thread"))
     } else if(Sys.info()["sysname"] == "Windows") {
       BPPARAM_mod = BiocParallel::SnowParam(n_threads)
       message(paste("DESeq_ASE:", "Using SnowParam", BPPARAM_mod$workers, "threads"))
@@ -194,13 +194,13 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
 
     se_use = se
     if(filter_antiover) {
-        se_use = se_use[grepl("anti-over", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("anti-over", SummarizedExperiment::rowData(se_use)$EventName),]
     }
     if(filter_antinear) {
-        se_use = se_use[grepl("anti-near", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("anti-near", SummarizedExperiment::rowData(se_use)$EventName),]
     }
     if(filter_anootated_IR) {
-        se_use = se_use[grepl("known-exon", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("known-exon", SummarizedExperiment::rowData(se_use)$EventName),]
     }
     
     # Inc / Exc mode
