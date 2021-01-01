@@ -69,7 +69,7 @@ ui_tab_system <- function() {
                     lib = "glyphicon"))
                 ),
                 conditionalPanel(
-                    condition = "['Custom'].indexOf(input.thread_option) >= 0",,
+                    condition = "['Custom'].indexOf(input.thread_option) >= 0",
                     numericInput("cores_numeric", "# Threads", min = 1, 
                         max = parallel::detectCores(), value = 1)
                 )                
