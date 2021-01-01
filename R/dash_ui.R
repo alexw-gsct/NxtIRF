@@ -381,10 +381,6 @@ ui_ddb_build_expr <- function() {
 
         actionButton("build_expr", "Build SummarizedExperiment"),
 
-        # shinyFilesButton("loadexpr_expr", label = "Load Experiment", 
-            # title = "Load Experiment Data Frame", multiple = FALSE), br(), # done
-        # shinySaveButton("saveexpr_expr", "Save Experiment", "Save Experiment as...", 
-            # filetype = list(dataframe = "csv")), br(),
         actionButton("load_expr", "Load Experiment"),
         actionButton("save_expr", "Save Experiment"),
 

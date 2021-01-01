@@ -1,18 +1,18 @@
 dash_server = function(input, output, session) {
 
-        default_volumes <- c("Working Directory" = getwd(), "Home" = "~", getVolumes()())
-        addit_volume = c()
+    default_volumes <- c("Working Directory" = getwd(), "Home" = "~", getVolumes()())
+    addit_volume = c()
 
-        settings_system <- setreactive_system()
-		settings_newref <- setreactive_newref()
-        settings_loadref <- setreactive_loadref()
-        settings_expr <- setreactive_expr()
-        settings_SE <- setreactive_SE()
-        settings_DE <- setreactive_DE()
-        settings_Diag = setreactive_Diag()
-        settings_Volc = setreactive_Diag()
-        settings_Heat = setreactive_Diag()
-        settings_Cov <- setreactive_Cov()
+    settings_system <- setreactive_system()
+    settings_newref <- setreactive_newref()
+    settings_loadref <- setreactive_loadref()
+    settings_expr <- setreactive_expr()
+    settings_SE <- setreactive_SE()
+    settings_DE <- setreactive_DE()
+    settings_Diag = setreactive_Diag()
+    settings_Volc = setreactive_Diag()
+    settings_Heat = setreactive_Diag()
+    settings_Cov <- setreactive_Cov()
         
         # settings_SaveObj <- reactiveValues(
             # obj = NULL
@@ -76,621 +76,618 @@ dash_server = function(input, output, session) {
                 # inputId = "cores_numeric", value = settings_system$n_threads)
         # })
         
-        settings_app <- reactiveValues(
-            ah = NULL
-        )
-        initialize_ah <- function() {
-            if(!is_valid(settings_app$ah)) {
-                # ah = AnnotationHub::AnnotationHub(localHub = FALSE)
-                settings_app$ah = .ah
+    settings_app <- reactiveValues(
+        ah = NULL
+    )
+    initialize_ah <- function() {
+        if(!is_valid(settings_app$ah)) {
+            settings_app$ah = .ah
+        }        
+    }
+# tabEvent Observer
+    observeEvent(input$navSelection, {
+        if(input$navSelection == "navTitle") {
+            # Initialize App
+            initialize_ah()
+        } else if(input$navSelection == "navRef_New") {
+            initialize_ah()
+            ah = settings_app$ah
+            # autopopulate if previous settings detected
+            
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+            choices = c("", sort(unique(ah.filtered$species)))
+
+            if(is_valid(settings_newref$ui_newrefAH_Species) &&
+                settings_newref$ui_newrefAH_Species %in% choices) {
+                updateSelectInput(session = session, inputId = "newrefAH_Species",
+                    choices = choices, selected = settings_newref$ui_newrefAH_Species)				
+            } else {
+                updateSelectInput(session = session, inputId = "newrefAH_Species",
+                    choices = choices)	        
+            }
+            
+            choices = c("(not specified)", "hg38", "mm10", "hg19", "mm9")
+            if(is_valid(settings_newref$ui_newref_genome_type) &&
+                settings_newref$ui_newref_genome_type %in% choices) {
+                updateSelectInput(session = session, inputId = "newref_genome_type",
+                    choices = choices, selected = settings_newref$ui_newref_genome_type)				
+            } else {
+                updateSelectInput(session = session, inputId = "newref_genome_type",
+                    choices = choices)	        
+            }
+            
+            
+            if(settings_newref$newref_path != ""){
+                output$txt_reference_path <- renderText(settings_newref$newref_path)
+            }
+        } else if(input$navSelection == "navSystem") {
+
+        } else if(input$navSelection == "navExpr") {
+            output$se_expr_infobox <- renderUI({
+                ui_infobox_expr(ifelse(
+                    is_valid(settings_SE$se), 2,
+                    ifelse(
+                        is_valid(settings_expr$collate_path) &&
+                        file.exists(file.path(
+                            settings_expr$collate_path,
+                            "colData.Rds"
+                        ))
+                    ,1,0)
+                ))
+            })
+        } else if(input$navSelection == "navQC") {
+            if(file.exists(file.path(settings_expr$collate_path, "stats.fst"))) {
+                settings_SE$QC = 
+                    as.data.table(read.fst((file.path(settings_expr$collate_path, "stats.fst"))))                
+                settings_SE$QC = 
+                    merge(as.data.table(settings_expr$df.anno), settings_SE$QC, all = TRUE)
+            }
+            output$DT_QC <- DT::renderDataTable({
+                validate(need(settings_SE$se, "Load Experiment file first"))
+                validate(need(file.exists(
+                    file.path(settings_expr$collate_path, "stats.fst")
+                    ), "stats.fst does not exist in given NxtIRF output directory"))
+                DT::datatable(
+                    as.data.frame(settings_SE$QC),
+                    class = 'cell-border stripe',
+                    rownames = settings_SE$QC$sample,
+                    filter = 'top'
+                )
+            })
+            if(is_valid(settings_SE$QC)) {
+                choices = colnames(settings_SE$QC)
+                choices = choices[!(choices %in% colnames(settings_expr$df.anno))]
+                choices = choices[!(choices %in% 
+                    c("paired", "strand", "path")
+                )]
+                choices = c("(none)", choices)
+                updateSelectInput(session = session, inputId = "QC_xaxis",
+                    choices = choices)	        
+                updateSelectInput(session = session, inputId = "QC_yaxis",
+                    choices = choices)	        
+            } else {
+                 updateSelectInput(session = session, inputId = "QC_xaxis",
+                    choices = "(none)")	        
+                updateSelectInput(session = session, inputId = "QC_yaxis",
+                    choices = "(none)")	               
+            }
+        } else if(input$navSelection == "navFilter") {
+            if(!is.null(settings_SE$se)) {
+                output$current_expr_Filters = renderText("SummarizedExperiment loaded")
+            } else {
+                output$current_expr_Filters = renderText("Please load SummarizedExperiment first")
+            }
+            if(settings_loadref$loadref_path != "") {
+                output$current_ref_Filters = renderText("Reference loaded")
+            } else {
+                output$current_ref_Filters = renderText("Please load reference first")
+            }
+            if(!is.null(settings_SE$se) & settings_loadref$loadref_path != "") {
+                processFilters()
+            }
+        } else if(input$navSelection == "navAnalyse") {
+            output$warning_DE = renderText({
+                validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
+                "Experiment Loaded"
+            })
+            req(settings_SE$se)
+            colData = SummarizedExperiment::colData(settings_SE$se)
+            updateSelectInput(session = session, inputId = "variable_DE", 
+                choices = c("(none)", colnames(colData)), selected = "(none)")
+            updateSelectInput(session = session, inputId = "batch1_DE", 
+                choices = c("(none)", colnames(colData)), selected = "(none)")						
+            updateSelectInput(session = session, inputId = "batch2_DE", 
+                choices = c("(none)", colnames(colData)), selected = "(none)")
+        } else if(input$navSelection == "navDiag") {
+            output$warning_diag = renderText({
+                validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
+                "Experiment Loaded"
+            })
+            req(settings_SE$se)
+            colData = SummarizedExperiment::colData(settings_SE$se)
+            if(is_valid(input$variable_diag) && input$variable_diag %in% colnames(colData)) {
+                selected = isolate(input$variable_diag)
+                updateSelectInput(session = session, inputId = "variable_diag", 
+                    choices = c("(none)", colnames(colData)), selected = selected)
+            } else {
+                updateSelectInput(session = session, inputId = "variable_diag", 
+                    choices = c("(none)", colnames(colData)), selected = "(none)")
+            }
+        } else if(input$navSelection == "navHeatmap") {
+            if(is_valid(settings_SE$se)) {
+                updateSelectInput(session = session, inputId = "anno_col_heat", 
+                    choices = colnames(SummarizedExperiment::colData(settings_SE$se)), selected = NULL)
+            }
+        } else if(input$navSelection == "navCoverage") {
+            initialize_ah()
+            ah = settings_app$ah
+            if(is_valid(settings_loadref$loadref_path)) {
+                load_ref()
+            }
+            output$warning_cov <- renderText({
+                validate(need(settings_loadref$loadref_path, "Please select reference path"))            
+                settings_loadref$loadref_path
+            })
+            req(settings_loadref$loadref_path)
+                    
+            # seqinfo
+            settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
+            if(settings$ah_genome != "") {
+                genome = FetchAH(settings$ah_genome, ah = ah)
+            } else {
+                genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+            }
+            settings_Cov$seqInfo = seqinfo(genome)
+            settings_Cov$gene_list <- getGeneList()
+            settings_Cov$elem.DT <- loadViewRef()
+            settings_Cov$transcripts.DT <- loadTranscripts()
+            
+            # Populate events here
+            
+            if(is_valid(settings_DE$res)) {
+                if(input$select_events_cov == "Highlighted") {
+                    selected = input$DT_DE_rows_selected
+                } else if(input$select_events_cov == "Top N Filtered Results") {
+                    selected = input$DT_DE_rows_all
+                    if(length(selected) > input$slider_num_events_cov) {
+                        selected = selected[seq_len(input$slider_num_events_cov)]
+                    }
+                } else {
+                    selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
+                }
+
+                if(length(selected) > 0 & is_valid(settings_DE$res)) {
+                    updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+                        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+                } else {
+                    updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+                        choices = c("(none)"), selected = "(none)")    								    
+                }        
+            }
+            
+            if(!is.null(settings_Cov$gene_list)) {
+                message(paste("Populating drop-down box with", 
+                length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
+                updateSelectInput(session = session, inputId = "chr_cov", 
+                    choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+                updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                    choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
+            } else {
+                updateSelectInput(session = session, inputId = "chr_cov", 
+                    choices = c("(none)"), selected = "(none)")    								
+                updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                    choices = c("(none)"), selected = "(none)") 
+            }
+            if(is_valid(settings_SE$se)) {
+                # dissect rowData ranges
+                rowData = as.data.frame(SummarizedExperiment::rowData(settings_SE$se))
+                rowData$seqnames = tstrsplit(rowData$EventRegion, split=":")[[1]]
+                temp1 = tstrsplit(rowData$EventRegion, split="/")
+                temp2 = tstrsplit(temp1[[1]], split=":")[[2]]
+                rowData$start = as.numeric(tstrsplit(temp2, split="-")[[1]])
+                rowData$end = as.numeric(tstrsplit(temp2, split="-")[[2]])
+                rowData$strand = temp1[[2]]
+              
+                settings_Cov$event.ranges = as.data.table(rowData)
+            
+                DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file")])
+                DT.files = na.omit(DT.files)
+                settings_Cov$avail_cov = DT.files$cov_file
+                names(settings_Cov$avail_cov) = DT.files$sample
+                settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
+
+                if(input$mode_cov == "By Condition") {
+                    colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
+                    colData = colData[rownames(colData) %in% DT.files$sample,]
+                    conditions_avail = colnames(colData)
+                    if(is_valid(input$condition_cov) && input$condition_cov %in% conditions_avail) {
+                        cur_condition = input$condition_cov
+                        updateSelectInput(session = session, inputId = "condition_cov", 
+                            choices = c("(none)", conditions_avail), selected = cur_condition)                    
+                    } else {
+                         updateSelectInput(session = session, inputId = "condition_cov", 
+                            choices = c("(none)", conditions_avail))                 
+                    }
+                } else if(input$mode_cov == "Individual") {
+                    avail_samples = names(settings_Cov$avail_cov)
+                    updateSelectInput(session = session, inputId = "track1_cov", 
+                        choices = c("(none)", avail_samples), selected = "(none)")
+                    updateSelectInput(session = session, inputId = "track2_cov", 
+                        choices = c("(none)", avail_samples), selected = "(none)")
+                    updateSelectInput(session = session, inputId = "track3_cov", 
+                        choices = c("(none)", avail_samples), selected = "(none)")
+                    updateSelectInput(session = session, inputId = "track4_cov", 
+                        choices = c("(none)", avail_samples), selected = "(none)")
+                }
             }        
         }
-	# tabEvent Observer
-		observeEvent(input$navSelection, {
-			if(input$navSelection == "navTitle") {
-                # Initialize App
-                initialize_ah()
-			} else if(input$navSelection == "navRef_New") {
-                initialize_ah()
-                ah = settings_app$ah
-				# autopopulate if previous settings detected
-                
-                ah.filtered = ah[ah$dataprovider == "Ensembl"]
-                ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-                ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
-                choices = c("", sort(unique(ah.filtered$species)))
+    })
 
-                if(is_valid(settings_newref$ui_newrefAH_Species) &&
-                    settings_newref$ui_newrefAH_Species %in% choices) {
-                    updateSelectInput(session = session, inputId = "newrefAH_Species",
-                        choices = choices, selected = settings_newref$ui_newrefAH_Species)				
-                } else {
-                    updateSelectInput(session = session, inputId = "newrefAH_Species",
-                        choices = choices)	        
-                }
-                
-                choices = c("(not specified)", "hg38", "mm10", "hg19", "mm9")
-                if(is_valid(settings_newref$ui_newref_genome_type) &&
-                    settings_newref$ui_newref_genome_type %in% choices) {
-                    updateSelectInput(session = session, inputId = "newref_genome_type",
-                        choices = choices, selected = settings_newref$ui_newref_genome_type)				
-                } else {
-                    updateSelectInput(session = session, inputId = "newref_genome_type",
-                        choices = choices)	        
-                }
-                
-                
-				if(settings_newref$newref_path != ""){
-                    output$txt_reference_path <- renderText(settings_newref$newref_path)
-                }
-			} else if(input$navSelection == "navSystem") {
-                # if(settings_system$threads_initialized == FALSE) {
-                    # settings_system$threads_initialized = TRUE
-                    # max_cores = parallel::detectCores() - 2
-                    # updateSliderInput(session = session, inputId = "cores_slider", 
-                        # min = 1, max = max_cores, step = 1, value = min(4, max_cores))
-                    # updateNumericInput(session = session, inputId = "cores_numeric", 
-                        # min = 1, max = max_cores, value = min(4, max_cores))                    
-                # }
-
-			} else if(input$navSelection == "navExpr") {
-                output$se_expr_infobox <- renderUI({
-                    ui_infobox_expr(ifelse(
-                        is_valid(settings_SE$se), 2,
-                        ifelse(
-                                is_valid(settings_expr$collate_path) &&
-                                file.exists(file.path(
-                                    settings_expr$collate_path,
-                                    "colData.Rds"
-                                ))
-                            ,1,0)
-                        )
-                    )
-                })
-			} else if(input$navSelection == "navQC") {
-                if(file.exists(file.path(settings_expr$collate_path, "stats.fst"))) {
-					settings_SE$QC = 
-                        as.data.table(read.fst((file.path(settings_expr$collate_path, "stats.fst"))))                
-					settings_SE$QC = 
-                        merge(as.data.table(settings_expr$df.anno), settings_SE$QC, all = TRUE)
-                }
-				output$DT_QC <- DT::renderDataTable({
-					validate(need(settings_SE$se, "Load Experiment file first"))
-					validate(need(file.exists(
-						file.path(settings_expr$collate_path, "stats.fst")
-						), "stats.fst does not exist in given NxtIRF output directory"))
-					DT::datatable(
-						as.data.frame(settings_SE$QC),
-						class = 'cell-border stripe',
-						rownames = settings_SE$QC$sample,
-						filter = 'top'
-					)
-				})
-                if(is_valid(settings_SE$QC)) {
-                    choices = colnames(settings_SE$QC)
-                    choices = choices[!(choices %in% colnames(settings_expr$df.anno))]
-                    choices = choices[!(choices %in% 
-                        c("paired", "strand", "path")
-                    )]
-                    choices = c("(none)", choices)
-                    updateSelectInput(session = session, inputId = "QC_xaxis",
-                        choices = choices)	        
-                    updateSelectInput(session = session, inputId = "QC_yaxis",
-                        choices = choices)	        
-                } else {
-                     updateSelectInput(session = session, inputId = "QC_xaxis",
-                        choices = "(none)")	        
-                    updateSelectInput(session = session, inputId = "QC_yaxis",
-                        choices = "(none)")	               
-                }
- 			} else if(input$navSelection == "navFilter") {
-				if(!is.null(settings_SE$se)) {
-					output$current_expr_Filters = renderText("SummarizedExperiment loaded")
-				} else {
-					output$current_expr_Filters = renderText("Please load SummarizedExperiment first")
-				}
-				if(settings_loadref$loadref_path != "") {
-					output$current_ref_Filters = renderText("Reference loaded")
-				} else {
-					output$current_ref_Filters = renderText("Please load reference first")
-				}
-        if(!is.null(settings_SE$se) & settings_loadref$loadref_path != "") {
-          processFilters()
+# Function that returns the number of threads to use
+    get_threads <- function() {
+        if(input$thread_option == "Single-Thread"){
+            n_threads = 1
+        } else if(input$thread_option == "Multi-Thread (Low)") {
+            n_threads = floor( (parallel::detectCores() - 2) / 2)
+            if(n_threads < 1) n_threads = 1
+        } else if(input$thread_option == "Multi-Thread (High)") {
+            n_threads = parallel::detectCores() - 2
+            if(n_threads < 1) n_threads = 1
+        } else if(input$thread_option == "Custom") {
+            n_threads = input$cores_numeric
         }
-			} else if(input$navSelection == "navAnalyse") {
-        output$warning_DE = renderText({
-          validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
-          "Experiment Loaded"
+        n_threads
+    }
+		
+# TAB: Build Reference
+    observe({  
+        shinyDirChoose(input, "dir_reference_path", roots = c(default_volumes, addit_volume), session = session)
+        output$txt_reference_path <- renderText({
+            validate(need(input$dir_reference_path, "Please select reference path"))
+            settings_newref$newref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path)
         })
-        req(settings_SE$se)
-        colData = SummarizedExperiment::colData(settings_SE$se)
-        updateSelectInput(session = session, inputId = "variable_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
-        updateSelectInput(session = session, inputId = "batch1_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")						
-        updateSelectInput(session = session, inputId = "batch2_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
-			} else if(input$navSelection == "navDiag") {
-        output$warning_diag = renderText({
-          validate(need(settings_SE$se, "Please load experiment via 'Experiment' tab"))
-          "Experiment Loaded"
-        })
-        req(settings_SE$se)
-        colData = SummarizedExperiment::colData(settings_SE$se)
-        if(is_valid(input$variable_diag) && input$variable_diag %in% colnames(colData)) {
-          selected = isolate(input$variable_diag)
-          updateSelectInput(session = session, inputId = "variable_diag", 
-            choices = c("(none)", colnames(colData)), selected = selected)
+    })
+    observe({
+        shinyFileChoose(input, "file_genome", roots = c(default_volumes, addit_volume), 
+            session = session, filetypes = c("fa", "fasta", "gz"))
+        if(!is.null(input$file_genome)){
+         file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_genome)
+         settings_newref$newref_fasta = as.character(file_selected$datapath)
+         output$txt_genome <- renderText(as.character(file_selected$datapath))
+        }
+    })
+    observe({  
+        shinyFileChoose(input, "file_gtf", roots = c(default_volumes, addit_volume), 
+            session = session, filetypes = c("gtf", "gz"))
+        if(!is.null(input$file_gtf)){
+         file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_gtf)
+         settings_newref$newref_gtf = as.character(file_selected$datapath)
+         output$txt_gtf <- renderText(as.character(file_selected$datapath))
+        }
+    })
+    observe({  
+        shinyFileChoose(input, "file_mappa", roots = c(default_volumes, addit_volume), 
+            session = session, filetypes = c("txt", "gz"))
+        if(!is.null(input$file_mappa)){
+         file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_mappa)
+         settings_newref$newref_mappa = as.character(file_selected$datapath)
+        }
+    })
+    observeEvent(settings_newref$newref_mappa, {
+        output$txt_mappa <- renderText(settings_newref$newref_mappa)
+    })
+    observeEvent(input$clear_mappa, {
+        req(input$clear_mappa)
+        settings_newref$newref_mappa = ""
+    })    
+    observe({  
+        shinyFileChoose(input, "file_NPA", roots = c(default_volumes, addit_volume), 
+            session = session, filetypes = c("bed", "txt", "gz"))
+        if(!is.null(input$file_NPA)){
+            file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_NPA)
+            settings_newref$newref_NPA = as.character(file_selected$datapath)
+        }
+    })
+    observeEvent(settings_newref$newref_NPA, {
+        output$txt_NPA <- renderText(settings_newref$newref_NPA)    
+    })
+    observeEvent(input$clear_NPA, {
+      req(input$clear_NPA)
+        settings_newref$newref_NPA = ""
+    })    
+    observe({  
+        shinyFileChoose(input, "file_bl", roots = c(default_volumes, addit_volume), 
+            session = session, filetypes = c("bed", "txt", "gz"))
+        if(!is.null(input$file_bl)){
+            file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_bl)
+            settings_newref$newref_bl = as.character(file_selected$datapath)
+        }
+    })
+    observeEvent(settings_newref$newref_bl, {
+        output$txt_bl <- renderText(settings_newref$newref_bl)
+    })
+    observeEvent(input$clear_bl, {
+    req(input$clear_bl)
+        settings_newref$newref_bl = ""
+    })
+    
+    observeEvent(input$newref_genome_type, {
+        req(input$newref_genome_type)
+        resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
+        
+        if(input$newref_genome_type == "hg38") {
+            settings_newref$newref_NPA = system.file(
+                "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
+            settings_newref$newref_mappa = 
+                paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
+        
+        } else if(input$newref_genome_type == "hg19")  {
+            settings_newref$newref_NPA = system.file(
+                "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
+            settings_newref$newref_mappa = 
+                paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
+        
+        } else if(input$newref_genome_type == "mm10")  {
+            settings_newref$newref_NPA = system.file(
+                "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
+            settings_newref$newref_mappa = 
+                paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
+        
+        } else if(input$newref_genome_type == "mm9")  {
+            settings_newref$newref_NPA = system.file(
+                "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
+            settings_newref$newref_mappa = 
+                paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
+        
+        } else if(input$newref_genome_type == "(not specified)") {
+    # do nothing. This allows user to first select the default and then change to user-defined files
         } else {
-          updateSelectInput(session = session, inputId = "variable_diag", 
-            choices = c("(none)", colnames(colData)), selected = "(none)")
+            settings_newref$newref_NPA = ""
+            settings_newref$newref_mappa = ""
         }
-    } else if(input$navSelection == "navHeatmap") {
-        if(is_valid(settings_SE$se)) {
-            updateSelectInput(session = session, inputId = "anno_col_heat", 
-                choices = colnames(SummarizedExperiment::colData(settings_SE$se)), selected = NULL)
-        }
-    } else if(input$navSelection == "navCoverage") {
+        settings_newref$ui_newref_genome_type = input$newref_genome_type
+    })
+
+    observeEvent(input$newrefAH_Species, {
         initialize_ah()
         ah = settings_app$ah
-        if(is_valid(settings_loadref$loadref_path)) {
-          load_ref()
-        }
-        output$warning_cov <- renderText({
-            validate(need(settings_loadref$loadref_path, "Please select reference path"))            
-            settings_loadref$loadref_path
-        })
-        req(settings_loadref$loadref_path)
-				
-        # seqinfo
-        settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
-        if(settings$ah_genome != "") {
-            genome = FetchAH(settings$ah_genome, ah = ah)
+        if(input$newrefAH_Species != "") {
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+            ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+
+            queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+            query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+            choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+            choices = c("", sort(choices))
+            # updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+                # choices = c("", sort(choices)))
+            update_select_without_clearing(session, "newrefAH_Version_Trans", choices, input)
         } else {
-            genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+            updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                choices = c(""))        
         }
-        settings_Cov$seqInfo = seqinfo(genome)
-        settings_Cov$gene_list <- getGeneList()
-        settings_Cov$elem.DT <- loadViewRef()
-        settings_Cov$transcripts.DT <- loadTranscripts()
-        
-        # Populate events here
-        
-        if(is_valid(settings_DE$res)) {
-          if(input$select_events_cov == "Highlighted") {
-            selected = input$DT_DE_rows_selected
-          } else if(input$select_events_cov == "Top N Filtered Results") {
-            selected = input$DT_DE_rows_all
-            if(length(selected) > input$slider_num_events_cov) {
-              selected = selected[seq_len(input$slider_num_events_cov)]
-            }
-          } else {
-            selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
-          }
-
-          if(length(selected) > 0 & is_valid(settings_DE$res)) {
-            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
-              choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
-          } else {
-            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
-              choices = c("(none)"), selected = "(none)")    								    
-          }        
-        }
-        
-        if(!is.null(settings_Cov$gene_list)) {
-            message(paste("Populating drop-down box with", 
-            length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
-            updateSelectInput(session = session, inputId = "chr_cov", 
-                choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
-            updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-                choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
-        } else {
-            updateSelectInput(session = session, inputId = "chr_cov", 
-                choices = c("(none)"), selected = "(none)")    								
-            updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-                choices = c("(none)"), selected = "(none)") 
-        }
-        if(is_valid(settings_SE$se)) {
-          # dissect rowData ranges
-          rowData = as.data.frame(SummarizedExperiment::rowData(settings_SE$se))
-          rowData$seqnames = tstrsplit(rowData$EventRegion, split=":")[[1]]
-          temp1 = tstrsplit(rowData$EventRegion, split="/")
-          temp2 = tstrsplit(temp1[[1]], split=":")[[2]]
-          rowData$start = as.numeric(tstrsplit(temp2, split="-")[[1]])
-          rowData$end = as.numeric(tstrsplit(temp2, split="-")[[2]])
-          rowData$strand = temp1[[2]]
-          
-          settings_Cov$event.ranges = as.data.table(rowData)
-        
-            DT.files = as.data.table(settings_expr$df.files[, c("sample", "cov_file")])
-            DT.files = na.omit(DT.files)
-          settings_Cov$avail_cov = DT.files$cov_file
-          names(settings_Cov$avail_cov) = DT.files$sample
-          settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
-  
-            if(input$mode_cov == "By Condition") {
-                colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
-                colData = colData[rownames(colData) %in% DT.files$sample,]
-                conditions_avail = colnames(colData)
-                if(is_valid(input$condition_cov) && input$condition_cov %in% conditions_avail) {
-                    cur_condition = input$condition_cov
-                    updateSelectInput(session = session, inputId = "condition_cov", 
-                        choices = c("(none)", conditions_avail), selected = cur_condition)                    
-                } else {
-                     updateSelectInput(session = session, inputId = "condition_cov", 
-                        choices = c("(none)", conditions_avail))                 
-                }
-            } else if(input$mode_cov == "Individual") {
-                avail_samples = names(settings_Cov$avail_cov)
-                updateSelectInput(session = session, inputId = "track1_cov", 
-                    choices = c("(none)", avail_samples), selected = "(none)")
-                updateSelectInput(session = session, inputId = "track2_cov", 
-                    choices = c("(none)", avail_samples), selected = "(none)")
-                updateSelectInput(session = session, inputId = "track3_cov", 
-                    choices = c("(none)", avail_samples), selected = "(none)")
-                updateSelectInput(session = session, inputId = "track4_cov", 
-                    choices = c("(none)", avail_samples), selected = "(none)")
-            }
-				}        
-			}
-		})
-    
-	# Threads:
-		# observeEvent(input$cores_numeric, {
-			# req(input$cores_numeric)
-			# settings_system$n_threads = input$cores_numeric
-		# })
-		# observeEvent(input$cores_slider, {
-			# req(input$cores_slider)
-			# settings_system$n_threads = input$cores_slider
-		# })
-		
-		observe({  
-			shinyDirChoose(input, "dir_reference_path", roots = c(default_volumes, addit_volume), session = session)
-			output$txt_reference_path <- renderText({
-                validate(need(input$dir_reference_path, "Please select reference path"))
-                settings_newref$newref_path = parseDirPath(c(default_volumes, addit_volume), input$dir_reference_path)
-			})
-		})
-		observe({
-			shinyFileChoose(input, "file_genome", roots = c(default_volumes, addit_volume), 
-				session = session, filetypes = c("fa", "fasta", "gz"))
-			if(!is.null(input$file_genome)){
-			 file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_genome)
-			 settings_newref$newref_fasta = as.character(file_selected$datapath)
-			 output$txt_genome <- renderText(as.character(file_selected$datapath))
-			}
-		})
-		observe({  
-			shinyFileChoose(input, "file_gtf", roots = c(default_volumes, addit_volume), 
-				session = session, filetypes = c("gtf", "gz"))
-			if(!is.null(input$file_gtf)){
-			 file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_gtf)
-			 settings_newref$newref_gtf = as.character(file_selected$datapath)
-			 output$txt_gtf <- renderText(as.character(file_selected$datapath))
-			}
-		})
-		observe({  
-            shinyFileChoose(input, "file_mappa", roots = c(default_volumes, addit_volume), 
-                session = session, filetypes = c("txt", "gz"))
-			if(!is.null(input$file_mappa)){
-			 file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_mappa)
-			 settings_newref$newref_mappa = as.character(file_selected$datapath)
-			}
-		})
-        observeEvent(settings_newref$newref_mappa, {
-            output$txt_mappa <- renderText(settings_newref$newref_mappa)
-        })
-        observeEvent(input$clear_mappa, {
-            req(input$clear_mappa)
-            settings_newref$newref_mappa = ""
-        })    
-		observe({  
-			shinyFileChoose(input, "file_NPA", roots = c(default_volumes, addit_volume), 
-				session = session, filetypes = c("bed", "txt", "gz"))
-			if(!is.null(input$file_NPA)){
-				file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_NPA)
-				settings_newref$newref_NPA = as.character(file_selected$datapath)
-			}
-		})
-        observeEvent(settings_newref$newref_NPA, {
-			output$txt_NPA <- renderText(settings_newref$newref_NPA)    
-        })
-        observeEvent(input$clear_NPA, {
-          req(input$clear_NPA)
-            settings_newref$newref_NPA = ""
-        })    
-		observe({  
-			shinyFileChoose(input, "file_bl", roots = c(default_volumes, addit_volume), 
-				session = session, filetypes = c("bed", "txt", "gz"))
-			if(!is.null(input$file_bl)){
-                file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$file_bl)
-                settings_newref$newref_bl = as.character(file_selected$datapath)
-			}
-		})
-        observeEvent(settings_newref$newref_bl, {
-			output$txt_bl <- renderText(settings_newref$newref_bl)
-        })
-        observeEvent(input$clear_bl, {
-        req(input$clear_bl)
-			settings_newref$newref_bl = ""
-        })
-    
-		observeEvent(input$newref_genome_type, {
-            req(input$newref_genome_type)
-            resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
+        settings_newref$ui_newrefAH_Species = input$newrefAH_Species
+    })
+    observeEvent(input$newrefAH_Version_Trans, {
+        initialize_ah()
+        ah = settings_app$ah
+        if(input$newrefAH_Version_Trans != "") {
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
+            ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+            ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Trans, ah.filtered$sourceurl)]
+            choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": "))
+            # updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                # choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": ")))
+            update_select_without_clearing(session, "newrefAH_Trans", choices, input)
             
-			if(input$newref_genome_type == "hg38") {
-				settings_newref$newref_NPA = system.file(
-                    "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF")
-                settings_newref$newref_mappa = 
-                    paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
-            
-			} else if(input$newref_genome_type == "hg19")  {
-				settings_newref$newref_NPA = system.file(
-                    "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF")
-                settings_newref$newref_mappa = 
-                    paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
-            
-			} else if(input$newref_genome_type == "mm10")  {
-				settings_newref$newref_NPA = system.file(
-                    "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF")
-                settings_newref$newref_mappa = 
-                    paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
-            
-			} else if(input$newref_genome_type == "mm9")  {
-				settings_newref$newref_NPA = system.file(
-                    "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF")
-                settings_newref$newref_mappa = 
-                    paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
-            
-			} else if(input$newref_genome_type == "(not specified)") {
-        # do nothing. This allows user to first select the default and then change to user-defined files
-			} else {
-				settings_newref$newref_NPA = ""
-                settings_newref$newref_mappa = ""
-			}
-            settings_newref$ui_newref_genome_type = input$newref_genome_type
-		})
+            # Also search for compatible genome
+            genomes_avail = ah.filtered$genome
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
 
-		observeEvent(input$newrefAH_Species, {
-            initialize_ah()
-            ah = settings_app$ah
-			if(input$newrefAH_Species != "") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
-				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
-
-				queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
-				query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
-				choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
-                choices = c("", sort(choices))
-				# updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
-					# choices = c("", sort(choices)))
-                update_select_without_clearing(session, "newrefAH_Version_Trans", choices, input)
-			} else {
-				updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Trans", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Genome", 
-					choices = c(""))        
-			}
-            settings_newref$ui_newrefAH_Species = input$newrefAH_Species
-		})
-		observeEvent(input$newrefAH_Version_Trans, {
-            initialize_ah()
-            ah = settings_app$ah
-			if(input$newrefAH_Version_Trans != "") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "GTF"]
-				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
-				ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Trans, ah.filtered$sourceurl)]
-                choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": "))
-				# updateSelectInput(session = session, inputId = "newrefAH_Trans", 
-					# choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": ")))
-				update_select_without_clearing(session, "newrefAH_Trans", choices, input)
-                
-				# Also search for compatible genome
-				genomes_avail = ah.filtered$genome
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-                ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
-
-				if(any(ah.filtered$genome %in% genomes_avail)) {
-                    ah.filtered = ah.filtered[ah.filtered$genome %in% genomes_avail]    
-                    choices = c("", unique(ah.filtered$genome))
-                    # updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
-                            # choices = c("", unique(ah.filtered$genome)))
-                    update_select_without_clearing(session, "newrefAH_Assembly", choices, input)
-				} else {
-                    updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
-                            choices = c(""))            
-				}
-			} else {
-				updateSelectInput(session = session, inputId = "newrefAH_Trans", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Genome", 
-					choices = c(""))        
-			}
-            settings_newref$ui_newrefAH_Version_Trans = input$newrefAH_Version_Trans
-		})
-		observeEvent(input$newrefAH_Assembly, {
-            initialize_ah()
-            ah = settings_app$ah
-			if(input$newrefAH_Assembly != "") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
-				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
-				ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
-
-				queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
-				query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
-				choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
-				choices = c("", sort(choices))
-                update_select_without_clearing(session, "newrefAH_Version_Genome", choices, input)
-			} else {
-				updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
-					choices = c(""))
-				updateSelectInput(session = session, inputId = "newrefAH_Genome", 
-					choices = c(""))        
-			}
-            settings_newref$ui_newrefAH_Assembly = input$newrefAH_Assembly
-		})
-		observeEvent(input$newrefAH_Version_Genome, {
-            initialize_ah()
-            ah = settings_app$ah
-			if(input$newrefAH_Version_Genome != "") {
-				ah.filtered = ah[ah$dataprovider == "Ensembl"]
-				ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
-				ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
-				ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
-				ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
-				ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Genome, ah.filtered$sourceurl)]
-                choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": "))
-                update_select_without_clearing(session, "newrefAH_Genome", choices, input)
-			} else {
-				updateSelectInput(session = session, inputId = "newrefAH_Genome", 
-					choices = c(""))        
-			}
-            settings_newref$ui_newrefAH_Version_Genome = input$newrefAH_Version_Genome
-		})
-		observeEvent(input$newrefAH_Genome, {
-			if(input$newrefAH_Genome != "") {
-				settings_newref$newref_AH_fasta = input$newrefAH_Genome
-			} else {
-				settings_newref$newref_AH_fasta = ""
-			}
-            settings_newref$ui_newrefAH_Genome = input$newrefAH_Genome
-		})
-		observeEvent(input$newrefAH_Trans, {
-			if(input$newrefAH_Trans != "") {
-				settings_newref$newref_AH_gtf = input$newrefAH_Trans
-			} else {
-				settings_newref$newref_AH_gtf = ""
-			}
-            settings_newref$ui_newrefAH_Trans = input$newrefAH_Trans
-		})
-		
-        match_genome_type <- function() {
-            if(!is_valid(settings_newref$newref_NPA) | !is_valid(settings_newref$newref_mappa)) {
-                return("Interactive")            
-            }
-            resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
-            if(
- 				settings_newref$newref_NPA == system.file(
-                    "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF") &
-                settings_newref$newref_mappa == 
-                    paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
-            ) {
-                return("hg38")
-            } else if(
-				settings_newref$newref_NPA == system.file(
-                    "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF") &
-                settings_newref$newref_mappa == 
-                    paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
-            ) {
-                return("hg19")
-            } else if(
-				settings_newref$newref_NPA == system.file(
-                    "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF") &
-                settings_newref$newref_mappa == 
-                    paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
-            ) {
-                return("mm10")
-            } else if(
-				settings_newref$newref_NPA == system.file(
-                    "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF") &
-                settings_newref$newref_mappa == 
-                    paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
-            ) {
-                return("mm9")
+            if(any(ah.filtered$genome %in% genomes_avail)) {
+                ah.filtered = ah.filtered[ah.filtered$genome %in% genomes_avail]    
+                choices = c("", unique(ah.filtered$genome))
+                # updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                        # choices = c("", unique(ah.filtered$genome)))
+                update_select_without_clearing(session, "newrefAH_Assembly", choices, input)
             } else {
-                return("Interactive")            
+                updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                        choices = c(""))            
+            }
+        } else {
+            updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                choices = c(""))        
+        }
+        settings_newref$ui_newrefAH_Version_Trans = input$newrefAH_Version_Trans
+    })
+    observeEvent(input$newrefAH_Assembly, {
+        initialize_ah()
+        ah = settings_app$ah
+        if(input$newrefAH_Assembly != "") {
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
+            ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+            ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
+
+            queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
+            query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+            choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
+            choices = c("", sort(choices))
+            update_select_without_clearing(session, "newrefAH_Version_Genome", choices, input)
+        } else {
+            updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+                choices = c(""))
+            updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                choices = c(""))        
+        }
+        settings_newref$ui_newrefAH_Assembly = input$newrefAH_Assembly
+    })
+    observeEvent(input$newrefAH_Version_Genome, {
+        initialize_ah()
+        ah = settings_app$ah
+        if(input$newrefAH_Version_Genome != "") {
+            ah.filtered = ah[ah$dataprovider == "Ensembl"]
+            ah.filtered = ah.filtered[grepl("release", ah.filtered$sourceurl)]
+            ah.filtered = ah.filtered[ah.filtered$sourcetype == "FASTA"]
+            ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
+            ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
+            ah.filtered = ah.filtered[grepl(input$newrefAH_Version_Genome, ah.filtered$sourceurl)]
+            choices = c("", paste(names(ah.filtered), basename(ah.filtered$sourceurl), sep=": "))
+            update_select_without_clearing(session, "newrefAH_Genome", choices, input)
+        } else {
+            updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+                choices = c(""))        
+        }
+        settings_newref$ui_newrefAH_Version_Genome = input$newrefAH_Version_Genome
+    })
+    observeEvent(input$newrefAH_Genome, {
+        if(input$newrefAH_Genome != "") {
+            settings_newref$newref_AH_fasta = input$newrefAH_Genome
+        } else {
+            settings_newref$newref_AH_fasta = ""
+        }
+        settings_newref$ui_newrefAH_Genome = input$newrefAH_Genome
+    })
+    observeEvent(input$newrefAH_Trans, {
+        if(input$newrefAH_Trans != "") {
+            settings_newref$newref_AH_gtf = input$newrefAH_Trans
+        } else {
+            settings_newref$newref_AH_gtf = ""
+        }
+        settings_newref$ui_newrefAH_Trans = input$newrefAH_Trans
+    })
+		
+    match_genome_type <- function() {
+        if(!is_valid(settings_newref$newref_NPA) | !is_valid(settings_newref$newref_mappa)) {
+            return("Interactive")            
+        }
+        resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/data"
+        if(
+            settings_newref$newref_NPA == system.file(
+                "extra-input-files/Human_hg38_nonPolyA_ROI.bed", package = "NxtIRF") &
+            settings_newref$newref_mappa == 
+                paste(resource_path, "Mappability_Regions_hg38_v94.txt.gz", sep="/")
+        ) {
+            return("hg38")
+        } else if(
+            settings_newref$newref_NPA == system.file(
+                "extra-input-files/Human_hg19_nonPolyA_ROI.bed", package = "NxtIRF") &
+            settings_newref$newref_mappa == 
+                paste(resource_path, "Mappability_Regions_hg19_v75.txt.gz", sep="/")
+        ) {
+            return("hg19")
+        } else if(
+            settings_newref$newref_NPA == system.file(
+                "extra-input-files/Mouse_mm10_nonPolyA_ROI.bed", package = "NxtIRF") &
+            settings_newref$newref_mappa == 
+                paste(resource_path, "Mappability_Regions_mm10_v94.txt.gz", sep="/")
+        ) {
+            return("mm10")
+        } else if(
+            settings_newref$newref_NPA == system.file(
+                "extra-input-files/Mouse_mm9_nonPolyA_ROI.bed", package = "NxtIRF") &
+            settings_newref$newref_mappa == 
+                paste(resource_path, "Mappability_Regions_mm9_v67.txt.gz", sep="/")
+        ) {
+            return("mm9")
+        } else {
+            return("Interactive")            
+        }
+    }
+        
+	# buildRef Button
+    observeEvent(input$buildRef, {
+        args <- list(reference_path = settings_newref$newref_path,
+            ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
+            fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
+            genome_type = match_genome_type(), nonPolyARef = settings_newref$newref_NPA, 
+            MappabilityRef = settings_newref$newref_mappa,
+            BlacklistRef = settings_newref$newref_bl)
+
+        args <- Filter(is_valid, args)
+    
+        if(!("reference_path" %in% names(args))) {
+            output$refStatus = renderText({ "Reference path not set" })
+        } else if(!any(c("fasta", "ah_genome_tmp") %in% names(args))) {
+            output$refStatus = renderText({ "Genome not provided" })        
+        } else if(!any(c("gtf", "ah_gtf_tmp") %in% names(args))) {
+            output$refStatus = renderText({ "Gene annotations not provided" })
+        } else {        
+            args.df = as.data.frame(t(as.data.frame(args)))
+            colnames(args.df) = "value"
+            if("ah_genome_tmp" %in% names(args)) {
+                args$ah_genome = tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
+                args$ah_genome_tmp = NULL
+            }
+            if("ah_gtf_tmp" %in% names(args)) {
+                args$ah_transcriptome = tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
+                args$ah_gtf_tmp = NULL
+            }
+            withProgress(message = 'Building Reference', value = 0, {
+                do.call(BuildReference, args)
+            })
+            # If successfully created, load this reference automatically
+            if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
+                settings_loadref$loadref_path = settings_newref$newref_path
             }
         }
-        
-		# buildRef Button
-		observeEvent(input$buildRef, {
-			args <- list(reference_path = settings_newref$newref_path,
-				ah_genome_tmp = settings_newref$newref_AH_fasta, ah_gtf_tmp = settings_newref$newref_AH_gtf, 
-				fasta = settings_newref$newref_fasta, gtf = settings_newref$newref_gtf,
-				genome_type = match_genome_type(), nonPolyARef = settings_newref$newref_NPA, 
-                MappabilityRef = settings_newref$newref_mappa,
-				BlacklistRef = settings_newref$newref_bl)
-
-			args <- Filter(is_valid, args)
+    })
 		
-			if(!("reference_path" %in% names(args))) {
-				output$refStatus = renderText({ "Reference path not set" })
-			} else if(!any(c("fasta", "ah_genome_tmp") %in% names(args))) {
-				output$refStatus = renderText({ "Genome not provided" })        
-			} else if(!any(c("gtf", "ah_gtf_tmp") %in% names(args))) {
-				output$refStatus = renderText({ "Gene annotations not provided" })
-			} else {        
-				args.df = as.data.frame(t(as.data.frame(args)))
-				colnames(args.df) = "value"
-				if("ah_genome_tmp" %in% names(args)) {
-					args$ah_genome = tstrsplit(args$ah_genome_tmp, split=":", fixed=TRUE)[[1]]
-					args$ah_genome_tmp = NULL
-				}
-				if("ah_gtf_tmp" %in% names(args)) {
-					args$ah_transcriptome = tstrsplit(args$ah_gtf_tmp, split=":", fixed=TRUE)[[1]]
-					args$ah_gtf_tmp = NULL
-				}
-        withProgress(message = 'Building Reference', value = 0, {
-          do.call(BuildReference, args)
-        })
-				# If successfully created, load this reference automatically
-				if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
-					settings_loadref$loadref_path = settings_newref$newref_path
-				}
-			}
-		})
-		
-		# clearNewRef Button
-		observeEvent(input$clearNewRef, {
-			settings_newref$newref_path = getwd()
-			settings_newref$newref_fasta = ""
-			settings_newref$newref_gtf = ""
-			settings_newref$newref_AH_fasta = ""
-			settings_newref$newref_AH_gtf = ""
-			settings_newref$newref_mappa = ""
-			settings_newref$newref_NPA = ""
-			settings_newref$newref_bl = ""
-			output$txt_reference_path <- renderText("Please select reference path")
-			output$txt_genome <- renderText("")
-			output$txt_gtf <- renderText("")
-			output$txt_mappa <- renderText("")
-			output$txt_NPA <- renderText("")
-			output$txt_bl <- renderText("")
-              updateSelectInput(session = session, inputId = "newrefAH_Species",
-                  choices = c(""))
-              updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
-                  choices = c(""))
-              updateSelectInput(session = session, inputId = "newrefAH_Trans", 
-                  choices = c(""))
-              updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
-                  choices = c(""))
-              updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
-                  choices = c(""))
-              updateSelectInput(session = session, inputId = "newrefAH_Genome", 
-                  choices = c(""))        
-		})
+    # clearNewRef Button
+    observeEvent(input$clearNewRef, {
+        settings_newref$newref_path = getwd()
+        settings_newref$newref_fasta = ""
+        settings_newref$newref_gtf = ""
+        settings_newref$newref_AH_fasta = ""
+        settings_newref$newref_AH_gtf = ""
+        settings_newref$newref_mappa = ""
+        settings_newref$newref_NPA = ""
+        settings_newref$newref_bl = ""
+        output$txt_reference_path <- renderText("Please select reference path")
+        output$txt_genome <- renderText("")
+        output$txt_gtf <- renderText("")
+        output$txt_mappa <- renderText("")
+        output$txt_NPA <- renderText("")
+        output$txt_bl <- renderText("")
+          updateSelectInput(session = session, inputId = "newrefAH_Species",
+              choices = c(""))
+          updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
+              choices = c(""))
+          updateSelectInput(session = session, inputId = "newrefAH_Trans", 
+              choices = c(""))
+          updateSelectInput(session = session, inputId = "newrefAH_Assembly", 
+              choices = c(""))
+          updateSelectInput(session = session, inputId = "newrefAH_Version_Genome", 
+              choices = c(""))
+          updateSelectInput(session = session, inputId = "newrefAH_Genome", 
+              choices = c(""))        
+    })
 
-# Load Reference Page
+# TAB: Load Reference Page
 
 	shinyDirChoose(input, "dir_reference_path_load", roots = c(default_volumes, addit_volume), session = session)
 		observeEvent(input$dir_reference_path_load,{  
@@ -705,93 +702,93 @@ dash_server = function(input, output, session) {
         
         settings_loadref$settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
         if("reference_path" %in% names(settings_loadref$settings)) {
-        if("ah_genome" %in% names(settings_loadref$settings)) {
-            output$fasta_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Genome - AnnotationHub", "",
-                    basename(
-                        ah$sourceurl[
-                            which(names(ah) == settings_loadref$settings$ah_genome)
-                        ]
-                    ),
-                    icon = icon("dna", lib = "font-awesome"),
-                    color = "green"
-                )
-            })      
-        } else if("fasta_file" %in% names(settings_loadref$settings)) {
-            output$fasta_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Genome - User FASTA",  "",
-                    basename(settings_loadref$settings$fasta_file), 
-                    icon = icon("dna", lib = "font-awesome"),
-                    color = "green"
-                )
-            })          
-        } else {
-            output$fasta_source_infobox <- renderInfoBox(NULL)
-        }
-        if("ah_transcriptome" %in% names(settings_loadref$settings)) {
-            output$gtf_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Gene Annotation - AnnotationHub",  "",
-                    basename(
-                        ah$sourceurl[
-                            which(names(ah) == 
-                                settings_loadref$settings$ah_transcriptome)
-                        ]
-                    ),
-                    icon = icon("book-medical", lib = "font-awesome"),
-                    color = "orange"
-                )
-            })               
-        } else if("gtf_file" %in% names(settings_loadref$settings)) {
-            output$gtf_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Gene Annotation - User GTF",  "",
-                    basename(settings_loadref$settings$gtf_file), 
-                    icon = icon("book-medical", lib = "font-awesome"),
-                    color = "orange"
-                )
-            })
-        } else {
-            output$gtf_source_infobox <- renderInfoBox(NULL)
-        }
-        if("MappabilityRef" %in% names(settings_loadref$settings)) {
-            output$mappa_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Mappability",  "",
-                    basename(settings_loadref$settings$MappabilityRef), 
-                    icon = icon("map", lib = "font-awesome"),
-                    color = "blue"
-                )
-            })  			
-        } else {
-            output$mappa_source_infobox <- renderInfoBox(NULL)
-        }
-        if("nonPolyARef" %in% names(settings_loadref$settings)) {
-            output$NPA_source_infobox <- renderInfoBox({
-                infoBox(
-                    "Non-PolyA",  "",
-                    basename(settings_loadref$settings$nonPolyARef), 
-                    icon = icon("font", lib = "font-awesome"),
-                    color = "purple"
-                )
-            })  			
-        } else {
-            output$NPA_source_infobox <- renderInfoBox(NULL)
-        }
-        if("BlacklistRef" %in% names(settings_loadref$settings)) {
-            output$BL_source_infobox <- renderInfoBox({
-                infoBox(
-                    "BlackList",  "",
-                    basename(settings_loadref$settings$BlacklistRef), 
-                    icon = icon("list-alt", lib = "font-awesome"),
-                    color = "red"
-                )
-            })  			
-        } else {
-            output$BL_source_infobox <- renderInfoBox(NULL)
-        }
+            if("ah_genome" %in% names(settings_loadref$settings)) {
+                output$fasta_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Genome - AnnotationHub", "",
+                        basename(
+                            ah$sourceurl[
+                                which(names(ah) == settings_loadref$settings$ah_genome)
+                            ]
+                        ),
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })      
+            } else if("fasta_file" %in% names(settings_loadref$settings)) {
+                output$fasta_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Genome - User FASTA",  "",
+                        basename(settings_loadref$settings$fasta_file), 
+                        icon = icon("dna", lib = "font-awesome"),
+                        color = "green"
+                    )
+                })          
+            } else {
+                output$fasta_source_infobox <- renderInfoBox(NULL)
+            }
+            if("ah_transcriptome" %in% names(settings_loadref$settings)) {
+                output$gtf_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Gene Annotation - AnnotationHub",  "",
+                        basename(
+                            ah$sourceurl[
+                                which(names(ah) == 
+                                    settings_loadref$settings$ah_transcriptome)
+                            ]
+                        ),
+                        icon = icon("book-medical", lib = "font-awesome"),
+                        color = "orange"
+                    )
+                })               
+            } else if("gtf_file" %in% names(settings_loadref$settings)) {
+                output$gtf_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Gene Annotation - User GTF",  "",
+                        basename(settings_loadref$settings$gtf_file), 
+                        icon = icon("book-medical", lib = "font-awesome"),
+                        color = "orange"
+                    )
+                })
+            } else {
+                output$gtf_source_infobox <- renderInfoBox(NULL)
+            }
+            if("MappabilityRef" %in% names(settings_loadref$settings)) {
+                output$mappa_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Mappability",  "",
+                        basename(settings_loadref$settings$MappabilityRef), 
+                        icon = icon("map", lib = "font-awesome"),
+                        color = "blue"
+                    )
+                })  			
+            } else {
+                output$mappa_source_infobox <- renderInfoBox(NULL)
+            }
+            if("nonPolyARef" %in% names(settings_loadref$settings)) {
+                output$NPA_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "Non-PolyA",  "",
+                        basename(settings_loadref$settings$nonPolyARef), 
+                        icon = icon("font", lib = "font-awesome"),
+                        color = "purple"
+                    )
+                })  			
+            } else {
+                output$NPA_source_infobox <- renderInfoBox(NULL)
+            }
+            if("BlacklistRef" %in% names(settings_loadref$settings)) {
+                output$BL_source_infobox <- renderInfoBox({
+                    infoBox(
+                        "BlackList",  "",
+                        basename(settings_loadref$settings$BlacklistRef), 
+                        icon = icon("list-alt", lib = "font-awesome"),
+                        color = "red"
+                    )
+                })  			
+            } else {
+                output$BL_source_infobox <- renderInfoBox(NULL)
+            }
 
         } else {
             settings_loadref$loadref_path = ""
@@ -803,72 +800,69 @@ dash_server = function(input, output, session) {
         }
     }
         
-        observeEvent(input$clearLoadRef,{
-            settings_loadref$loadref_path = ""
-            output$fasta_source_infobox <- renderInfoBox(NULL)
-            output$gtf_source_infobox <- renderInfoBox(NULL)
-            output$mappa_source_infobox <- renderInfoBox(NULL)
-            output$NPA_source_infobox <- renderInfoBox(NULL)
-            output$BL_source_infobox <- renderInfoBox(NULL)            
+    observeEvent(input$clearLoadRef,{
+        settings_loadref$loadref_path = ""
+        output$fasta_source_infobox <- renderInfoBox(NULL)
+        output$gtf_source_infobox <- renderInfoBox(NULL)
+        output$mappa_source_infobox <- renderInfoBox(NULL)
+        output$NPA_source_infobox <- renderInfoBox(NULL)
+        output$BL_source_infobox <- renderInfoBox(NULL)            
+    })
+
+    observeEvent(settings_loadref$loadref_path,{
+        req(settings_loadref$loadref_path)
+        if(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
+            load_ref()
+        }
+        output$txt_reference_path_load <- renderText({
+            if(!is_valid(settings_loadref$loadref_path)) {
+                ""
+            } else {
+                settings_loadref$loadref_path
+            }
         })
-
-		observeEvent(settings_loadref$loadref_path,{
-      req(settings_loadref$loadref_path)
-			if(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) {
-				load_ref()
-			}
-			output$txt_reference_path_load <- renderText({
-                if(!is_valid(settings_loadref$loadref_path)) {
-                    ""
-                } else {
-                    settings_loadref$loadref_path
-                }
-			})
-		})
+    })
 		
-
-
-
-# Design Experiment page
+# TAB: Design Experiment page
     files_header = c("bam_file", "irf_file", "cov_file")
 
     # Make sure df.anno exists when df.files exist:
     observeEvent(settings_expr$df.files, {
-      req(settings_expr$df.files)
-      if(!is_valid(settings_expr$df.anno)) {
-        DT = as.data.table(settings_expr$df.files)
-        settings_expr$df.anno = DT[, "sample"]
-      } else {
-        # merge with existing samples
-        DT = as.data.table(settings_expr$df.files)
-        settings_expr$df.anno = update_data_frame(settings_expr$df.anno, DT[, "sample"])
-      }
+        req(settings_expr$df.files)
+        if(!is_valid(settings_expr$df.anno)) {
+            DT = as.data.table(settings_expr$df.files)
+            settings_expr$df.anno = DT[, "sample"]
+        } else {
+            # merge with existing samples
+            DT = as.data.table(settings_expr$df.files)
+            settings_expr$df.anno = update_data_frame(settings_expr$df.anno, DT[, "sample"])
+        }
     })
     
-		## Handsontable auto-updates settings_expr$df on user edit
+	## Handsontable auto-updates settings_expr$df on user edit
     observeEvent(input$hot_files_expr,{
-      req(input$hot_files_expr)
-      settings_expr$df.files = hot_to_r(input$hot_files_expr) 
+        req(input$hot_files_expr)
+        settings_expr$df.files = hot_to_r(input$hot_files_expr) 
     })
     observeEvent(input$hot_anno_expr,{
-      req(input$hot_anno_expr)
-      settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
+        req(input$hot_anno_expr)
+        settings_expr$df.anno = hot_to_r(input$hot_anno_expr)
     })
-		output$hot_files_expr <- renderRHandsontable({
-			if (!is.null(settings_expr$df.files)) {     
-				rhandsontable(settings_expr$df.files, useTypes = TRUE, 
-                selectCallback = TRUE, stretchH = "all")
-			} else {
-        NULL
-      }
-		})
-		output$hot_anno_expr <- renderRHandsontable({
-			if (!is.null(settings_expr$df.anno)) {     
-				rhandsontable(settings_expr$df.anno, useTypes = TRUE, stretchH = "all")
-			} else {
-        NULL
-      }
-		})
+    output$hot_files_expr <- renderRHandsontable({
+        if (!is.null(settings_expr$df.files)) {     
+            rhandsontable(settings_expr$df.files, useTypes = TRUE, 
+            selectCallback = TRUE, stretchH = "all")
+        } else {
+            NULL
+        }
+    })
+    output$hot_anno_expr <- renderRHandsontable({
+        if (!is.null(settings_expr$df.anno)) {     
+            rhandsontable(settings_expr$df.anno, useTypes = TRUE, stretchH = "all")
+        } else {
+            NULL
+        }
+    })
 		
     observeEvent(settings_loadref$loadref_path, {
         output$ref_expr_infobox <- renderUI({
@@ -886,13 +880,13 @@ dash_server = function(input, output, session) {
     })
 
     observe({  
-      shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
-			# output$txt_bam_path_expr <- renderText({
-					# validate(need(input$dir_bam_path_load, "Please select path where BAMs are kept"))
+        shinyDirChoose(input, "dir_bam_path_load", roots = c(default_volumes, addit_volume), session = session)
+
         req(input$dir_bam_path_load)
-        settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
-        settings_expr$bam_path = parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
-			# })
+        settings_expr$expr_path = 
+            dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load))
+        settings_expr$bam_path = 
+            parseDirPath(c(default_volumes, addit_volume), input$dir_bam_path_load)
     })
     Expr_Load_BAMs = function() {
     # First assume bams are named by subdirectory names
@@ -951,193 +945,187 @@ dash_server = function(input, output, session) {
             return(-1)
         }
     }
-		observeEvent(settings_expr$bam_path,{
-            Expr_Load_BAMs()
-            if(is_valid(settings_expr$df.files)) {
-                if(is_valid(settings_expr$bam_path) &&
-                        "bam_file" %in% colnames(settings_expr$df.files) && 
-                        all(file.exists(settings_expr$df.files$bam_file))) {
-                    output$bam_expr_infobox <- renderUI({
-                        ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
-                    })                  
-                } else if("irf_file" %in% colnames(settings_expr$df.files) && 
-                        all(file.exists(settings_expr$df.files$irf_file))) {
-                    output$bam_expr_infobox <- renderUI({
-                        ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
-                    })                        
-                } else if(is_valid(settings_expr$collate_path) && 
-                        file.exists(file.path(
-                        settings_expr$collate_path, "colData.Rds"
-                        ))){
-                    output$bam_expr_infobox <- renderUI({
-                        ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
-                    })                        
-                } else if("bam_file" %in% colnames(settings_expr$df.files)) {
-                    output$bam_expr_infobox <- renderUI({
-                        ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
-                    })
-                }
-            } else {
-                output$bam_expr_infobox <- renderUI({
-                    ui_infobox_bam(settings_expr$bam_path)
-                })                 
-            } 
-		})
-
-        get_threads <- function() {
-            if(input$thread_option == "Single-Thread"){
-                n_threads = 1
-            } else if(input$thread_option == "Multi-Thread (Low)") {
-                n_threads = floor( (parallel::detectCores() - 2) / 2)
-                if(n_threads < 1) n_threads = 1
-            } else if(input$thread_option == "Multi-Thread (High)") {
-                n_threads = parallel::detectCores() - 2
-                if(n_threads < 1) n_threads = 1
-            } else if(input$thread_option == "Custom") {
-                n_threads = input$cores_numeric
-            }
-            n_threads
-        }
-		# Run IRFinder
-		observeEvent(input$run_irf_expr,{
-			req(settings_expr$df.files)
-            req("bam_file" %in% colnames(settings_expr$df.files))
-            if(!is_valid(input$hot_files_expr_select$select$r)) {
-                 sendSweetAlert(
-                    session = session,
-                    title = "No BAM files selected",
-                    text = "Please select bam files to run IRFinder",
-                    type = "error"
-                )           
-            }
-            req(input$hot_files_expr_select$select$r)
-            selected_rows = seq(
-                input$hot_files_expr_select$select$r,
-                input$hot_files_expr_select$select$r2                
-            )
-            selected_cols = seq(
-                input$hot_files_expr_select$select$c,
-                input$hot_files_expr_select$select$c2                
-            )
-            bam_col = which(colnames(settings_expr$df.files) == "bam_file")
-            bam_files = settings_expr$df.files$bam_file[selected_rows]
-            if(settings_loadref$loadref_path == "") {
-                sendSweetAlert(
-                    session = session,
-                    title = "Missing Reference",
-                    text = "Please load Reference before running IRFinder",
-                    type = "error"
-                )
-            } else if(!(bam_col %in% selected_cols)) {
-                sendSweetAlert(
-                    session = session,
-                    title = "No BAM files selected",
-                    text = "Please select bam files to run IRFinder",
-                    type = "error"
-                )                
-            } else if(!all(file.exists(bam_files))) {
-                sendSweetAlert(
-                    session = session,
-                    title = "Missing BAMs",
-                    text = "Please check all selected bam files exist",
-                    type = "error"
-                )                
-			} else if(!file.exists(file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"))) {
-                sendSweetAlert(
-                    session = session,
-                    title = "Missing Reference",
-                    text = "IRFinder.ref.gz is missing",
-                    type = "error"
-                )
-			} else if(!is_valid(settings_expr$irf_path) || !dir.exists(settings_expr$irf_path)) {
-                sendSweetAlert(
-                    session = session,
-                    title = "Missing IRFinder output path",
-                    text = "Please set IRFinder output path",
-                    type = "error"
-                )
-			} else {
-                settings_expr$selected_rows = selected_rows
-                n_threads = min(get_threads(), length(selected_rows))
-                if(n_threads < length(selected_rows)) {
-                    n_rounds = ceiling(length(selected_rows) / n_threads)
-                    n_threads = ceiling(length(selected_rows) / n_rounds)
-                }
-                msg = paste("Run IRFinder on", length(selected_rows), "samples?",
-                    "Estimated runtime", 10 * 
-                        ceiling(length(selected_rows) / n_threads),
-                    "minutes using", n_threads, 
-                    "threads (10min per BAM @ 100 million reads per sample)"
-                )
-                ask_confirmation(
-                    inputId = "irf_confirm",
-                    type = "warning",
-                    title = msg,
-                    btn_labels = c("Cancel", "Run IRFinder"),
-                    btn_colors = c("#00BFFF", "#FE2E2E")
-                )
-			}
-		})
-
-        observeEvent(input$irf_confirm, {
-           if(input$irf_confirm == FALSE) {
-                # do nothing
-           } else {
-               selected_rows = settings_expr$selected_rows
-               
-                # Actually run IRFinder
-                # selected_rows = seq(
-                    # input$hot_files_expr_select$select$r,
-                    # input$hot_files_expr_select$select$r2                
-                # )
-                n_threads = min(get_threads(), length(selected_rows))
-                if(n_threads == 1) {
-                    # run IRFinder using single thread
-                    withProgress(message = 'Running IRFinder', value = 0, {
-                        i_done = 0
-                        incProgress(0.001, 
-                            message = paste('Running IRFinder',
-                                i_done, "of", length(selected_rows), "done"))
-                        for(i in selected_rows) {
-                            run_IRFinder(settings_expr$df.files$bam_file[i], 
-                                file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
-                                file.path(output_path, settings_expr$df.files$sample[i]))
-                            i_done = i_done + 1
-                            incProgress(1 / length(selected_rows), 
-                                message = paste(i_done, "of", length(selected_rows), "done"))
-                        }
-                    })
-                } else if(n_threads <= length(selected_rows)) {
-                    n_rounds = ceiling(length(selected_rows) / n_threads)
-                    n_threads = ceiling(length(selected_rows) / n_rounds)
+    observeEvent(settings_expr$bam_path,{
+        Expr_Load_BAMs()
+        if(is_valid(settings_expr$df.files)) {
+            if(is_valid(settings_expr$bam_path) &&
+                    "bam_file" %in% colnames(settings_expr$df.files) && 
+                    all(file.exists(settings_expr$df.files$bam_file))) {
                     
-                    BPPARAM = BiocParallel::bpparam()
-                    if(n_threads == 1) {
-                      BPPARAM_mod = BiocParallel::SerialParam()
-                      message(paste("Using SerialParam", BPPARAM_mod$workers, "threads"))
-                    } else if(Sys.info()["sysname"] == "Windows") {
-                      BPPARAM_mod = BiocParallel::SnowParam(n_threads)
-                      message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
-                    } else {
-                      BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
-                      message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
-                    }
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
+                })
                 
-                    # extract subset to run in parallel
-                    row_starts = seq(selected_rows[1], by = n_threads,
-                        length.out = n_rounds)
+            } else if("irf_file" %in% colnames(settings_expr$df.files) && 
+                    all(file.exists(settings_expr$df.files$irf_file))) {
+                    
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
+                })
+                
+            } else if(is_valid(settings_expr$collate_path) && 
+                    file.exists(file.path(
+                    settings_expr$collate_path, "colData.Rds"
+                    ))){
+                    
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(settings_expr$bam_path, escape = TRUE)
+                })
+                
+            } else if("bam_file" %in% colnames(settings_expr$df.files)) {
+                output$bam_expr_infobox <- renderUI({
+                    ui_infobox_bam(settings_expr$bam_path, settings_expr$df.files$bam_file)
+                })
+            }
+        } else {
+            output$bam_expr_infobox <- renderUI({
+                ui_infobox_bam(settings_expr$bam_path)
+            })                 
+        } 
+    })
+
+    # Run IRFinder
+    observeEvent(input$run_irf_expr,{
+        req(settings_expr$df.files)
+        req("bam_file" %in% colnames(settings_expr$df.files))
+        if(!is_valid(input$hot_files_expr_select$select$r)) {
+             sendSweetAlert(
+                session = session,
+                title = "No BAM files selected",
+                text = "Please select bam files to run IRFinder",
+                type = "error"
+            )           
+        }
+        req(input$hot_files_expr_select$select$r)
+        selected_rows = seq(
+            input$hot_files_expr_select$select$r,
+            input$hot_files_expr_select$select$r2                
+        )
+        selected_cols = seq(
+            input$hot_files_expr_select$select$c,
+            input$hot_files_expr_select$select$c2                
+        )
+        bam_col = which(colnames(settings_expr$df.files) == "bam_file")
+        bam_files = settings_expr$df.files$bam_file[selected_rows]
+        if(settings_loadref$loadref_path == "") {
+            sendSweetAlert(
+                session = session,
+                title = "Missing Reference",
+                text = "Please load Reference before running IRFinder",
+                type = "error"
+            )
+        } else if(!(bam_col %in% selected_cols)) {
+            sendSweetAlert(
+                session = session,
+                title = "No BAM files selected",
+                text = "Please select bam files to run IRFinder",
+                type = "error"
+            )                
+        } else if(!all(file.exists(bam_files))) {
+            sendSweetAlert(
+                session = session,
+                title = "Missing BAMs",
+                text = "Please check all selected bam files exist",
+                type = "error"
+            )                
+        } else if(!file.exists(file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"))) {
+            sendSweetAlert(
+                session = session,
+                title = "Missing Reference",
+                text = "IRFinder.ref.gz is missing",
+                type = "error"
+            )
+        } else if(!is_valid(settings_expr$irf_path) || !dir.exists(settings_expr$irf_path)) {
+            sendSweetAlert(
+                session = session,
+                title = "Missing IRFinder output path",
+                text = "Please set IRFinder output path",
+                type = "error"
+            )
+        } else {
+            settings_expr$selected_rows = selected_rows
+            n_threads = min(get_threads(), length(selected_rows))
+            if(n_threads < length(selected_rows)) {
+                n_rounds = ceiling(length(selected_rows) / n_threads)
+                n_threads = ceiling(length(selected_rows) / n_rounds)
+            }
+            msg = paste("Run IRFinder on", length(selected_rows), "samples?",
+                "Estimated runtime", 10 * 
+                    ceiling(length(selected_rows) / n_threads),
+                "minutes using", n_threads, 
+                "threads (10min per BAM @ 100 million reads per sample)"
+            )
+            ask_confirmation(
+                inputId = "irf_confirm",
+                type = "warning",
+                title = msg,
+                btn_labels = c("Cancel", "Run IRFinder"),
+                btn_colors = c("#00BFFF", "#FE2E2E")
+            )
+        }
+    })
+
+    # Function that ACTUALLY runs IRFinder as it requires the sweetalert confirmation to proceed
+    observeEvent(input$irf_confirm, {
+        if(input$irf_confirm == FALSE) {
+            # do nothing
+        } else {
+            selected_rows = settings_expr$selected_rows
+
+            n_threads = min(get_threads(), length(selected_rows))
+            if(n_threads == 1) {
+                # run IRFinder using single thread
+                withProgress(message = 'Running IRFinder', value = 0, {
+                    i_done = 0
+                    incProgress(0.001, 
+                        message = paste('Running IRFinder',
+                            i_done, "of", length(selected_rows), "done")
+                    )
+                    for(i in selected_rows) {
+                        run_IRFinder(
+                            settings_expr$df.files$bam_file[i], 
+                            file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
+                            file.path(output_path, settings_expr$df.files$sample[i])
+                        )
+                        i_done = i_done + 1
+                        incProgress(1 / length(selected_rows), 
+                            message = paste(i_done, "of", length(selected_rows), "done")
+                        )
+                    }
+                })
+            } else if(n_threads <= length(selected_rows)) {
+                n_rounds = ceiling(length(selected_rows) / n_threads)
+                n_threads = ceiling(length(selected_rows) / n_rounds)
+
+                BPPARAM = BiocParallel::bpparam()
+                if(n_threads == 1) {
+                    BPPARAM_mod = BiocParallel::SerialParam()
+                    message(paste("Using SerialParam", BPPARAM_mod$workers, "threads"))
+                } else if(Sys.info()["sysname"] == "Windows") {
+                    BPPARAM_mod = BiocParallel::SnowParam(n_threads)
+                    message(paste("Using SnowParam", BPPARAM_mod$workers, "threads"))
+                } else {
+                    BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
+                    message(paste("Using MulticoreParam", BPPARAM_mod$workers, "threads"))
+                }
+
+                # extract subset to run in parallel
+                row_starts = seq(selected_rows[1], by = n_threads,
+                    length.out = n_rounds)
                 withProgress(message = 'Running IRFinder - Multi-threaded', value = 0, {
                     i_done = 0
                     incProgress(0.001, 
                         message = paste('Running IRFinder - Multi-threaded,',
-                            i_done, "of", length(selected_rows), "done"))
+                        i_done, "of", length(selected_rows), "done")
+                    )
                     for(i in seq_len(n_rounds)) {
                         selected_rows_subset = seq(row_starts[i], 
                             min(length(selected_rows), row_starts[i] + n_threads - 1)
                         )
                         BiocParallel::bplapply(selected_rows_subset, 
                             function(i, run_IRF, df, reference_file, output_path) {
-                                run_IRF(df$bam_file[i], reference_file, file.path(output_path, df$sample[i]))
+                                run_IRF(df$bam_file[i], reference_file, 
+                                    file.path(output_path, df$sample[i]))
                             }, 
 
                             df = settings_expr$df.files, 
@@ -1147,30 +1135,31 @@ dash_server = function(input, output, session) {
                         )
                         i_done = i_done + n_threads
                         incProgress(n_threads / length(selected_rows), 
-                            message = paste(i_done, "of", length(selected_rows), "done"))
+                            message = paste(i_done, "of", length(selected_rows), "done")
+                        )
                     }
                 })
-                }
-                sendSweetAlert(
-                    session = session,
-                    title = "IRFinder run completed",
-                    type = "success"
-                )                
             }
-            settings_expr$selected_rows = c()
-            Expr_Load_IRFs()
-        })
+            sendSweetAlert(
+                session = session,
+                title = "IRFinder run completed",
+                type = "success"
+            )                
+        }
+        settings_expr$selected_rows = c()
+        Expr_Load_IRFs()
+    })
 
-    shinyDirChoose(input, "dir_irf_path_load", roots = c(default_volumes, addit_volume), 
-      session = session)		
+    shinyDirChoose(input, "dir_irf_path_load", 
+        roots = c(default_volumes, addit_volume), session = session)		
     observeEvent(input$dir_irf_path_load, {
-      req(input$dir_irf_path_load)
-      settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load)
+        req(input$dir_irf_path_load)
+        settings_expr$irf_path = parseDirPath(c(default_volumes, addit_volume), input$dir_irf_path_load)
     })
 
     Expr_Load_IRFs = function() {
         if(!is_valid(settings_expr$irf_path)) return(-1)
-				# merge irfinder paths
+		# merge irfinder paths
         temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
         if(!is.null(temp.DT)) {
             temp.DT = as.data.table(temp.DT)
@@ -1193,7 +1182,7 @@ dash_server = function(input, output, session) {
         
     # compile experiment df with irfinder paths
         if(!is.null(temp.DT)) {
-                colnames(temp.DT)[2] = "irf_file"
+            colnames(temp.DT)[2] = "irf_file"
             if(is_valid(settings_expr$df.files)) {
         # merge with existing dataframe	
                 settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT)
@@ -1239,75 +1228,77 @@ dash_server = function(input, output, session) {
         }  
     }
 		
-		observeEvent(settings_expr$irf_path,{
-            ret = Expr_Load_IRFs()
-            if(is_valid(settings_expr$df.files) && "irf_file" %in% colnames(settings_expr$df.files)) {
-                irf_files = settings_expr$df.files$irf_file
-            } else {
-                irf_files = NULL
-            }
-            
-            output$irf_expr_infobox <- renderUI({
-                ui_infobox_irf(settings_expr$irf_path, irf_files)
-            })
-            # ret = is_valid(irf_files) && all(file.exists(irf_files))
-            # if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
-                # output$bam_expr_infobox <- renderUI({
-                    # ui_infobox_bam(escape = TRUE)
-                # })
-            # }
-		})
-
-		# Add annotation to data frame
-    shinyFileChoose(input, "file_expr_path_load", roots = c(default_volumes, addit_volume), 
-      session = session)
-    observeEvent(input$file_expr_path_load, {
-      req(input$file_expr_path_load)
-      file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
-        input$file_expr_path_load)
-      settings_expr$anno_file = as.character(file_selected$datapath)
+    observeEvent(settings_expr$irf_path,{
+        ret = Expr_Load_IRFs()
+        if(is_valid(settings_expr$df.files) && "irf_file" %in% colnames(settings_expr$df.files)) {
+            irf_files = settings_expr$df.files$irf_file
+        } else {
+            irf_files = NULL
+        }
+        
+        output$irf_expr_infobox <- renderUI({
+            ui_infobox_irf(settings_expr$irf_path, irf_files)
+        })
+        # ret = is_valid(irf_files) && all(file.exists(irf_files))
+        # if(ret == TRUE && !is_valid(settings_expr$bam_path)) {
+            # output$bam_expr_infobox <- renderUI({
+                # ui_infobox_bam(escape = TRUE)
+            # })
+        # }
     })
 
-	observeEvent(settings_expr$anno_file,{
-      req(settings_expr$anno_file)
+	# Add annotation to data frame
+    shinyFileChoose(input, "file_expr_path_load", 
+        roots = c(default_volumes, addit_volume), session = session)
+    observeEvent(input$file_expr_path_load, {
+        req(input$file_expr_path_load)
+        file_selected<-parseFilePaths(c(default_volumes, addit_volume), 
+            input$file_expr_path_load)
+        settings_expr$anno_file = as.character(file_selected$datapath)
+    })
+
+    observeEvent(settings_expr$anno_file,{
+        req(settings_expr$anno_file)
         temp.DT = tryCatch(as.data.table(fread(settings_expr$anno_file)),
             error = function(e) NULL)
         req(temp.DT)
         req(nrow(temp.DT) > 0)
         output$txt_sample_anno_expr <- renderText({
-            validate(need("sample" %in% colnames(temp.DT), "'sample' must be the header of the first column"))
+            validate(need("sample" %in% colnames(temp.DT), 
+                "'sample' must be the header of the first column"))
             ""
         })
         req("sample" %in% colnames(temp.DT))
-			
-      anno_header = names(temp.DT)[!(names(temp.DT) %in% files_header)]
-			temp.DT.files = copy(temp.DT)
-      if(length(anno_header) > 0) temp.DT.files[, c(anno_header) := NULL]
-			if(is_valid(settings_expr$df.files)) {
-				settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT.files)
-			} else {
-				DT = data.table(sample = temp.DT$sample, bam_file = "", irf_file = "",
-					cov_file = "")
-				settings_expr$df.files = update_data_frame(DT, temp.DT.files)
-			}
-			
-			temp.DT.anno = copy(temp.DT)
-      files_header_exist = intersect(files_header, names(temp.DT))
-      if(length(files_header_exist) > 0) temp.DT.anno[, c(files_header_exist):= NULL]
-			if(is_valid(settings_expr$df.anno)) {
-				settings_expr$df.anno = update_data_frame(settings_expr$df.anno, temp.DT.anno)
-			} else {
-				settings_expr$df.anno = temp.DT.files
-			}
+
+        anno_header = names(temp.DT)[!(names(temp.DT) %in% files_header)]
+        temp.DT.files = copy(temp.DT)
+        if(length(anno_header) > 0) temp.DT.files[, c(anno_header) := NULL]
+        if(is_valid(settings_expr$df.files)) {
+            settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT.files)
+        } else {
+            DT = data.table(sample = temp.DT$sample, bam_file = "", irf_file = "",
+            cov_file = "")
+            settings_expr$df.files = update_data_frame(DT, temp.DT.files)
+        }
+
+        temp.DT.anno = copy(temp.DT)
+        files_header_exist = intersect(files_header, names(temp.DT))
+        if(length(files_header_exist) > 0) temp.DT.anno[, c(files_header_exist):= NULL]
+        if(is_valid(settings_expr$df.anno)) {
+            settings_expr$df.anno = update_data_frame(settings_expr$df.anno, temp.DT.anno)
+        } else {
+            settings_expr$df.anno = temp.DT.files
+        }
     })
 
     observe({
-      shinyDirChoose(input, "dir_collate_path_load", roots = c(default_volumes, addit_volume), 
-        session = session)
+        shinyDirChoose(input, "dir_collate_path_load", roots = c(default_volumes, addit_volume), 
+            session = session)
         req(input$dir_collate_path_load)
-          settings_expr$expr_path = dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
-          settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
-            input$dir_collate_path_load)
+        settings_expr$expr_path = 
+            dirname(parseDirPath(c(default_volumes, addit_volume), input$dir_collate_path_load))
+        settings_expr$collate_path = parseDirPath(c(default_volumes, addit_volume), 
+        input$dir_collate_path_load)
     })
 
     observeEvent(settings_expr$collate_path,{
@@ -1395,40 +1386,40 @@ dash_server = function(input, output, session) {
     output$newcol_expr <- renderUI({
       textInput("newcolumnname_expr", "New Column Name", sprintf("newcol%s", 1+ncol(settings_expr$df.anno)))
     })
- 		# Add column
-		observeEvent(input$addcolumn_expr, {
-      df <- isolate(settings_expr$df.anno)
-      newcolumn <- eval(parse(text=sprintf('%s(nrow(df))', isolate(input$type_newcol_expr))))
-      settings_expr$df.anno <- data.table::setnames(cbind(df, newcolumn, stringsAsFactors=FALSE), 
-				c(names(df), isolate(input$newcolumnname_expr)))
+    # Add column
+    observeEvent(input$addcolumn_expr, {
+        df <- isolate(settings_expr$df.anno)
+        newcolumn <- eval(parse(text=sprintf('%s(nrow(df))', isolate(input$type_newcol_expr))))
+        settings_expr$df.anno <- data.table::setnames(cbind(df, newcolumn, stringsAsFactors=FALSE), 
+                c(names(df), isolate(input$newcolumnname_expr)))
     })
- 		# Remove column
-		observeEvent(input$removecolumn_expr, {
-      DT <- as.data.table(isolate(settings_expr$df.anno))
-			if(isolate(input$newcolumnname_expr) %in% colnames(DT)) {
-        message("removing column")
-				DT[, c(input$newcolumnname_expr) := NULL]
-				settings_expr$df.anno = as.data.frame(DT)
-			}
+    # Remove column
+    observeEvent(input$removecolumn_expr, {
+        DT <- as.data.table(isolate(settings_expr$df.anno))
+        if(isolate(input$newcolumnname_expr) %in% colnames(DT)) {
+            message("removing column")
+            DT[, c(input$newcolumnname_expr) := NULL]
+            settings_expr$df.anno = as.data.frame(DT)
+        }
     })	
     
     # Run CollateData()
     observeEvent(input$run_collate_expr, {
-      req(settings_expr$df.files)
+        req(settings_expr$df.files)
 
-      Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
-      reference_path = settings_loadref$loadref_path
-      output_path = settings_expr$collate_path
-      # BPPARAM = BPPARAM_mod
+        Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
+        reference_path = settings_loadref$loadref_path
+        output_path = settings_expr$collate_path
+        # BPPARAM = BPPARAM_mod
         if(!is_valid(settings_loadref$loadref_path)) {
-           sendSweetAlert(
+            sendSweetAlert(
                 session = session,
                 title = "Missing Reference",
                 text = "Please load Reference before running NxtIRF::CollateData",
                 type = "error"
             )
         } else if(!is_valid(settings_expr$collate_path)) {
-           sendSweetAlert(
+            sendSweetAlert(
                 session = session,
                 title = "Missing NxtIRF Path",
                 text = "Please select NxtIRF path before running NxtIRF::CollateData",
@@ -1442,7 +1433,8 @@ dash_server = function(input, output, session) {
         })
         # Update colData with df.files and df.anno
         if(file.exists(file.path(
-            settings_expr$collate_path, "colData.Rds"))) {
+                settings_expr$collate_path, "colData.Rds"))) {
+        
             colData.Rds = readRDS(file.path(settings_expr$collate_path, "colData.Rds"))
             if(all(colData.Rds$df.anno$sample %in% settings_expr$df.anno$sample)) {
                 colData.Rds$df.anno = settings_expr$df.anno
@@ -1462,86 +1454,35 @@ dash_server = function(input, output, session) {
                     type = "warning"
                 )
             }
+        
         } else {
 
         }
         # Expr_Load_FSTs()
     })
 		
-    # shinyFileChoose(input, "loadexpr_expr", roots = c(default_volumes, addit_volume), session = session,
-      # filetypes = c("csv"))
-      
-    # observeEvent(input$loadexpr_expr, {
-      # selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadexpr_expr)
-      # req(selectedfile$datapath)
-      # DT = fread(selectedfile$datapath, na.strings = c("", "NA"))
-			# DT.header = DT[sample == "(Experiment)"]
-			# DT = DT[sample != "(Experiment)"]
-
-      # if(all(c("sample", "bam_file", "irf_file", "cov_file", "junc_file") %in% names(DT)) & nrow(DT.header) == 1) {
-        # if(all(is.na(DT$bam_file))) DT[, bam_file:=as.character(bam_file)]
-        # if(all(is.na(DT$irf_file))) DT[, irf_file:=as.character(irf_file)]
-        # if(all(is.na(DT$cov_file))) DT[, cov_file:=as.character(cov_file)]
-        # if(all(is.na(DT$junc_file))) DT[, junc_file:=as.character(junc_file)]
-        
-        # DT.files = copy(DT)
-        # anno_col = names(DT)[!(names(DT) %in% c("sample", files_header))]
-        # DT.files[, c(anno_col) := NULL]
-        # DT.anno = copy(DT)
-        # DT.anno[, c(files_header) := NULL]
-
-        # settings_expr$df.files = as.data.frame(DT.files)
-        # settings_expr$df.anno = as.data.frame(DT.anno)
-
-        # settings_expr$bam_path = DT.header$bam_file
-        # settings_expr$irf_path = DT.header$irf_file
-        # settings_expr$collate_path = DT.header$junc_file
-        
-      # } else {
-
-      # }
-    # })
-
-		# Save Experiment
-    # shinyFileSave(input, "saveexpr_expr", roots = c(default_volumes, addit_volume), session = session,
-      # filetypes = c("csv"))
-    # observeEvent(input$saveexpr_expr, {
-      # req(settings_expr$df.files)
-      # req(settings_expr$df.anno)
-      # selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveexpr_expr)
-      # req(selectedfile$datapath)
-      
-      # df = update_data_frame(settings_expr$df.files, settings_expr$df.anno)
-      # df = rbind(as.data.table(df), list("(Experiment)"), fill = TRUE)
-      # if(is_valid(settings_expr$bam_path)) df[sample == "(Experiment)", bam_file:=settings_expr$bam_path]
-      # if(is_valid(settings_expr$irf_path)) df[sample == "(Experiment)", irf_file:=settings_expr$irf_path]
-      # if(is_valid(settings_expr$collate_path)) df[sample == "(Experiment)", junc_file:=settings_expr$collate_path]
-			# fwrite(df, selectedfile$datapath)
-			# output$txt_run_save_expr <- renderText({
-        # paste("Experiment saved to:", selectedfile$datapath)
-      # })
-	# })
     observeEvent(input$clear_expr, {
-			settings_expr$expr_path = ""
-			settings_expr$bam_path = ""
-			settings_expr$irf_path = ""
-			settings_expr$anno_file = ""
-			settings_expr$collate_path = ""
-			settings_expr$df.files = c()
-			settings_expr$df.anno = c()
-            settings_SE$se = NULL
+        settings_expr$expr_path = ""
+        settings_expr$bam_path = ""
+        settings_expr$irf_path = ""
+        settings_expr$anno_file = ""
+        settings_expr$collate_path = ""
+        settings_expr$df.files = c()
+        settings_expr$df.anno = c()
+        settings_SE$se = NULL
     })
     observeEvent(input$build_expr, {
         if(is_valid(settings_expr$collate_path) &&
                 file.exists(file.path(
                     settings_expr$collate_path, "colData.Rds"))) {
+                    
             colData = as.data.table(settings_expr$df.anno)
             settings_SE$se = MakeSE(settings_expr$collate_path, colData)
+            
         }
     })
 		
-    # QC plots:
-    
+# TAB: QC plots
     observeEvent(input$QCmode, {
         req(settings_SE$QC)
         df = as.data.frame(settings_SE$QC)
@@ -1559,11 +1500,12 @@ dash_server = function(input, output, session) {
             PCA = prcomp(mat, scale. = TRUE)
             output$QC_plot <- renderPlotly({
                 print(
-                ggplotly(
-                    ggplot(as.data.frame(PCA$x), aes(x = PC1, y = PC2, text = rownames(PCA$x))) +
-                        geom_point() + geom_text(aes(label = rownames(PCA$x))),
-                    tooltip = "text"
-                )
+                    ggplotly(
+                        ggplot(as.data.frame(PCA$x), 
+                            aes(x = PC1, y = PC2, text = rownames(PCA$x))
+                        ) + geom_point() + geom_text(aes(label = rownames(PCA$x))),
+                        tooltip = "text"
+                    )
                 )
             })
         } else if(input$QCmode == "Graphs") {
@@ -1614,39 +1556,28 @@ dash_server = function(input, output, session) {
         }
     })
         
-	# Analyse - Calculate PSIs
+# TAB: Analyse - Calculate PSIs
 
-        observeEvent(settings_SE$se, {
-            req(settings_SE$se)
-            req(is(settings_SE$se, "SummarizedExperiment"))
-            output$se_expr_infobox <- renderUI({
-                ui_infobox_expr(2)
-            })
-            # if(!is_valid(settings_expr$bam_path)) {
-                # output$bam_expr_infobox <- renderUI({
-                    # ui_infobox_bam(escape = TRUE)
-                # })
-            # }
-            if(!is_valid(settings_expr$irf_path)) {
-                output$irf_expr_infobox <- renderUI({
-                    ui_infobox_irf(escape = TRUE)
-                })
-            }            
-            # if(!is_valid(settings_expr$collate_path)) {
-                # output$nxt_expr_infobox <- renderUI({
-                    # ui_infobox_nxt(escape = TRUE)
-                # })
-
-            # }
+    observeEvent(settings_SE$se, {
+        req(settings_SE$se)
+        req(is(settings_SE$se, "SummarizedExperiment"))
+        output$se_expr_infobox <- renderUI({
+            ui_infobox_expr(2)
         })
 
-		
+        if(!is_valid(settings_expr$irf_path)) {
+            output$irf_expr_infobox <- renderUI({
+                ui_infobox_irf(escape = TRUE)
+            })
+        }            
+    })
+
     getFilterData = function(i) {
-      if(is_valid(settings_SE$filters)) {
-        return(settings_SE$filters[[i]])
-      } else {
-        return(list())
-      }
+        if(is_valid(settings_SE$filters)) {
+            return(settings_SE$filters[[i]])
+        } else {
+            return(list())
+        }
     }
     reactive_filter1 <- reactive({getFilterData(1)})
     reactive_filter2 <- reactive({getFilterData(2)})
@@ -1658,12 +1589,12 @@ dash_server = function(input, output, session) {
     reactive_filter8 <- reactive({getFilterData(8)})
     
     conditionList = reactive({
-      req(settings_SE$se)
-      if(is(settings_SE$se, "SummarizedExperiment")) {
-        colnames(SummarizedExperiment::colData(settings_SE$se))
-      } else {
-        c("")
-      }
+        req(settings_SE$se)
+        if(is(settings_SE$se, "SummarizedExperiment")) {
+            colnames(SummarizedExperiment::colData(settings_SE$se))
+        } else {
+            c("")
+        }
     })
     filter1 <- filterModule_server("filter1", reactive_filter1, conditionList)
     filter2 <- filterModule_server("filter2", reactive_filter2, conditionList)
@@ -1675,680 +1606,698 @@ dash_server = function(input, output, session) {
     filter8 <- filterModule_server("filter8", reactive_filter8, conditionList)
     
     se.filterModule <- reactive({
-      if(is(settings_SE$se, "SummarizedExperiment")) {
-        settings_SE$se
-      } else {
-        NULL
-      }
+        if(is(settings_SE$se, "SummarizedExperiment")) {
+            settings_SE$se
+        } else {
+            NULL
+        }
     })
 
     processFilters <- function() {
-      message("Refreshing filters")
-      if(is(settings_SE$se, "SummarizedExperiment")) {
-        filterSummary = rep(TRUE, nrow(settings_SE$se))
-        if(is_valid(settings_SE$filters)) {
-          for(i in 1:8) {
-            print(settings_SE$filters[[i]]$filterVars)
-            print(settings_SE$filters[[i]]$trigger)
-            if(!is.null(settings_SE$filters[[i]]$trigger)) {
-              filterSummary = filterSummary & runFilter(
-                settings_SE$filters[[i]]$filterClass,
-                settings_SE$filters[[i]]$filterType,
-                settings_SE$filters[[i]]$filterVars,
-                settings_SE$se)
-            } else {
-              message(paste("Trigger", i, "is NULL"))
+        message("Refreshing filters")
+        if(is(settings_SE$se, "SummarizedExperiment")) {
+            filterSummary = rep(TRUE, nrow(settings_SE$se))
+            if(is_valid(settings_SE$filters)) {
+                for(i in 1:8) {
+                    print(settings_SE$filters[[i]]$filterVars)
+                    print(settings_SE$filters[[i]]$trigger)
+                    if(!is.null(settings_SE$filters[[i]]$trigger)) {
+                        filterSummary = filterSummary & runFilter(
+                            settings_SE$filters[[i]]$filterClass,
+                            settings_SE$filters[[i]]$filterType,
+                            settings_SE$filters[[i]]$filterVars,
+                            settings_SE$se
+                        )
+                    } else {
+                        message(paste("Trigger", i, "is NULL"))
+                    }
+                }
             }
-          }
+            settings_SE$filterSummary = filterSummary
+            message(sum(filterSummary == TRUE))
         }
-        settings_SE$filterSummary = filterSummary
-        message(sum(filterSummary == TRUE))
-      }
     }
-    
-    # observeEvent({
-      # settings_SE$se
-      # settings_SE$filters[[1]]$trigger
-      # settings_SE$filters[[2]]$trigger
-      # settings_SE$filters[[3]]$trigger
-      # settings_SE$filters[[4]]$trigger
-      # settings_SE$filters[[5]]$trigger
-      # settings_SE$filters[[6]]$trigger
-      # settings_SE$filters[[7]]$trigger
-      # settings_SE$filters[[8]]$trigger
-    # }, {
-      # processFilters()
-    # })
-    
+        
     observeEvent(input$refresh_filters_Filters, {
-      req(input$refresh_filters_Filters)
-      
-      settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
-      settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
-      settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
-      settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
-      settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
-      settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
-      settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
-      settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
+        req(input$refresh_filters_Filters)
 
-      processFilters()
+        settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
+        settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
+        settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
+        settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
+        settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
+        settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
+        settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
+        settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
+
+        processFilters()
     })
     
     observe({
-      req(settings_SE$se)
-      req(settings_SE$filterSummary)
+        req(settings_SE$se)
+        req(settings_SE$filterSummary)
 
         filteredEvents.DT = data.table(EventType = SummarizedExperiment::rowData(settings_SE$se)$EventType,
-          keep = settings_SE$filterSummary)
+        keep = settings_SE$filterSummary)
         if(input$graphscale_Filters == "log10") {
-          filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
-          filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
+            filteredEvents.DT[, Included := log10(sum(keep == TRUE)), by = "EventType"]
+            filteredEvents.DT[, Excluded := log10(sum(!is.na(keep))) - log10(sum(keep == TRUE)) , by = "EventType"]
         } else {
-          filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
-          filteredEvents.DT[, Excluded := sum(keep != TRUE) , by = "EventType"]        
+            filteredEvents.DT[, Included := sum(keep == TRUE), by = "EventType"]
+            filteredEvents.DT[, Excluded := sum(keep != TRUE) , by = "EventType"]        
         }
         filteredEvents.DT = unique(filteredEvents.DT, by = "EventType")
         incl = as.data.frame(filteredEvents.DT[, c("EventType", "Included")]) %>%
-          dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
+            dplyr::mutate(filtered = "Included") %>% dplyr::rename(Events = Included)
         excl = as.data.frame(filteredEvents.DT[, c("EventType", "Excluded")]) %>%
-          dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
+            dplyr::mutate(filtered = "Excluded") %>% dplyr::rename(Events = Excluded)
         # ggplot summary as bar plot
-        
+
         p = ggplot(rbind(incl, excl), aes(x = EventType, y = Events, fill = filtered)) +
-          geom_bar(position="stack", stat="identity")
+            geom_bar(position="stack", stat="identity")
         if(input$graphscale_Filters == "log10") {
-          p = p + labs(y = "log10 Events")
+            p = p + labs(y = "log10 Events")
         } else {
-          p = p + labs(y = "Events")        
+            p = p + labs(y = "Events")        
         }
         output$plot_filtered_Events <- renderPlotly({
-          print(
-            ggplotly(p)
-          )
-        })    
+            print(
+                ggplotly(p)
+            )
+        })
     })
     
-    shinyFileSave(input, "saveAnalysis_Filters", roots = c(default_volumes, addit_volume), session = session)
+    shinyFileSave(input, "saveAnalysis_Filters", 
+        roots = c(default_volumes, addit_volume), session = session)
     observeEvent(input$saveAnalysis_Filters, {
-      req(settings_SE$filters)
-      selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveAnalysis_Filters)
-      req(selectedfile$datapath)
+        req(settings_SE$filters)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveAnalysis_Filters)
+        req(selectedfile$datapath)
 
-      settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
-      settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
-      settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
-      settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
-      settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
-      settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
-      settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
-      settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
+        settings_SE$filters[[1]] = (reactiveValuesToList(filter1))
+        settings_SE$filters[[2]] = (reactiveValuesToList(filter2))
+        settings_SE$filters[[3]] = (reactiveValuesToList(filter3))
+        settings_SE$filters[[4]] = (reactiveValuesToList(filter4))
+        settings_SE$filters[[5]] = (reactiveValuesToList(filter5))
+        settings_SE$filters[[6]] = (reactiveValuesToList(filter6))
+        settings_SE$filters[[7]] = (reactiveValuesToList(filter7))
+        settings_SE$filters[[8]] = (reactiveValuesToList(filter8))
 
-      final = settings_SE$filters
-      saveRDS(final, selectedfile$datapath)
+        final = settings_SE$filters
+        saveRDS(final, selectedfile$datapath)
     })
 
-    shinyFileChoose(input, "loadAnalysis_Filters", roots = c(default_volumes, addit_volume), session = session,
-      filetypes = c("Rds"))
+    shinyFileChoose(input, "loadAnalysis_Filters", 
+        roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("Rds"))
     observeEvent(input$loadAnalysis_Filters, {
-      selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadAnalysis_Filters)
-      req(selectedfile$datapath)
-      settings_SE$filters = readRDS(selectedfile$datapath)
+        selectedfile <- parseFilePaths(c(default_volumes, addit_volume), input$loadAnalysis_Filters)
+        req(selectedfile$datapath)
+        settings_SE$filters = readRDS(selectedfile$datapath)
     })
 
     observeEvent(input$loadDefault_Filters, {
-      settings_SE$filters = get_default_filters()
+        settings_SE$filters = get_default_filters()
     })
 
     
-    # DE
-		
+# TAB: DE
     
     observeEvent(input$variable_DE, {
-			req(input$variable_DE)
-			req(input$variable_DE != "(none)")
-			
-			colData = SummarizedExperiment::colData(settings_SE$se)
-			
-			if(!is(colData[,input$variable_DE], "factor")) {
-				output$warning_DE = renderText("Contrast must be performed on discrete categories")
+        req(input$variable_DE)
+        req(input$variable_DE != "(none)")
+
+        colData = SummarizedExperiment::colData(settings_SE$se)
+
+        if(!is(colData[,input$variable_DE], "factor")) {
+        output$warning_DE = renderText("Contrast must be performed on discrete categories")
         updateSelectInput(session = session, inputId = "variable_DE", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
-			} else {
-				updateSelectInput(session = session, inputId = "nom_DE", 
-          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")					
-        updateSelectInput(session = session, inputId = "denom_DE", 
-          choices = c("(none)", levels(colData[,input$variable_DE])), selected = "(none)")
-				if(is_valid(settings_DE$nom_DE) && settings_DE$nom_DE %in% levels(colData[,input$variable_DE])) {
-					updateSelectInput(session = session, inputId = "nom_DE", selected = settings_DE$nom_DE)
-				}
-				if(is_valid(settings_DE$nom_DE) && settings_DE$denom_DE %in% levels(colData[,input$variable_DE])) {
-					updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)
-				}
-			}
-			
-			
-		})
-
-		observeEvent(settings_DE$method, {
-			req(settings_DE$method)
-      updateSelectInput(session = session, inputId = "method_DE", selected = settings_DE$method)		
-		})
-		observeEvent(settings_DE$DE_Var, {
-			req(settings_DE$DE_Var)
-      updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
-		})
-		observeEvent(settings_DE$nom_DE, {
-			req(settings_DE$nom_DE)
-      updateSelectInput(session = session, inputId = "nom_DE_DE", selected = settings_DE$nom_DE)		
-		})
-		observeEvent(settings_DE$denom_DE, {
-			req(settings_DE$denom_DE)
-      updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)		
-		})
-		observeEvent(settings_DE$batchVar1, {
-			req(settings_DE$batchVar1)
-			updateSelectInput(session = session, inputId = "batch1_DE", selected = settings_DE$batchVar1)		
-		})
-		observeEvent(settings_DE$batchVar2, {
-			req(settings_DE$batchVar2)
-			updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
-		})
-		
-    observeEvent(input$perform_DE, {
-			req(settings_SE$se)
-			output$warning_DE = renderText({
-				validate(need(input$variable_DE != "(none)"), "Variable for DE needs to be defined")
-				validate(need(input$nom_DE != "(none)"), "Nominator for DE Variable needs to be defined")
-				validate(need(input$denom_DE != "(none)"), "Denominator for DE Variable needs to be defined")
-				validate(need(input$denom_DE != input$nom_DE), "Denominator and Nominator must be different")
-        paste("Running", input$method_DE)
-			})
-			req(input$variable_DE)
-			req(input$nom_DE)
-			req(input$denom_DE)
-			req(input$variable_DE != "(none)" & input$nom_DE != "(none)" & input$denom_DE != "(none)")
-			
-			if(length(settings_SE$filterSummary) == nrow(settings_SE$se)) {
-				se = settings_SE$se[settings_SE$filterSummary,]
-			} else {
-				se = settings_SE$se
-			}
-			rowData = as.data.frame(SummarizedExperiment::rowData(se))
-			colData = as.data.frame(SummarizedExperiment::colData(se))
-			
-			settings_DE$DE_Var = input$variable_DE
-			settings_DE$nom_DE = input$nom_DE
-			settings_DE$denom_DE = input$denom_DE
-			
-			if(input$batch1_DE != "(none)" & input$batch1_DE != input$variable_DE) {
-				settings_DE$batchVar1 = input$batch1_DE
-			} else {
-				settings_DE$batchVar1 = ""
-        updateSelectInput(session = session, inputId = "batch1_DE", 
-          selected = "(none)")
-			}
-			if(input$batch2_DE != "(none)" & input$batch2_DE != input$variable_DE & 
-					input$batch2_DE != input$batch1_DE) {
-				settings_DE$batchVar2 = input$batch2_DE
-			} else {
-				settings_DE$batchVar2 = ""
-        updateSelectInput(session = session, inputId = "batch2_DE", 
-          selected = "(none)")
-			}
-			req(input$method_DE)
-			settings_DE$method = input$method_DE
-			
-			if(settings_DE$method == "DESeq2") {
-
-                res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
-                    settings_DE$batchVar1, settings_DE$batchVar2)
-
-                if(!input$adjP_DE) {
-                    setorder(res.ASE, P.Value)
-                }
-
-                settings_DE$res = as.data.frame(res.ASE)
-        
-			} else if(settings_DE$method == "limma") {
-				NxtIRF.CheckPackageInstalled("limma", "3.44.0")
-        
-                res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
-                    settings_DE$batchVar1, settings_DE$batchVar2)
-
-                if(!input$adjP_DE) {
-                    setorder(res.ASE, pvalue)
-                }
-
+        choices = c("(none)", colnames(colData)), selected = "(none)")
+        } else {
+            updateSelectInput(session = session, inputId = "nom_DE", 
+                choices = c("(none)", levels(colData[,input$variable_DE])), 
+                selected = "(none)")					
+            updateSelectInput(session = session, inputId = "denom_DE", 
+                choices = c("(none)", levels(colData[,input$variable_DE])), 
+                selected = "(none)")
+            if(is_valid(settings_DE$nom_DE) && 
+                    settings_DE$nom_DE %in% levels(colData[,input$variable_DE])) {
+            
+                updateSelectInput(session = session, inputId = "nom_DE", selected = settings_DE$nom_DE)
             }
-            settings_DE$res = as.data.frame(res.ASE)
-            output$warning_DE = renderText({"Finished"})
-			
-			req(settings_DE$res)
-			# save settings for current res
-			settings_DE$res_settings$method = settings_DE$method
-			settings_DE$res_settings$DE_Var = settings_DE$DE_Var
-			settings_DE$res_settings$nom_DE = settings_DE$nom_DE
-			settings_DE$res_settings$denom_DE = settings_DE$denom_DE
-			settings_DE$res_settings$batchVar1 = settings_DE$batchVar1
-			settings_DE$res_settings$batchVar2 = settings_DE$batchVar2
-		})
-		
-		observeEvent(settings_DE$res, {
-			req(settings_DE$res)
-			output$DT_DE <- DT::renderDataTable(
-				DT::datatable(
-					settings_DE$res,
-					class = 'cell-border stripe',
-					rownames = FALSE,
-					filter = 'top'
-				)
-			)		
-		})
-		
-		shinyFileSave(input, "save_DE", roots = c(default_volumes, addit_volume), session = session,
-            filetypes = c("Rds"))
-		observeEvent(input$save_DE, {	
-			req(settings_DE$res)
-			req(length(settings_DE$res_settings) > 0)
-      
-			selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$save_DE)
-			req(selectedfile$datapath)
-			
-			save_DE = list(res = settings_DE$res, settings = settings_DE$res_settings, 
-                filters = settings_SE$filters)
-			saveRDS(save_DE,selectedfile$datapath)
-		})
-
-    shinyFileChoose(input, "load_DE", roots = c(default_volumes, addit_volume), 
-      session = session, filetype = c("Rds"))
-    observeEvent(input$load_DE, {
-      req(input$load_DE)
-      file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$load_DE)
-      req(file_selected$datapath)
-			load_DE = readRDS(as.character(file_selected$datapath))
-			req(all(c("res", "settings") %in% names(load_DE)))
-			
-		# check all parameters exist in colData(se)
-			req(settings_SE$se)
-			colData = SummarizedExperiment::colData(settings_SE$se)
-			req(load_DE$settings$DE_Var %in% colnames(colData))
-			req(!is_valid(load_DE$settings$batchVar1) || load_DE$settings$batchVar1 %in% colnames(colData))
-			req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
-			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$nom_DE))
-			req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$denom_DE))
-			req(load_DE$settings$method %in% c("DESeq2", "limma"))
-			
-			settings_DE$res = load_DE$res
-			settings_DE$res_settings$method = load_DE$settings$method
-			settings_DE$res_settings$DE_Var = load_DE$settings$DE_Var
-			settings_DE$res_settings$nom_DE = load_DE$settings$nom_DE
-			settings_DE$res_settings$denom_DE = load_DE$settings$denom_DE
-			settings_DE$res_settings$batchVar1 = load_DE$settings$batchVar1
-			settings_DE$res_settings$batchVar2 = load_DE$settings$batchVar2
-			
-			settings_DE$method = settings_DE$res_settings$method
-			settings_DE$DE_Var = settings_DE$res_settings$DE_Var
-			settings_DE$nom_DE = settings_DE$res_settings$nom_DE
-			settings_DE$denom_DE = settings_DE$res_settings$denom_DE
-			settings_DE$batchVar1 = settings_DE$res_settings$batchVar1
-			settings_DE$batchVar2 = settings_DE$res_settings$batchVar2
-
-            if("filters" %in% names(load_DE)) {
-                settings_SE$filters = load_DE$filters
+            if(is_valid(settings_DE$nom_DE) && 
+                    settings_DE$denom_DE %in% levels(colData[,input$variable_DE])) {
+                    
+                updateSelectInput(session = session, 
+                    inputId = "denom_DE", selected = settings_DE$denom_DE)
             }
+        }
+    })
+
+    observeEvent(settings_DE$method, {
+        req(settings_DE$method)
+        updateSelectInput(session = session, inputId = "method_DE", selected = settings_DE$method)		
+    })
+    observeEvent(settings_DE$DE_Var, {
+        req(settings_DE$DE_Var)
+        updateSelectInput(session = session, inputId = "variable_DE", selected = settings_DE$DE_Var)		
+    })
+    observeEvent(settings_DE$nom_DE, {
+        req(settings_DE$nom_DE)
+        updateSelectInput(session = session, inputId = "nom_DE_DE", selected = settings_DE$nom_DE)		
+    })
+    observeEvent(settings_DE$denom_DE, {
+        req(settings_DE$denom_DE)
+        updateSelectInput(session = session, inputId = "denom_DE", selected = settings_DE$denom_DE)		
+    })
+    observeEvent(settings_DE$batchVar1, {
+        req(settings_DE$batchVar1)
+        updateSelectInput(session = session, inputId = "batch1_DE", selected = settings_DE$batchVar1)		
+    })
+    observeEvent(settings_DE$batchVar2, {
+        req(settings_DE$batchVar2)
+        updateSelectInput(session = session, inputId = "batch2_DE", selected = settings_DE$batchVar2)	
     })
 		
-		observeEvent(input$clear_selected_DE, {
-			req(settings_DE$res)
-			req(input$DT_DE_rows_selected)
-			DT::dataTableProxy("DT_DE") %>% DT::selectRows(NULL)
-		})
-	# Diagonal Plots
-	
-    
-		output$plot_diag <- renderPlotly({
-      # settings_Diag$plot_ini = FALSE
-			validate(need(settings_SE$se, "Load Experiment first"))
-			validate(need(settings_DE$res, "Load DE Analysis first"))
-			validate(need(input$variable_diag, "Select conditions and contrasts"))
-			validate(need(input$nom_diag, "Select conditions and contrasts"))
-			validate(need(input$denom_diag, "Select conditions and contrasts"))
-			validate(need(input$variable_diag != "(none)", "Select conditions and contrasts"))
-			validate(need(input$nom_diag != "(none)", "Select conditions and contrasts"))
-			validate(need(input$denom_diag != "(none)", "Select conditions and contrasts"))
-			
-      selected = input$DT_DE_rows_selected      
-      
-			num_events = input$number_events_diag
-			res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
-			if(is_valid(input$EventType_diag)) {
-				res = res[EventType %in% input$EventType_diag]
-			}
-			if(num_events < nrow(res)) {
-				res = res[seq_len(num_events)]
-			}
-			df.diag = make_diagonal(settings_SE$se, res$EventName, input$variable_diag,
-				input$nom_diag, input$denom_diag)
-			
-      if(is_valid(input$DT_DE_rows_selected)) {
-        df.diag$selected = (df.diag$EventName %in% settings_DE$res$EventName[selected])
-      } else {
-        df.diag$selected = FALSE
-      }
-      df.diag$NMD_direction = settings_DE$res$NMD_direction[match(res$EventName, settings_DE$res$EventName)]
-      settings_Diag$plot_ini = TRUE
-      if(input$NMD_diag == TRUE) {
-        df.diag = df.diag[, df.diag$NMD_direction != 0]
-        df.diag$nom_NMD = ifelse(df.diag$NMD_direction == 1, df.diag$nom, df.diag$denom)
-        df.diag$denom_NMD = ifelse(df.diag$NMD_direction == -1, df.diag$nom, df.diag$denom)
-        p = ggplot(df.diag, aes(x = nom_NMD, y = denom_NMD, key = EventName, 
-            text = EventName, colour = selected)) + 
-            geom_point() + scale_color_manual(values = c("black", "red")) +
-            labs(   x = paste(input$nom_diag, "NMD substrate"),
-                    y = paste(input$denom_diag, "NMD substrate")
+    observeEvent(input$perform_DE, {
+        req(settings_SE$se)
+        output$warning_DE = renderText({
+            validate(need(input$variable_DE != "(none)"), "Variable for DE needs to be defined")
+            validate(need(input$nom_DE != "(none)"), "Nominator for DE Variable needs to be defined")
+            validate(need(input$denom_DE != "(none)"), "Denominator for DE Variable needs to be defined")
+            validate(need(input$denom_DE != input$nom_DE), "Denominator and Nominator must be different")
+            paste("Running", input$method_DE)
+        })
+        req(input$variable_DE)
+        req(input$nom_DE)
+        req(input$denom_DE)
+        req(input$variable_DE != "(none)" & input$nom_DE != "(none)" & input$denom_DE != "(none)")
+
+        if(length(settings_SE$filterSummary) == nrow(settings_SE$se)) {
+            se = settings_SE$se[settings_SE$filterSummary,]
+        } else {
+            se = settings_SE$se
+        }
+        rowData = as.data.frame(SummarizedExperiment::rowData(se))
+        colData = as.data.frame(SummarizedExperiment::colData(se))
+
+        settings_DE$DE_Var = input$variable_DE
+        settings_DE$nom_DE = input$nom_DE
+        settings_DE$denom_DE = input$denom_DE
+
+        if(input$batch1_DE != "(none)" & input$batch1_DE != input$variable_DE) {
+            settings_DE$batchVar1 = input$batch1_DE
+        } else {
+            settings_DE$batchVar1 = ""
+            updateSelectInput(session = session, inputId = "batch1_DE", 
+            selected = "(none)")
+        }
+        if(input$batch2_DE != "(none)" & input$batch2_DE != input$variable_DE & 
+            input$batch2_DE != input$batch1_DE) {
+            settings_DE$batchVar2 = input$batch2_DE
+        } else {
+            settings_DE$batchVar2 = ""
+            updateSelectInput(session = session, inputId = "batch2_DE", 
+            selected = "(none)")
+        }
+        req(input$method_DE)
+        settings_DE$method = input$method_DE
+
+        if(settings_DE$method == "DESeq2") {
+        
+            res.ASE = limma_ASE(se, 
+                settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
+                settings_DE$batchVar1, settings_DE$batchVar2
             )
-      } else {
-        p = ggplot(df.diag, aes(x = nom, y = denom, key = EventName, 
-            text = EventName, colour = selected)) + 
-            geom_point() + scale_color_manual(values = c("black", "red")) +
-            labs(   x = paste(input$nom_diag),
-                    y = paste(input$denom_diag)
+            if(!input$adjP_DE) {
+                setorder(res.ASE, P.Value)
+            }
+            settings_DE$res = as.data.frame(res.ASE)
+            
+        } else if(settings_DE$method == "limma") {
+
+            res.ASE = limma_ASE(se, 
+                settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
+                settings_DE$batchVar1, settings_DE$batchVar2
+            )
+
+            if(!input$adjP_DE) {
+                setorder(res.ASE, pvalue)
+            }
+
+        }
+        
+        settings_DE$res = as.data.frame(res.ASE)
+        output$warning_DE = renderText({"Finished"})
+
+        req(settings_DE$res)
+        # save settings for current res
+        settings_DE$res_settings$method = settings_DE$method
+        settings_DE$res_settings$DE_Var = settings_DE$DE_Var
+        settings_DE$res_settings$nom_DE = settings_DE$nom_DE
+        settings_DE$res_settings$denom_DE = settings_DE$denom_DE
+        settings_DE$res_settings$batchVar1 = settings_DE$batchVar1
+        settings_DE$res_settings$batchVar2 = settings_DE$batchVar2
+    })
+		
+    observeEvent(settings_DE$res, {
+        req(settings_DE$res)
+        output$DT_DE <- DT::renderDataTable(
+            DT::datatable(
+                settings_DE$res,
+                class = 'cell-border stripe',
+                rownames = FALSE,
+                filter = 'top'
+            )
+        )		
+    })
+		
+    shinyFileSave(input, "save_DE", 
+        roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("Rds"))
+    observeEvent(input$save_DE, {	
+        req(settings_DE$res)
+        req(length(settings_DE$res_settings) > 0)
+
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$save_DE)
+        req(selectedfile$datapath)
+
+        save_DE = list(
+            res = settings_DE$res, 
+            settings = settings_DE$res_settings, 
+            filters = settings_SE$filters)
+        saveRDS(save_DE,selectedfile$datapath)
+    })
+
+    shinyFileChoose(input, "load_DE", 
+        roots = c(default_volumes, addit_volume), 
+        session = session, filetype = c("Rds"))
+    observeEvent(input$load_DE, {
+        req(input$load_DE)
+        file_selected<-parseFilePaths(c(default_volumes, addit_volume), input$load_DE)
+        req(file_selected$datapath)
+        load_DE = readRDS(as.character(file_selected$datapath))
+        req(all(c("res", "settings") %in% names(load_DE)))
+
+        # check all parameters exist in colData(se)
+        req(settings_SE$se)
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        req(load_DE$settings$DE_Var %in% colnames(colData))
+        req(!is_valid(load_DE$settings$batchVar1) || load_DE$settings$batchVar1 %in% colnames(colData))
+        req(!is_valid(load_DE$settings$batchVar2) || load_DE$settings$batchVar2 %in% colnames(colData))
+        req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$nom_DE))
+        req(any(unlist(colData[,load_DE$settings$DE_Var]) == load_DE$settings$denom_DE))
+        req(load_DE$settings$method %in% c("DESeq2", "limma"))
+
+        settings_DE$res = load_DE$res
+        settings_DE$res_settings$method = load_DE$settings$method
+        settings_DE$res_settings$DE_Var = load_DE$settings$DE_Var
+        settings_DE$res_settings$nom_DE = load_DE$settings$nom_DE
+        settings_DE$res_settings$denom_DE = load_DE$settings$denom_DE
+        settings_DE$res_settings$batchVar1 = load_DE$settings$batchVar1
+        settings_DE$res_settings$batchVar2 = load_DE$settings$batchVar2
+
+        settings_DE$method = settings_DE$res_settings$method
+        settings_DE$DE_Var = settings_DE$res_settings$DE_Var
+        settings_DE$nom_DE = settings_DE$res_settings$nom_DE
+        settings_DE$denom_DE = settings_DE$res_settings$denom_DE
+        settings_DE$batchVar1 = settings_DE$res_settings$batchVar1
+        settings_DE$batchVar2 = settings_DE$res_settings$batchVar2
+
+        if("filters" %in% names(load_DE)) {
+            settings_SE$filters = load_DE$filters
+        }
+    })
+		
+    observeEvent(input$clear_selected_DE, {
+        req(settings_DE$res)
+        req(input$DT_DE_rows_selected)
+        DT::dataTableProxy("DT_DE") %>% DT::selectRows(NULL)
+    })
+    
+# TAB: Diagonal Plots
+
+
+    output$plot_diag <- renderPlotly({
+        # settings_Diag$plot_ini = FALSE
+        validate(need(settings_SE$se, "Load Experiment first"))
+        validate(need(settings_DE$res, "Load DE Analysis first"))
+        validate(need(input$variable_diag, "Select conditions and contrasts"))
+        validate(need(input$nom_diag, "Select conditions and contrasts"))
+        validate(need(input$denom_diag, "Select conditions and contrasts"))
+        validate(need(input$variable_diag != "(none)", "Select conditions and contrasts"))
+        validate(need(input$nom_diag != "(none)", "Select conditions and contrasts"))
+        validate(need(input$denom_diag != "(none)", "Select conditions and contrasts"))
+
+        selected = input$DT_DE_rows_selected      
+
+        num_events = input$number_events_diag
+        res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
+        if(is_valid(input$EventType_diag)) {
+            res = res[EventType %in% input$EventType_diag]
+        }
+        if(num_events < nrow(res)) {
+            res = res[seq_len(num_events)]
+        }
+        df.diag = make_diagonal(settings_SE$se, res$EventName, input$variable_diag,
+        input$nom_diag, input$denom_diag)
+
+        if(is_valid(input$DT_DE_rows_selected)) {
+            df.diag$selected = (df.diag$EventName %in% settings_DE$res$EventName[selected])
+        } else {
+            df.diag$selected = FALSE
+        }
+        df.diag$NMD_direction = settings_DE$res$NMD_direction[
+            match(df.diag$EventName, settings_DE$res$EventName)]
+        
+        settings_Diag$plot_ini = TRUE
+        if(input$NMD_diag == TRUE) {
+            df.diag = df.diag[, df.diag$NMD_direction != 0]
+            df.diag$nom_NMD = ifelse(df.diag$NMD_direction == 1, df.diag$nom, df.diag$denom)
+            df.diag$denom_NMD = ifelse(df.diag$NMD_direction == -1, df.diag$nom, df.diag$denom)
+            p = ggplot(df.diag, 
+                    aes(x = nom_NMD, y = denom_NMD, key = EventName, 
+                        text = EventName, colour = selected)
+                ) + geom_point() + scale_color_manual(values = c("black", "red")) +
+                labs(
+                    x = paste(input$nom_diag, "NMD substrate"),
+                    y = paste(input$denom_diag, "NMD substrate")
+                )
+        } else {
+            p = ggplot(df.diag, aes(x = nom, y = denom, key = EventName, 
+                    text = EventName, colour = selected)
+                ) + geom_point() + scale_color_manual(values = c("black", "red")) +
+            labs(
+                x = paste(input$nom_diag),
+                y = paste(input$denom_diag)
             )         
         }   
-        settings_Diag$final_plot = ggplotly(p, tooltip = "text",
-            source = "plotly_diagonal") %>% layout(
+        
+        settings_Diag$final_plot = ggplotly(p, 
+            tooltip = "text",
+            source = "plotly_diagonal") %>% 
+            layout(
+                dragmode = "lasso",
                 yaxis = list(scaleanchor="x", scaleratio=1)
             )      
         print(
-                settings_Diag$final_plot
-			)
-		})
+            settings_Diag$final_plot
+        )
+    })
 
-        shinyFileSave(input, "saveplot_diag", roots = c(default_volumes, addit_volume), session = session,
-            filetypes = c("pdf"))
-        observeEvent(input$saveplot_diag, {	
-            req(settings_Diag$final_plot)
-            selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_diag)
-            req(selectedfile$datapath)
-            
-            obj = isolate(settings_Diag$final_plot)
-            plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
-        })
-		
+    shinyFileSave(input, "saveplot_diag", 
+        roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("pdf"))
+    observeEvent(input$saveplot_diag, {	
+        req(settings_Diag$final_plot)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_diag)
+        req(selectedfile$datapath)
+
+        obj = isolate(settings_Diag$final_plot)
+        plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
+    })
+
     settings_Diag$plotly_click = reactive({
-      plot_exist = settings_Diag$plot_ini
-      if(plot_exist == TRUE) {
-        event_data("plotly_click", source = "plotly_diagonal")
-      }
+        plot_exist = settings_Diag$plot_ini
+        if(plot_exist == TRUE) {
+            event_data("plotly_click", source = "plotly_diagonal")
+        }
     })
   
     observeEvent(settings_Diag$plotly_click(), {
-      req(settings_Diag$plotly_click())
-      click = settings_Diag$plotly_click()
-      print(click)
-      click.id = which(settings_DE$res$EventName == click$key)
-      req(click.id)
-      
-      selected = input$DT_DE_rows_selected
-      
-      if(click.id %in% selected) {
-        selected = selected[-which(selected == click.id)]
-      } else {
-        selected = c(selected, click.id)
-      }
-      
-      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+        req(settings_Diag$plotly_click())
+        click = settings_Diag$plotly_click()
+        # print(click)
+        click.id = which(settings_DE$res$EventName == click$key)
+        req(click.id)
 
+        selected = input$DT_DE_rows_selected
+
+        if(click.id %in% selected) {
+            selected = selected[-which(selected == click.id)]
+        } else {
+            selected = c(selected, click.id)
+        }
+
+        DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
     })
 
     settings_Diag$plotly_brush = reactive({
-      plot_exist = settings_Diag$plot_ini
-      if(plot_exist == TRUE) {
-        event_data("plotly_selected", source = "plotly_diagonal")
-      }
+        plot_exist = settings_Diag$plot_ini
+        if(plot_exist == TRUE) {
+            event_data("plotly_selected", source = "plotly_diagonal")
+        }
     })
   
     observeEvent(settings_Diag$plotly_brush(), {
-      req(settings_Diag$plotly_brush())
-      brush = settings_Diag$plotly_brush()
-      print(brush)
-      brush.id = which(settings_DE$res$EventName %in% brush$key)
-      req(brush.id)
-      
-      selected = input$DT_DE_rows_selected
-      selected = unique(c(selected, brush.id))
-      
-      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
-   })
+        req(settings_Diag$plotly_brush())
+        brush = settings_Diag$plotly_brush()
+        # print(brush)
+        brush.id = which(settings_DE$res$EventName %in% brush$key)
+        req(brush.id)
+
+        selected = input$DT_DE_rows_selected
+        selected = unique(c(selected, brush.id))
+
+        DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+    })
     
-		observeEvent(input$variable_diag, {
-			req(settings_SE$se)
-			req(input$variable_diag != "(none)")
-			colData = SummarizedExperiment::colData(settings_SE$se)
-			req(input$variable_diag %in% colnames(colData))
+    observeEvent(input$variable_diag, {
+        req(settings_SE$se)
+        req(input$variable_diag != "(none)")
+        colData = SummarizedExperiment::colData(settings_SE$se)
+        req(input$variable_diag %in% colnames(colData))
 
-			if(!is(colData[,input$variable_diag], "factor")) {
-				output$warning_diag = renderText("Contrast must be performed on discrete categories")
-        updateSelectInput(session = session, inputId = "variable_diag", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
-			} else {
-				updateSelectInput(session = session, inputId = "nom_diag", 
-					 choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
-				updateSelectInput(session = session, inputId = "denom_diag", 
-					 choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
-			}
-		})
+        if(!is(colData[,input$variable_diag], "factor")) {
+            output$warning_diag = renderText("Contrast must be performed on discrete categories")
+            updateSelectInput(session = session, inputId = "variable_diag", 
+                choices = c("(none)", colnames(colData)), selected = "(none)")
+        } else {
+            updateSelectInput(session = session, inputId = "nom_diag", 
+                choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
+            updateSelectInput(session = session, inputId = "denom_diag", 
+                choices = c("(none)", levels(colData[,input$variable_diag])), selected = "(none)")
+        }
+    })
 
-		observeEvent(input$clear_diag, {
-			updateSelectInput(session = session, "EventType_diag", selected = NULL)
-			shinyWidgets::updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
-			if(is_valid(settings_SE$se)) {
-				colData = SummarizedExperiment::colData(settings_SE$se)
-        updateSelectInput(session = session, inputId = "variable_diag", 
-          choices = c("(none)", colnames(colData)), selected = "(none)")
-			} else {
-        updateSelectInput(session = session, inputId = "variable_diag", 
-          choices = c("(none)"), selected = "(none)")			
-			}
-			updateSelectInput(session = session, inputId = "nom_diag", 
-				 choices = c("(none)"), selected = "(none)")			
-			updateSelectInput(session = session, inputId = "denom_diag", 
-				 choices = c("(none)"), selected = "(none)")			
-		})
+    observeEvent(input$clear_diag, {
+        updateSelectInput(session = session, "EventType_diag", selected = NULL)
+        shinyWidgets::updateSliderTextInput(session = session, "number_events_diag", selected = 10000)
+        
+        if(is_valid(settings_SE$se)) {
+            colData = SummarizedExperiment::colData(settings_SE$se)
+            updateSelectInput(session = session, inputId = "variable_diag", 
+                choices = c("(none)", colnames(colData)), selected = "(none)")
+        } else {
+            updateSelectInput(session = session, inputId = "variable_diag", 
+                choices = c("(none)"), selected = "(none)")			
+        }
+        
+        updateSelectInput(session = session, inputId = "nom_diag", 
+            choices = c("(none)"), selected = "(none)")			
+        updateSelectInput(session = session, inputId = "denom_diag", 
+            choices = c("(none)"), selected = "(none)")			
+    })
 
 # Volcano Plots
 
     settings_Volc$plotly_click = reactive({
-      plot_exist = settings_Volc$plot_ini
-      if(plot_exist == TRUE) {
-        event_data("plotly_click", source = "plotly_volcano")
-      }
+        plot_exist = settings_Volc$plot_ini
+        if(plot_exist == TRUE) {
+            event_data("plotly_click", source = "plotly_volcano")
+        }
     })
   
     observeEvent(settings_Volc$plotly_click(), {
-      req(settings_Volc$plotly_click())
-      click = settings_Volc$plotly_click()
-      print(click)
-      click.id = which(settings_DE$res$EventName == click$key)
-      req(click.id)
-      
-      selected = input$DT_DE_rows_selected
-      
-      if(click.id %in% selected) {
-        selected = selected[-which(selected == click.id)]
-      } else {
-        selected = c(selected, click.id)
-      }
-      
-      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+        req(settings_Volc$plotly_click())
+        click = settings_Volc$plotly_click()
+        # print(click)
+        click.id = which(settings_DE$res$EventName == click$key)
+        req(click.id)
+
+        selected = input$DT_DE_rows_selected
+
+        if(click.id %in% selected) {
+            selected = selected[-which(selected == click.id)]
+        } else {
+            selected = c(selected, click.id)
+        }
+
+        DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
     })
 
     settings_Volc$plotly_brush = reactive({
-      plot_exist = settings_Volc$plot_ini
-      if(plot_exist == TRUE) {
-        event_data("plotly_selected", source = "plotly_volcano")
-      }
+        plot_exist = settings_Volc$plot_ini
+        if(plot_exist == TRUE) {
+            event_data("plotly_selected", source = "plotly_volcano")
+        }
     })
-  
+
     observeEvent(settings_Volc$plotly_brush(), {
-      req(settings_Volc$plotly_brush())
-      brush = settings_Volc$plotly_brush()
-      print(brush)
-      brush.id = which(settings_DE$res$EventName %in% brush$key)
-      req(brush.id)
-      
-      selected = input$DT_DE_rows_selected
-      selected = unique(c(selected, brush.id))
-      
-      DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
-   })
+        req(settings_Volc$plotly_brush())
+        brush = settings_Volc$plotly_brush()
+        # print(brush)
+        brush.id = which(settings_DE$res$EventName %in% brush$key)
+        req(brush.id)
+
+        selected = input$DT_DE_rows_selected
+        selected = unique(c(selected, brush.id))
+
+        DT::dataTableProxy("DT_DE") %>% DT::selectRows(selected)
+    })
 
 		
-		output$plot_volc <- renderPlotly({
-      # settings_Diag$plot_ini = FALSE
-			validate(need(settings_SE$se, "Load Experiment first"))
-			validate(need(settings_DE$res, "Load DE Analysis first"))
-			
-      selected = input$DT_DE_rows_selected  
-      
-			num_events = input$number_events_volc
-			res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
-			if(is_valid(input$EventType_volc)) {
-				res = res[EventType %in% input$EventType_volc]
-			}
-			if(num_events < nrow(res)) {
-				res = res[seq_len(num_events)]
-			}
-			if(input$method_DE == "DESeq2") {
-				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
-                    NMD_direction = NMD_direction,
-					log2FoldChange = log2FoldChange, pvalue = pvalue, padj = padj))
-			} else {
-				df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
-                    NMD_direction = NMD_direction,
-					log2FoldChange = logFC, pvalue = P.Value, padj = adj.P.Val))	
-			}
-			
-      if(is_valid(selected)) {
-        df.volc$selected = (df.volc$EventName %in% settings_DE$res$EventName[selected])
-      } else {
-        df.volc$selected = FALSE
-      }
-      if(input$NMD_volc == TRUE) {
-        df.volc = df.volc[, df.volc$NMD_direction != 0]
-        df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
-      }
-      
+    output$plot_volc <- renderPlotly({
+        # settings_Diag$plot_ini = FALSE
+        validate(need(settings_SE$se, "Load Experiment first"))
+        validate(need(settings_DE$res, "Load DE Analysis first"))
+
+        selected = input$DT_DE_rows_selected  
+
+        num_events = input$number_events_volc
+        res = as.data.table(settings_DE$res[input$DT_DE_rows_all,])
+        if(is_valid(input$EventType_volc)) {
+            res = res[EventType %in% input$EventType_volc]
+        }
+        if(num_events < nrow(res)) {
+            res = res[seq_len(num_events)]
+        }
+        if(input$method_DE == "DESeq2") {
+            df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+            NMD_direction = NMD_direction,
+            log2FoldChange = log2FoldChange, pvalue = pvalue, padj = padj))
+        } else {
+            df.volc = with(res, data.frame(EventName = EventName, EventType = EventType,
+            NMD_direction = NMD_direction,
+            log2FoldChange = logFC, pvalue = P.Value, padj = adj.P.Val))	
+        }
+
+        if(is_valid(selected)) {
+            df.volc$selected = (df.volc$EventName %in% settings_DE$res$EventName[selected])
+        } else {
+            df.volc$selected = FALSE
+        }
+        if(input$NMD_volc == TRUE) {
+            df.volc = df.volc[, df.volc$NMD_direction != 0]
+            df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
+        }
+
         settings_Volc$plot_ini = TRUE
-			if(input$adjP_volc == TRUE) {
-                p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj),
-                    key = EventName, text = EventName, colour = selected))           
-            } else {
-                p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(pvalue),
-                    key = EventName, text = EventName, colour = selected))               
-            }
-                        
-            p = p + geom_point() + scale_color_manual(values = c("black", "red"))
-			
-            if(input$facet_volc == TRUE) {
-				p = p + facet_wrap(vars(EventType))
-			}
-			if(input$NMD_volc == TRUE) {
-				p = p + labs(x = "Log2 Fold Change NMD substrate")
-			} else {
-				p = p + labs(x = "Log2 Fold Change")            
-            }
-			if(input$adjP_volc == TRUE) {
-				p = p + labs(y = "Adjusted P Value (-log10)")
-			} else {
-				p = p + labs(x = "Nominal P Value (-log10)")            
-            }
-            settings_Volc$final_plot = ggplotly(p, tooltip = "text",
-                source = "plotly_volcano") %>% layout(dragmode = "lasso")
-			print(
-				settings_Volc$final_plot
-			)
-		})
+        if(input$adjP_volc == TRUE) {
+            p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj),
+                key = EventName, text = EventName, colour = selected))           
+        } else {
+            p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(pvalue),
+                key = EventName, text = EventName, colour = selected))               
+        }
 
-        shinyFileSave(input, "saveplot_volc", roots = c(default_volumes, addit_volume), session = session,
-            filetypes = c("pdf"))
-        observeEvent(input$saveplot_volc, {	
-            req(settings_Volc$final_plot)
-            selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_volc)
-            req(selectedfile$datapath)
-            
-            obj = isolate(settings_Volc$final_plot)
-            plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
-        })
+        p = p + geom_point() + scale_color_manual(values = c("black", "red"))
+
+        if(input$facet_volc == TRUE) {
+            p = p + facet_wrap(vars(EventType))
+        }
+        if(input$NMD_volc == TRUE) {
+            p = p + labs(x = "Log2 Fold Change NMD substrate")
+        } else {
+            p = p + labs(x = "Log2 Fold Change")            
+        }
+        if(input$adjP_volc == TRUE) {
+            p = p + labs(y = "Adjusted P Value (-log10)")
+        } else {
+            p = p + labs(x = "Nominal P Value (-log10)")            
+        }
+        settings_Volc$final_plot = ggplotly(p, 
+            tooltip = "text",
+            source = "plotly_volcano") %>% layout(dragmode = "lasso")
+        print(
+        settings_Volc$final_plot
+        )
+    })
+
+    shinyFileSave(input, "saveplot_volc", 
+        roots = c(default_volumes, addit_volume), session = session,
+        filetypes = c("pdf"))
+    observeEvent(input$saveplot_volc, {	
+        req(settings_Volc$final_plot)
+        selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saveplot_volc)
+        req(selectedfile$datapath)
+
+        obj = isolate(settings_Volc$final_plot)
+        plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
+    })
     
-		observeEvent(input$clear_volc, {
-			updateSelectInput(session = session, "EventType_volc", selected = NULL)
-			shinyWidgets::updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
+    observeEvent(input$clear_volc, {
+        updateSelectInput(session = session, "EventType_volc", selected = NULL)
+        shinyWidgets::updateSliderTextInput(session = session, "number_events_volc", selected = 10000)
+    })
 		
-		})
+# TAB: Heatmaps
 		
-		# Heatmaps
-		
-		output$plot_heat <- renderPlotly({
-      # settings_Diag$plot_ini = FALSE
-			validate(need(settings_SE$se, "Load Experiment first"))
-			validate(need(settings_DE$res, "Load DE Analysis first"))
-			
-			if(input$select_events_heat == "Highlighted") {
-				selected = input$DT_DE_rows_selected
-			} else if(input$select_events_heat == "Top N Filtered Results") {
-				selected = input$DT_DE_rows_all
-				if(length(selected) > input$slider_num_events_heat) {
-					selected = selected[seq_len(input$slider_num_events_heat)]
-				}
-			} else {
-				selected = seq_len(min(input$slider_num_events_heat, nrow(settings_DE$res)))
-			}
-
-      validate(need(length(selected) > 0, "Select some Events first"))
-      
-			colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
-      
-			if(input$mode_heat == "PSI") {
-				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
-					rownames(colData), "PSI")
-			} else if(input$mode_heat == "Logit") {
-				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
-					rownames(colData), "logit")			
-			} else {
-				mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
-					rownames(colData), "Z-score")
-			}
-			
-      validate(need(nrow(mat) > 0 & ncol(mat) > 0, "No data after filtering results"))
-      
-      colors.df = RColorBrewer::brewer.pal.info
-      color.index = which(rownames(colors.df) == input$color_heat)
-      color = grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(n = colors.df$maxcolors[color.index],
-        name = rownames(colors.df)[color.index])))
+    output$plot_heat <- renderPlotly({
         
-      na.exclude = (rowSums(!is.na(mat)) == 0)
-      if(any(na.exclude == TRUE)) {
+        validate(need(settings_SE$se, "Load Experiment first"))
+        validate(need(settings_DE$res, "Load DE Analysis first"))
+
+        if(input$select_events_heat == "Highlighted") {
+            selected = input$DT_DE_rows_selected
+        } else if(input$select_events_heat == "Top N Filtered Results") {
+            selected = input$DT_DE_rows_all
+            if(length(selected) > input$slider_num_events_heat) {
+                selected = selected[seq_len(input$slider_num_events_heat)]
+            }
+        } else {
+            selected = seq_len(min(input$slider_num_events_heat, nrow(settings_DE$res)))
+        }
+
+        validate(need(length(selected) > 0, "Select some Events first"))
+
+        colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
+
+        if(input$mode_heat == "PSI") {
+            mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+            rownames(colData), "PSI")
+        } else if(input$mode_heat == "Logit") {
+            mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+            rownames(colData), "logit")			
+        } else {
+            mat = make_matrix(settings_SE$se, settings_DE$res$EventName[selected],
+            rownames(colData), "Z-score")
+        }
+
+        validate(need(nrow(mat) > 0 & ncol(mat) > 0, "No data after filtering results"))
+
+        colors.df = RColorBrewer::brewer.pal.info
+        color.index = which(rownames(colors.df) == input$color_heat)
+        color = grDevices::colorRampPalette(
+            rev(RColorBrewer::brewer.pal(n = colors.df$maxcolors[color.index],
+            name = rownames(colors.df)[color.index]))
+        )
+
+        # Hopefully the fixed filtering in limma pipeline will also fix the NA issues here:
+        na.exclude = (rowSums(!is.na(mat)) == 0)
+        if(any(na.exclude == TRUE)) {
         output$warning_heat <- renderText({
             cat("The following events have been excluded due to all NA values:")
             paste(rownames(mat)[which(na.exclude)])
         })
         mat = mat[-which(na.exclude),]
-      }
+        }
 
-            if(is_valid(input$anno_col_heat) && all(input$anno_col_heat %in% colnames(colData))) {
-                settings_Heat$final_plot = heatmaply::heatmaply(mat, color = color, 
-                    col_side_colors = colData[, input$anno_col_heat, drop=FALSE])
-            } else {
-                settings_Heat$final_plot = heatmaply::heatmaply(mat, color = color)            
-            }      
-			print(
-                settings_Heat$final_plot
+        if(is_valid(input$anno_col_heat) && all(input$anno_col_heat %in% colnames(colData))) {
+            settings_Heat$final_plot = heatmaply::heatmaply(
+                mat, color = color, 
+                col_side_colors = colData[, input$anno_col_heat, drop=FALSE]
             )
-		})
+        } else {
+            settings_Heat$final_plot = heatmaply::heatmaply(mat, color = color)            
+        }      
+        print(
+            settings_Heat$final_plot
+        )
+    })
 
-    shinyFileSave(input, "saveplot_heat", roots = c(default_volumes, addit_volume), session = session,
+    shinyFileSave(input, "saveplot_heat", 
+        roots = c(default_volumes, addit_volume), session = session,
         filetypes = c("pdf"))
     observeEvent(input$saveplot_heat, {	
         req(settings_Heat$final_plot)
@@ -2359,7 +2308,7 @@ dash_server = function(input, output, session) {
         plotly::orca(obj, make.path.relative(getwd(), selectedfile$datapath))
     })
 		
-		# RNA-seq Coverage Plots
+# TAB: RNA-seq Coverage Plots
     
     get_track_selection <- function(i) {
         if(i == 1) return(input$track1_cov)
@@ -2369,25 +2318,25 @@ dash_server = function(input, output, session) {
     }
 
     loadTranscripts <- function() {
-      req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-			file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
-      
-      Transcripts.DT = as.data.table(read.fst(file_path))
+        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+        file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
 
-      if("transcript_support_level" %in% colnames(Transcripts.DT)) {
-          Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
-          Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
-      } else {
-        Transcripts.DT$transcript_support_level = 1
-      }
-      
-      return(Transcripts.DT)
+        Transcripts.DT = as.data.table(read.fst(file_path))
+
+        if("transcript_support_level" %in% colnames(Transcripts.DT)) {
+            Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
+            Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
+        } else {
+            Transcripts.DT$transcript_support_level = 1
+        }
+
+        return(Transcripts.DT)
     }
 
     loadViewRef <- function() {
         req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
-            transcript_id <- NULL
-            dir_path = file.path(settings_loadref$loadref_path, "fst")
+        transcript_id <- NULL
+        dir_path = file.path(settings_loadref$loadref_path, "fst")
 
         exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
             c("seqnames", "start", "end", "strand", "type", "transcript_id")))
@@ -2454,7 +2403,6 @@ dash_server = function(input, output, session) {
                 choices = event_choices, selected = "(none)")        
         }
     })
-    
     
     observeEvent(input$refresh_coverage, {
         view_chr = input$chr_cov
@@ -2532,95 +2480,95 @@ dash_server = function(input, output, session) {
         })
     })
 
-
-		
     observeEvent(input$graph_mode_cov, {
-      req(settings_Cov$plot_ini == TRUE)
-      if(input$graph_mode_cov == "Pan") {
-        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = "pan")) %>%
-          plotlyProxyInvoke("reconfig", editable = FALSE)
-      } else if(input$graph_mode_cov == "Zoom") {
-        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = "zoom")) %>%
-          plotlyProxyInvoke("reconfig", editable = FALSE)
-      } else if(input$graph_mode_cov == "Movable Labels") {
-        plotlyProxy("plot_cov", session) %>% plotlyProxyInvoke("relayout", list(dragmode = FALSE)) %>%
-          plotlyProxyInvoke("reconfig", editable = TRUE)
-      }
+        req(settings_Cov$plot_ini == TRUE)
+        if(input$graph_mode_cov == "Pan") {
+            plotlyProxy("plot_cov", session) %>% 
+                plotlyProxyInvoke("relayout", list(dragmode = "pan")) %>%
+                plotlyProxyInvoke("reconfig", editable = FALSE)
+        } else if(input$graph_mode_cov == "Zoom") {
+            plotlyProxy("plot_cov", session) %>% 
+                plotlyProxyInvoke("relayout", list(dragmode = "zoom")) %>%
+                plotlyProxyInvoke("reconfig", editable = FALSE)
+        } else if(input$graph_mode_cov == "Movable Labels") {
+            plotlyProxy("plot_cov", session) %>% 
+                plotlyProxyInvoke("relayout", list(dragmode = FALSE)) %>%
+                plotlyProxyInvoke("reconfig", editable = TRUE)
+        }
     })
     
     observeEvent(input$mode_cov, {
-      req(input$mode_cov)
-      req(settings_SE$se)
-      if(input$mode_cov == "By Condition") {
-        colData = SummarizedExperiment::colData(settings_SE$se)
-        
-        updateSelectInput(session = session, inputId = "condition_cov", 
-          choices = c("(none)", colnames(colData)))
+        req(input$mode_cov)
+        req(settings_SE$se)
+        if(input$mode_cov == "By Condition") {
+            colData = SummarizedExperiment::colData(settings_SE$se)
 
-        updateSelectInput(session = session, inputId = "track1_cov", 
-          choices = c("(none)"), selected = "(none)")     
-        updateSelectInput(session = session, inputId = "track2_cov", 
-          choices = c("(none)"), selected = "(none)")  
-        updateSelectInput(session = session, inputId = "track3_cov", 
-          choices = c("(none)"), selected = "(none)")    
-        updateSelectInput(session = session, inputId = "track4_cov", 
-          choices = c("(none)"), selected = "(none)")             
-      } else {
-        updateSelectInput(session = session, inputId = "condition_cov", 
-          choices = c("(none)"))
-      }
+            updateSelectInput(session = session, inputId = "condition_cov", 
+                choices = c("(none)", colnames(colData)))
+
+            updateSelectInput(session = session, inputId = "track1_cov", 
+                choices = c("(none)"), selected = "(none)")     
+            updateSelectInput(session = session, inputId = "track2_cov", 
+                choices = c("(none)"), selected = "(none)")  
+            updateSelectInput(session = session, inputId = "track3_cov", 
+                choices = c("(none)"), selected = "(none)")    
+            updateSelectInput(session = session, inputId = "track4_cov", 
+                choices = c("(none)"), selected = "(none)")             
+        } else {
+            updateSelectInput(session = session, inputId = "condition_cov", 
+                choices = c("(none)"))
+        }
     })
 
     observeEvent(input$condition_cov, {
-      req(input$condition_cov)
-      req(settings_SE$se)
-      if(is_valid(input$condition_cov)) {
-        colData = SummarizedExperiment::colData(settings_SE$se)
-        updateSelectInput(session = session, inputId = "track1_cov", 
-          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-        updateSelectInput(session = session, inputId = "track2_cov", 
-          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-        updateSelectInput(session = session, inputId = "track3_cov", 
-          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-        updateSelectInput(session = session, inputId = "track4_cov", 
-          choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-      } else if(input$mode_cov == "Individual") {
-        avail_samples = names(settings_Cov$avail_cov)
-        updateSelectInput(session = session, inputId = "track1_cov", 
-            choices = c("(none)", avail_samples), selected = "(none)")
-        updateSelectInput(session = session, inputId = "track2_cov", 
-            choices = c("(none)", avail_samples), selected = "(none)")
-        updateSelectInput(session = session, inputId = "track3_cov", 
-            choices = c("(none)", avail_samples), selected = "(none)")
-        updateSelectInput(session = session, inputId = "track4_cov", 
-            choices = c("(none)", avail_samples), selected = "(none)")
-      } else {
-        updateSelectInput(session = session, inputId = "track1_cov", 
-          choices = "(none)")    
-        updateSelectInput(session = session, inputId = "track2_cov", 
-          choices = "(none)")    
-        updateSelectInput(session = session, inputId = "track3_cov", 
-          choices = "(none)")    
-        updateSelectInput(session = session, inputId = "track4_cov", 
-          choices = "(none)")    
-      }
+        req(input$condition_cov)
+        req(settings_SE$se)
+        if(is_valid(input$condition_cov)) {
+            colData = SummarizedExperiment::colData(settings_SE$se)
+            updateSelectInput(session = session, inputId = "track1_cov", 
+                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+            updateSelectInput(session = session, inputId = "track2_cov", 
+                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+            updateSelectInput(session = session, inputId = "track3_cov", 
+                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+            updateSelectInput(session = session, inputId = "track4_cov", 
+                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+        } else if(input$mode_cov == "Individual") {
+            avail_samples = names(settings_Cov$avail_cov)
+            updateSelectInput(session = session, inputId = "track1_cov", 
+                choices = c("(none)", avail_samples), selected = "(none)")
+            updateSelectInput(session = session, inputId = "track2_cov", 
+                choices = c("(none)", avail_samples), selected = "(none)")
+            updateSelectInput(session = session, inputId = "track3_cov", 
+                choices = c("(none)", avail_samples), selected = "(none)")
+            updateSelectInput(session = session, inputId = "track4_cov", 
+                choices = c("(none)", avail_samples), selected = "(none)")
+        } else {
+            updateSelectInput(session = session, inputId = "track1_cov", 
+                choices = "(none)")    
+            updateSelectInput(session = session, inputId = "track2_cov", 
+                choices = "(none)")    
+            updateSelectInput(session = session, inputId = "track3_cov", 
+                choices = "(none)")    
+            updateSelectInput(session = session, inputId = "track4_cov", 
+                choices = "(none)")    
+        }
     })
 
-    
     settings_Cov$plotly_relayout = reactive({
-      req(settings_Cov$plot_ini == TRUE)
-      event_data("plotly_relayout", source = "plotly_ViewRef")
+        req(settings_Cov$plot_ini == TRUE)
+        event_data("plotly_relayout", source = "plotly_ViewRef")
     })
     observeEvent(settings_Cov$plotly_relayout(), {
-      plotly_relayout = settings_Cov$plotly_relayout()
-      message(names(plotly_relayout))
-      req(length(plotly_relayout) == 2)
-      req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(plotly_relayout)))
+        plotly_relayout = settings_Cov$plotly_relayout()
+        message(names(plotly_relayout))
+        req(length(plotly_relayout) == 2)
+        req(all(c("xaxis.range[0]", "xaxis.range[1]") %in% names(plotly_relayout)))
 
-      updateTextInput(session = session, inputId = "start_cov", 
-        value = max(1, round(plotly_relayout[["xaxis.range[0]"]])))
-      updateTextInput(session = session, inputId = "end_cov", 
-        value = round(plotly_relayout[["xaxis.range[1]"]]))
+        updateTextInput(session = session, inputId = "start_cov", 
+            value = max(1, round(plotly_relayout[["xaxis.range[0]"]])))
+        updateTextInput(session = session, inputId = "end_cov", 
+            value = round(plotly_relayout[["xaxis.range[1]"]]))
     })
     observeEvent(input$zoom_out_cov, {
         req(input$zoom_out_cov)
@@ -2683,38 +2631,38 @@ dash_server = function(input, output, session) {
             value = new_start + new_span)
     })
     observeEvent(input$events_cov, {
-      req(input$events_cov)
-      req(input$events_cov != "(none)")
+        req(input$events_cov)
+        req(input$events_cov != "(none)")
 
-      events_id_view = settings_Cov$event.ranges[EventName == input$events_cov]
+        events_id_view = settings_Cov$event.ranges[EventName == input$events_cov]
 
-      # change settings on input based on this
-      updateSelectInput(session = session, inputId = "chr_cov", 
+        # change settings on input based on this
+        updateSelectInput(session = session, inputId = "chr_cov", 
         selected = events_id_view$seqnames[1])
-      
-      # default is zoom out by factor of 1
-      span = events_id_view$end[1] - events_id_view$start[1]
-      view_start = max(1, events_id_view$start[1] - span)
-      view_end = view_start + 3 * span
-      updateTextInput(session = session, inputId = "start_cov", 
-        value = view_start)
-      updateTextInput(session = session, inputId = "end_cov", 
-        value = view_end)
+
+        # default is zoom out by factor of 1
+        span = events_id_view$end[1] - events_id_view$start[1]
+        view_start = max(1, events_id_view$start[1] - span)
+        view_end = view_start + 3 * span
+        updateTextInput(session = session, inputId = "start_cov", 
+            value = view_start)
+        updateTextInput(session = session, inputId = "end_cov", 
+            value = view_end)
     })
 
     observeEvent(input$genes_cov, {
-      req(input$genes_cov)
-      req(input$genes_cov != "(none)")
+        req(input$genes_cov)
+        req(input$genes_cov != "(none)")
 
-      gene_id_view = settings_Cov$gene_list[gene_display_name == input$genes_cov]
+        gene_id_view = settings_Cov$gene_list[gene_display_name == input$genes_cov]
 
-      # change settings on input based on this
-      updateSelectInput(session = session, inputId = "chr_cov", 
-        selected = gene_id_view$seqnames[1])
-      updateTextInput(session = session, inputId = "start_cov", 
-        value = gene_id_view$start[1])
-      updateTextInput(session = session, inputId = "end_cov", 
-        value = gene_id_view$end[1])
+        # change settings on input based on this
+        updateSelectInput(session = session, inputId = "chr_cov", 
+            selected = gene_id_view$seqnames[1])
+        updateTextInput(session = session, inputId = "start_cov", 
+            value = gene_id_view$start[1])
+        updateTextInput(session = session, inputId = "end_cov", 
+            value = gene_id_view$end[1])
     })		
 
     observeEvent(input$chr_cov, {
@@ -2723,17 +2671,17 @@ dash_server = function(input, output, session) {
         seqmax = GenomeInfoDb::seqlengths(seqInfo)
 
         req(as.numeric(input$end_cov))
-      if(as.numeric(input$end_cov) > seqmax) {
-        updateTextInput(session = session, inputId = "end_cov", 
-          value = seqmax)      
-        req(as.numeric(input$start_cov))
-        if(seqmax - as.numeric(input$start_cov) < 50) {
-          updateTextInput(session = session, inputId = "end_cov", 
-            value = seqmax - 50)        
+        if(as.numeric(input$end_cov) > seqmax) {
+            updateTextInput(session = session, inputId = "end_cov", 
+                value = seqmax)      
+            req(as.numeric(input$start_cov))
+            if(seqmax - as.numeric(input$start_cov) < 50) {
+                updateTextInput(session = session, inputId = "end_cov", 
+                    value = seqmax - 50)        
+            }
         }
-      }
     })
-   observeEvent(input$start_cov, {
+    observeEvent(input$start_cov, {
         req(as.numeric(input$start_cov))
         req(as.numeric(input$end_cov))
         req(as.numeric(input$end_cov) - as.numeric(input$start_cov) > 50)
@@ -2754,35 +2702,35 @@ dash_server = function(input, output, session) {
         output$label_zoom_cov <- renderText({16 - cur_zoom})
     })
     
-  # DE events row selection:
-  observeEvent(input$select_events_cov, {
+    # DE events row selection:
+    observeEvent(input$select_events_cov, {
     # Populate events
-    req(input$DT_DE_rows_all)
-    req(settings_DE$res)
-    
-    if(input$select_events_cov == "Highlighted") {
-      selected = input$DT_DE_rows_selected
-    } else if(input$select_events_cov == "Top N Filtered Results") {
-      selected = input$DT_DE_rows_all
-      if(length(selected) > input$slider_num_events_cov) {
-        selected = selected[seq_len(input$slider_num_events_cov)]
-      }
-    } else {
-      selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
-    }
+        req(input$DT_DE_rows_all)
+        req(settings_DE$res)
 
-    if(length(selected) > 0 & is_valid(settings_DE$res)) {
-      updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
-        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
-      updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
-        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
-    } else {
-      updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
-        choices = c("(none)"), selected = "(none)")    								
-      updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
-        choices = c("(none)"), selected = "(none)")    								    
-    }
-  })
+        if(input$select_events_cov == "Highlighted") {
+            selected = input$DT_DE_rows_selected
+        } else if(input$select_events_cov == "Top N Filtered Results") {
+            selected = input$DT_DE_rows_all
+        if(length(selected) > input$slider_num_events_cov) {
+            selected = selected[seq_len(input$slider_num_events_cov)]
+        }
+        } else {
+            selected = seq_len(min(input$slider_num_events_cov, nrow(settings_DE$res)))
+        }
+
+        if(length(selected) > 0 & is_valid(settings_DE$res)) {
+            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+                choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+                choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+        } else {
+            updateSelectizeInput(session = session, inputId = "events_view", server = TRUE,
+                choices = c("(none)"), selected = "(none)")    								
+            updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
+                choices = c("(none)"), selected = "(none)")    								    
+        }
+    })
   
     shinyFileSave(input, "saveplot_cov", roots = c(default_volumes, addit_volume), session = session,
         filetypes = c("pdf"))
@@ -2794,18 +2742,6 @@ dash_server = function(input, output, session) {
         obj = isolate(settings_Cov$final_plot)
         plotly::orca(settings_Cov$final_plot, make.path.relative(getwd(), selectedfile$datapath))
     })
-  
-    # shinyFileSave(input, "saverds_cov", roots = c(default_volumes, addit_volume), session = session,
-        # filetypes = c("Rds"))
-    # observeEvent(input$saverds_cov, {	
-        # req(settings_Cov$final_plot)
-        # selectedfile <- parseSavePath(c(default_volumes, addit_volume), input$saverds_cov)
-        # req(selectedfile$datapath)
-        
-        # obj = isolate(settings_Cov$final_plot)
-        # saveRDS(obj, selectedfile$datapath)
-        
-    # })
-    
+ 
 # End of server function		
-  }
+ }
