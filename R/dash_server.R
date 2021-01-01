@@ -1825,7 +1825,7 @@ dash_server = function(input, output, session) {
 
         if(settings_DE$method == "DESeq2") {
         
-            res.ASE = limma_ASE(se, 
+            res.ASE = DESeq_ASE(se, 
                 settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
                 settings_DE$batchVar1, settings_DE$batchVar2
             )
