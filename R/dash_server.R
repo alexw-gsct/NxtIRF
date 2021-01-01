@@ -1902,6 +1902,10 @@ dash_server = function(input, output, session) {
                 res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
                     settings_DE$batchVar1, settings_DE$batchVar2)
 
+                if(!input$adjP_DE) {
+                    setorder(res.ASE, P.Value)
+                }
+
                 settings_DE$res = as.data.frame(res.ASE)
         
 			} else if(settings_DE$method == "limma") {
@@ -1909,6 +1913,11 @@ dash_server = function(input, output, session) {
         
                 res.ASE = limma_ASE(se, settings_DE$DE_Var, settings_DE$nom_DE, settings_DE$denom_DE,
                     settings_DE$batchVar1, settings_DE$batchVar2)
+
+                if(!input$adjP_DE) {
+                    setorder(res.ASE, pvalue)
+                }
+
             }
             settings_DE$res = as.data.frame(res.ASE)
             output$warning_DE = renderText({"Finished"})
@@ -2229,17 +2238,30 @@ dash_server = function(input, output, session) {
         df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
       }
       
-      settings_Volc$plot_ini = TRUE
+        settings_Volc$plot_ini = TRUE
+			if(input$adjP_volc == TRUE) {
+                p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj),
+                    key = EventName, text = EventName, colour = selected))           
+            } else {
+                p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(pvalue),
+                    key = EventName, text = EventName, colour = selected))               
+            }
+                        
+            p = p + geom_point() + scale_color_manual(values = c("black", "red"))
 			
-			p = ggplot(df.volc, aes(x = log2FoldChange, y = -log10(padj), 
-						key = EventName, text = EventName, colour = selected)) + 
-            geom_point() + scale_color_manual(values = c("black", "red"))
-			if(input$facet_volc == TRUE) {
+            if(input$facet_volc == TRUE) {
 				p = p + facet_wrap(vars(EventType))
 			}
 			if(input$NMD_volc == TRUE) {
-				p = p + labs(x = "log2FoldChange NMD substrate")
-			}
+				p = p + labs(x = "Log2 Fold Change NMD substrate")
+			} else {
+				p = p + labs(x = "Log2 Fold Change")            
+            }
+			if(input$adjP_volc == TRUE) {
+				p = p + labs(y = "Adjusted P Value (-log10)")
+			} else {
+				p = p + labs(x = "Nominal P Value (-log10)")            
+            }
             settings_Volc$final_plot = ggplotly(p, tooltip = "text",
                 source = "plotly_volcano") %>% layout(dragmode = "lasso")
 			print(

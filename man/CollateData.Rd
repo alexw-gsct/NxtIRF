@@ -8,6 +8,7 @@ CollateData(
   Experiment,
   reference_path,
   output_path,
+  coverage_files = "",
   IRMode = c("SpliceOverMax", "SpliceMax"),
   localHub = FALSE,
   ah = AnnotationHub(localHub = localHub),

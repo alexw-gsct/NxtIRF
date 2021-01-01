@@ -163,7 +163,6 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
  
     res.ASE = rowData.DT[res.ASE, on = "EventName"]
 
-    
     res.ASE
 }
 
