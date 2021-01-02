@@ -1975,7 +1975,7 @@ dash_server = function(input, output, session) {
         
         settings_Diag$plot_ini = TRUE
         if(input$NMD_diag == TRUE) {
-            df.diag = df.diag[, df.diag$NMD_direction != 0]
+            df.diag = df.diag[df.diag$NMD_direction != 0, ]
             df.diag$nom_NMD = ifelse(df.diag$NMD_direction == 1, df.diag$nom, df.diag$denom)
             df.diag$denom_NMD = ifelse(df.diag$NMD_direction == -1, df.diag$nom, df.diag$denom)
             p = ggplot(df.diag, 
@@ -2181,7 +2181,7 @@ dash_server = function(input, output, session) {
             df.volc$selected = FALSE
         }
         if(input$NMD_volc == TRUE) {
-            df.volc = df.volc[, df.volc$NMD_direction != 0]
+            df.volc = df.volc[df.volc$NMD_direction != 0, ]
             df.volc$log2FoldChange = df.volc$log2FoldChange * df.volc$NMD_direction
         }
 
