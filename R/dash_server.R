@@ -2743,7 +2743,8 @@ dash_server = function(input, output, session) {
         req(selectedfile$datapath)
         
         obj = isolate(settings_Cov$final_plot)
-        plotly::orca(settings_Cov$final_plot, make.path.relative(getwd(), selectedfile$datapath))
+        plotly::orca(settings_Cov$final_plot, make.path.relative(getwd(), selectedfile$datapath),
+            width = 1920, height = 1080)
     })
  
 # End of server function		
