@@ -119,6 +119,9 @@ is_valid <- function(x) {
 }
 
 make.path.relative = function(base, target) {
+    if(Sys.info()["sysname"] == "Windows") {
+        base = normalizePath(base, winslash = "/")
+    }
     common = sub('^([^|]*)[^|]*(?:\\|\\1[^|]*)$', '^\\1/?', paste0(base, '|', target))
     
     paste0(gsub('[^/]+/?', '../', sub(common, '', base)),
