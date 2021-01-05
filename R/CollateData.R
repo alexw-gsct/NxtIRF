@@ -1216,7 +1216,7 @@ MakeSE = function(fst_path, colData) {
   if(missing(colData)) {
       assert_that(file.exists(file.path(fst_path, "colData.Rds")),
         msg = "colData.Rds does not exist in given path")
-      colData.Rds = readRds("colData.Rds")
+      colData.Rds = readRDS(file.path(fst_path, "colData.Rds"))
       assert_that("df.anno" %in% names(colData.Rds),
         msg = "colData.Rds must contain df.anno containing annotations")
     
@@ -1273,6 +1273,12 @@ MakeSE = function(fst_path, colData) {
 	S4Vectors::metadata(se)$Down_Inc = Down_Inc
 	S4Vectors::metadata(se)$Up_Exc = Up_Exc
 	S4Vectors::metadata(se)$Down_Exc = Down_Exc
+
+  if("df.files" %in% names(colData.Rds) &&
+    "cov_file" %in% colnames(colData.Rds$df.files)) {
+        S4Vectors::metadata(se)$cov_file = colData.Rds$df.files$cov_file
+        names(S4Vectors::metadata(se)$cov_file) = colData.Rds$df.files$sample       
+    }
 
   return(se)
 }

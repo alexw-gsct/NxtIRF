@@ -237,12 +237,13 @@ dash_server = function(input, output, session) {
             if(settings$ah_genome != "") {
                 genome = FetchAH(settings$ah_genome, ah = ah)
             } else {
-                genome = rtracklayer::TwoBitFile(file.path(reference_path, "resource", "genome.2bit"))
+                genome = rtracklayer::TwoBitFile(
+                    file.path(settings_loadref$loadref_path, "resource", "genome.2bit"))
             }
             settings_Cov$seqInfo = seqinfo(genome)
-            settings_Cov$gene_list <- getGeneList()
-            settings_Cov$elem.DT <- loadViewRef()
-            settings_Cov$transcripts.DT <- loadTranscripts()
+            settings_Cov$gene_list <- getGeneList(settings_loadref$loadref_path)
+            settings_Cov$elem.DT <- loadViewRef(settings_loadref$loadref_path)
+            settings_Cov$transcripts.DT <- loadTranscripts(settings_loadref$loadref_path)
             
             # Populate events here
             
@@ -2320,52 +2321,14 @@ dash_server = function(input, output, session) {
         if(i == 4) return(input$track4_cov)
     }
 
-    loadTranscripts <- function() {
-        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-        file_path = file.path(settings_loadref$loadref_path, "fst", "Transcripts.fst")
+    # getGeneList <- function() {
+        # req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
+        # file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
+        # if(!file.exists(file_path)) return(NULL)
 
-        Transcripts.DT = as.data.table(read.fst(file_path))
-
-        if("transcript_support_level" %in% colnames(Transcripts.DT)) {
-            Transcripts.DT$transcript_support_level = tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
-            Transcripts.DT$transcript_support_level[is.na(Transcripts.DT$transcript_support_level)] = "NA"
-        } else {
-            Transcripts.DT$transcript_support_level = 1
-        }
-
-        return(Transcripts.DT)
-    }
-
-    loadViewRef <- function() {
-        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds")))
-        transcript_id <- NULL
-        dir_path = file.path(settings_loadref$loadref_path, "fst")
-
-        exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
-            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-        exons.DT = exons.DT[transcript_id != "protein_coding"]
-
-        protein.DT = as.data.table(read.fst(file.path(dir_path, "Proteins.fst"),
-            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-        misc.DT = as.data.table(read.fst(file.path(dir_path, "Misc.fst"),
-            c("seqnames", "start", "end", "strand", "type", "transcript_id")))
-
-        total.DT = rbindlist(list(
-            exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-            protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
-            misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
-        ))
-        return(total.DT)
-    }
-    
-    getGeneList <- function() {
-        req(file.exists(file.path(settings_loadref$loadref_path, "settings.Rds"))) 
-        file_path = file.path(settings_loadref$loadref_path, "fst", "Genes.fst")
-        if(!file.exists(file_path)) return(NULL)
-
-        df = as.data.table(read.fst(file_path))
-        return(df)
-    }
+        # df = as.data.table(read.fst(file_path))
+        # return(df)
+    # }
 	
     get_inrange_events <- function(view_chr, view_start, view_end) {
         req(settings_Cov$event.ranges)
@@ -2448,8 +2411,10 @@ dash_server = function(input, output, session) {
         }
         conf.int = 0.95
 
-        if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- loadViewRef()
-        if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- loadTranscripts()
+        if(is.null(settings_Cov$elem.DT)) settings_Cov$elem.DT <- 
+            loadViewRef(settings_loadref$loadref_path)
+        if(is.null(settings_Cov$transcripts.DT)) settings_Cov$transcripts.DT <- 
+            loadTranscripts(settings_loadref$loadref_path)
 
         req(settings_Cov$elem.DT)
         req(settings_Cov$transcripts.DT)

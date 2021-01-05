@@ -325,7 +325,7 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     
     res.ASE = res.ASE[!is.na(pvalue)]
     
-    setorder(res.ASE, -pvalue)
+    setorder(res.ASE, pvalue)
             
     rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
  

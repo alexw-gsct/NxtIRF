@@ -1,4 +1,13 @@
 GetCoverage_DF <- function(samples, files, seqname, start, end, strand) {
+  # print(
+    # list(
+        # samples = samples, files = files,
+        # seqname = seqname,
+        # start = start,
+        # end = end,
+        # strand = strand
+    # )
+  # )
   covData = list()
   for(i in seq_len(length(files))) {
     cov = GetCoverage(files[i], seqname, start - 1, end, ifelse(strand == "+", 0, ifelse(strand == "-", 1, 2)))
@@ -127,7 +136,8 @@ determine_compatible_events <- function(reduced.DT, highlight_events) {
 }
 
 plot_view_ref_fn <- function(view_chr, view_start, view_end, 
-    transcripts, elems, highlight_events, condensed = FALSE) {
+    transcripts, elems, highlight_events, condensed = FALSE,
+    selected_transcripts) {
 			
     data_start = view_start - (view_end - view_start)
     data_end = view_end + (view_end - view_start)
@@ -137,7 +147,11 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         get("start") <= data_end & 
         get("end") >= data_start]
     setorderv(transcripts.DT, c("transcript_support_level", "width"))
-			# filter transcripts by criteria if applicable
+    # filter transcripts if applicable
+    if(!missing(selected_transcripts)) {
+        transcripts.DT = transcripts.DT[get("transcript_id") %in% selected_transcripts |
+            get("transcript_name") %in% selected_transcripts]
+    }
     message(paste(nrow(transcripts.DT), " transcripts"))
 
     screen.DT = elems[
@@ -311,15 +325,24 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
 
 plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     norm_event, condition, tracks = list(), track_names = "", se, avail_files,
-    transcripts, elems, highlight_events, stack_tracks, graph_mode,
+    transcripts, elems, highlight_events, selected_transcripts, stack_tracks, graph_mode,
     conf.int = 0.95,
     t_test = FALSE, condensed = FALSE) {
 
-    p_ref = plot_view_ref_fn(
-        view_chr, view_start, view_end, 
-        transcripts, elems, highlight_events,
-        condensed = condensed
-    )
+    if(!missing(selected_transcripts)) {
+        p_ref = plot_view_ref_fn(
+            view_chr, view_start, view_end, 
+            transcripts, elems, highlight_events,
+            condensed = condensed,
+            selected_transcripts = selected_transcripts
+        )   
+    } else {
+        p_ref = plot_view_ref_fn(
+            view_chr, view_start, view_end, 
+            transcripts, elems, highlight_events,
+            condensed = condensed
+        )    
+    }
     gp_track = list()
     pl_track = list()
   
@@ -566,6 +589,264 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
 }
 
+# Exported wrapper functions to plot coverage plots from command line:
+
+#' @export
+Plot_Coverage <- function(se, Event, cov_data,
+    strand = c("*", "+", "-"),
+    tracks,                 # A vector containing either individuals, or condition names
+    track_names = tracks,
+    condition,              # If missing, assume tracks are individual samples
+    selected_transcripts,   # Plot only the selected transcripts. For sanity
+    condense_tracks = FALSE,
+    stack_tracks = TRUE,  # Whether to stack tracks. Requires condition
+    t_test = TRUE,  # Whether to include T test. Requires condition
+    norm_event,
+    zoom_factor = 1,        # Log zoom out from event
+    bases_flanking = 100,   # How many bases flanking the zoomed window. Only useful for zoom_factor == 0
+    Gene,
+    seqnames, start, end   # Optional
+    ) {
+
+# Assertions
+    # Check we know where to plot
+    assert_that(!missing(Event) | !missing(Gene) |
+        (!missing(seqnames) & !missing(start) & !missing(end)),
+        msg = paste("Event or Gene cannot be empty, unless coordinates are provided"))
+    assert_that(all(c("genome", "gene_list", "elem.DT", "transcripts.DT") %in% names(cov_data)),
+        msg = "cov_data must be a valid object created by prepare_covplot_data()")
+    strand = match.arg(strand)
+    
+    # Requires all cov files in the SE to be present
+    assert_that(all(colnames(se) %in% names(S4Vectors::metadata(se)$cov_file)),
+        msg = paste("Some samples do not have COV files.",
+            "Make sure metadata(se)$cov_file is a named vector containing COV file paths,",
+            "and names(metadata(se)$cov_file) correspond to sample names"
+    ))
+    
+    # Check condition and tracks
+    if(!missing(condition)) {
+        assert_that(condition %in% names(SummarizedExperiment::colData(se)),
+            msg = "condition must be a valid column name in colData(se)")
+        condition_options = unique(SummarizedExperiment::colData(se)[, condition])
+        assert_that(all(tracks %in% condition_options),
+            msg = paste("some tracks do not match valid condition names in",
+                condition))      
+    } else {
+        assert_that(all(tracks %in% colnames(se)),
+            msg = "some tracks do not match valid sample names in se")
+    }
+    # Prepare zoom window
+    if((!missing(seqnames) & !missing(start) & !missing(end))) {
+        view_chr = seqnames
+        view_start = start
+        view_end = end
+    } else if(!missing(Gene)) {
+        # Gene is not empty:
+        assert_that(Gene %in% cov_data$gene_list$gene_id | 
+            Gene %in% cov_data$gene_list$gene_name,
+            msg = paste(Gene, "is not a valid gene symbol or Ensembl gene id"))
+            
+        if(Gene %in% cov_data$gene_list$gene_id) {
+            gene.df = as.data.frame(cov_data$gene_list[gene_id == Gene])
+        } else {
+            gene.df = as.data.frame(cov_data$gene_list[gene_name == Gene])
+            assert_that(nrow(gene.df) == 1,
+                msg = paste(Gene, "is an ambiguous name referring to 2 or more genes.",
+                    "Please provide its gene_id instead"))
+        }
+        view_chr = gene.df$seqnames
+        view_start = gene.df$start
+        view_end = gene.df$end        
+    } else {
+        rowData = as.data.frame(SummarizedExperiment::rowData(se))
+        assert_that(Event %in% rownames(rowData),
+            msg = paste(Event, "is not a valid IR or alternate splicing event in rowData(se)")
+        )
+        rowData = rowData[Event,]
+        view_chr = tstrsplit(rowData$EventRegion, split=":")[[1]]
+        temp1 = tstrsplit(rowData$EventRegion, split="/")
+        temp2 = tstrsplit(temp1[[1]], split=":")[[2]]
+        view_start = as.numeric(tstrsplit(temp2, split="-")[[1]])
+        view_end = as.numeric(tstrsplit(temp2, split="-")[[2]])
+    }
+
+    view_center = (view_start + view_end) / 2
+    view_length = view_end - view_start
+    assert_that(view_chr %in% names(seqinfo(cov_data$genome)),
+        msg = paste(view_chr, "is not a valid chromosome reference name in the given genome"))
+    assert_that(zoom_factor > 0,
+        msg = "zoom_factor must be a positive number")
+    assert_that(bases_flanking > 0,
+        msg = "bases_flanking must be a positive number")
+    assert_that(view_length > 0, msg = "View window is less than zero")
+    # Apply zoom 
+    new_view_length = view_length * 3 ^ zoom_factor + 2 * bases_flanking
+    view_start = round(view_center - new_view_length / 2)
+    view_end = round(view_center + new_view_length / 2)
+    
+    # Validate genomic window and shift if invalid
+    if(view_start < 1) view_start = 1
+    seqInfo = seqinfo(cov_data$genome)[view_chr]
+    seqmax = GenomeInfoDb::seqlengths(seqInfo)
+    if(view_end > seqmax) view_end = seqmax - 1
+    
+    if(missing(norm_event)) {
+        if(!missing(Event)) {
+            norm_event = Event
+        } else {
+            norm_event = ""       
+        }
+    }
+    if(missing(condition)) {
+        condition = ""
+    }
+    
+    args = list(
+        view_chr = view_chr,
+        view_start = view_start,
+        view_end = view_end,
+        view_strand = strand,
+        norm_event = norm_event,
+        condition = condition,
+        tracks = as.list(tracks),
+        track_names = track_names,
+        se = se,
+        avail_files = S4Vectors::metadata(se)$cov_file,
+        transcripts = cov_data$transcripts.DT,
+        elems = cov_data$elem.DT,
+        stack_tracks = stack_tracks,
+        graph_mode = "Pan",
+        conf.int = 0.95,
+        t_test = t_test,
+        condensed = condense_tracks
+    )
+    if(norm_event != "") {
+        events_to_highlight = list()
+        rowData = as.data.frame(SummarizedExperiment::rowData(se))
+
+        if(rowData$EventType[match(norm_event, rowData$EventName)] 
+            %in% c("MXE", "SE")) {
+            events_to_highlight[[1]] = c(rowData$Event1a[match(norm_event, rowData$EventName)],
+                rowData$Event2a[match(norm_event, rowData$EventName)])
+        } else {
+            events_to_highlight[[1]] = rowData$Event1a[match(norm_event, rowData$EventName)]
+        }
+        if(rowData$EventType[match(norm_event, rowData$EventName)] 
+            %in% c("MXE")) {
+            events_to_highlight[[2]] = c(rowData$Event1b[match(norm_event, rowData$EventName)],
+                rowData$Event2b[match(norm_event, rowData$EventName)])
+        } else if(rowData$EventType[match(norm_event, rowData$EventName)] 
+            %in% c("SE", "A3SS", "A5SS", "ALE", "AFE")){
+            events_to_highlight[[2]] = rowData$Event1b[match(norm_event, rowData$EventName)]
+        }
+        args$highlight_events = events_to_highlight
+    }
+    if(!missing(selected_transcripts)) {
+        args$selected_transcripts = selected_transcripts
+    }
+    return(
+        do.call(plot_cov_fn, args)
+    )
+}
+
+#' @export
+prepare_covplot_data <- function(reference_path,
+    localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+    valid_path = FALSE
+    valid_path = check_valid_refpath(reference_path)
+    if(!valid_path) return(NULL)
+
+    settings = readRDS(file.path(reference_path, "settings.Rds"))
+    if(settings$ah_genome != "") {
+        genome = FetchAH(settings$ah_genome, ah = ah)
+    } else {
+        assert_that(file.exists(),
+            msg = paste(file.path(reference_path, "resource", "genome.2bit"),
+                "not found. Cannot import genome"))
+        genome = rtracklayer::TwoBitFile(
+            file.path(reference_path, "resource", "genome.2bit"))
+    }
+
+    data = list(
+        genome = genome,
+        gene_list = getGeneList(reference_path),
+        elem.DT = loadViewRef(reference_path),
+        transcripts.DT = loadTranscripts(reference_path)
+    )
+    
+    return(data)
+}
+
+check_valid_refpath <- function(reference_path) {
+    assert_that(file.exists(file.path(reference_path, "IRFinder.ref.gz")),
+        msg = "reference_path needs to be a valid reference built using NxtIRF::BuildReference()")
+    assert_that(file.exists(file.path(reference_path, "settings.Rds")),
+        msg = "reference_path needs to be a valid reference built using NxtIRF::BuildReference()")
+    return(TRUE)
+}
+
+loadViewRef <- function(reference_path) {
+    # Check valid reference path:
+    valid_path = FALSE
+    valid_path = check_valid_refpath(reference_path)
+    if(!valid_path) return(NULL)
+    
+    dir_path = file.path(reference_path, "fst")
+
+    exons.DT = as.data.table(read.fst(file.path(dir_path, "Exons.fst"), 
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+    exons.DT = exons.DT[get("transcript_id") != "protein_coding"]
+
+    protein.DT = as.data.table(read.fst(file.path(dir_path, "Proteins.fst"),
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+    misc.DT = as.data.table(read.fst(file.path(dir_path, "Misc.fst"),
+        c("seqnames", "start", "end", "strand", "type", "transcript_id")))
+
+    total.DT = rbindlist(list(
+        exons.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+        protein.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")],
+        misc.DT[, c("seqnames", "start", "end", "strand", "type", "transcript_id")]
+    ))
+    return(total.DT)
+}
+
+getGeneList <- function(reference_path) {
+    # Check valid reference path:
+    valid_path = FALSE
+    valid_path = check_valid_refpath(reference_path)
+    if(!valid_path) return(NULL)
+    
+    file_path = file.path(reference_path, "fst", "Genes.fst")
+    if(!file.exists(file_path)) return(NULL)
+
+    df = as.data.table(read.fst(file_path))
+    return(df)
+}
+
+loadTranscripts <- function(reference_path) {
+    # Check valid reference path:
+    valid_path = FALSE
+    valid_path = check_valid_refpath(reference_path)
+    if(!valid_path) return(NULL)
+    
+    file_path = file.path(reference_path, "fst", "Transcripts.fst")
+
+    Transcripts.DT = as.data.table(read.fst(file_path))
+
+    if("transcript_support_level" %in% colnames(Transcripts.DT)) {
+        Transcripts.DT$transcript_support_level = 
+            tstrsplit(Transcripts.DT$transcript_support_level, split=" ")[[1]]
+        Transcripts.DT$transcript_support_level[
+            is.na(Transcripts.DT$transcript_support_level)] = "NA"
+    } else {
+        Transcripts.DT$transcript_support_level = 1
+    }
+
+    return(Transcripts.DT)
+}
+
+#' @export
 get_default_filters <- function() {
     filterUnit <- list()
     filterUnit$filterVars = list(
@@ -605,6 +886,46 @@ get_default_filters <- function() {
     filters[[4]]$filterVars$EventTypes = c("MXE", "SE")
 
     return(filters)
+}
+
+#' @export
+apply_filters <- function(se, filters) {
+    # filters are a list of filters to apply on se
+    # returns a vector of TRUE / FALSE
+    # a filtered se can be made using:
+    #       se.filtered = se[apply_filters(se, filters),]
+   
+    assert_that(is(filters, "list"), msg = "filters must be a list")
+    for(i in seq_len(length(filters))) {
+        assert_that("filterVars" %in% names(filters[[i]]),
+            msg = paste("filterVars is missing from filters @ index #", i))
+        assert_that("filterClass" %in% names(filters[[i]]),
+            msg = paste("filterClass is missing from filters @ index #", i))
+        assert_that("filterType" %in% names(filters[[i]]),
+            msg = paste("filterType is missing from filters @ index #", i))
+    }
+    assert_that(is(se, "SummarizedExperiment"), 
+        msg = "se must be a SummarizedExperiment object")
+    
+    # Simple test to make sure se is a SummarizedExperiment made by NxtIRF::MakeSE()
+    assert_that(all(c("Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc") %in%
+            names(S4Vectors::metadata(se))),
+        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
+    assert_that(all(c("Included", "Excluded", "Depth", "Coverage", "minDepth") %in%
+            names(SummarizedExperiment::assays(se))),
+        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
+   
+    filterSummary = rep(TRUE, nrow(se))
+    for(i in seq_len(length(filters))) {
+        filterSummary = filterSummary & runFilter(
+            filters[[i]]$filterClass,
+            filters[[i]]$filterType,
+            filters[[i]]$filterVars,
+            se
+        )
+    }
+    
+    return(filterSummary)
 }
 
 make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5, na.percent.max = 0.1) {

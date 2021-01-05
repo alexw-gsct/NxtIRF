@@ -59,7 +59,7 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
   // end = 0 implies fetch whole chromosome
   int eff_end = 0;
   if(end == 0) {
-    eff_end = inCov.chr_lens.at(ref_index);
+    eff_end = (int)inCov.chr_lens.at(ref_index);
   } else {
     eff_end = end;
   }
