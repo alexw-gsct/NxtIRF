@@ -449,6 +449,7 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
                           msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
   assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
                           msg = "Null or negative regions not allowed")
+  message(paste("Fetching file=",file,"coords", seqname, start, end, strand))                       
   if(seqname == "") {
     raw_list = IRF_RLEList_From_Cov(normalizePath(file), strand)
     final_list = list()

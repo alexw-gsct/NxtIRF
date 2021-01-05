@@ -710,7 +710,8 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 	splice.anno.brief = Splice.Anno[, c("EventName", "EventType", "EventRegion")]
 	
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
-  item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI")
+  item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", 
+    "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI", "junc_count")
 
   se_output_path = norm_output_path
   # if(!dir.exists(se_output_path)) {
@@ -830,6 +831,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
             junc_PSI = as.data.table(read.fst(
                 file.path(se_output_path, "junc_PSI_index.fst")
             ))
+            junc_count = copy(junc_PSI)
             
 			for(i in seq_len(length(work))) {
 				junc = as.data.table(
@@ -1067,7 +1069,9 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
                 
 				junc_PSI[junc, on = c("seqnames", "start", "end", "strand"),
                     c(block$sample[i]) := i.PSI]
-
+				junc_count[junc, on = c("seqnames", "start", "end", "strand"),
+                    c(block$sample[i]) := i.count]
+    
                     
 			} # end FOR loop
 			if(low_memory_mode == TRUE) {
@@ -1113,6 +1117,11 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
 					paste("junc_PSI", as.character(x), "txt.gz", sep=".")), 
 					col.names = FALSE, row.names = FALSE)
+				value = t(as.matrix(junc_count[, -c(1:4)]))
+				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
+					paste("junc_count", as.character(x), "txt.gz", sep=".")), 
+					col.names = FALSE, row.names = FALSE)
+
 
 				return(NULL)
 			} else {
@@ -1126,7 +1135,8 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 						Down_Inc = Down_Inc[, -c(1:3)],
 						Up_Exc = Up_Exc[, -c(1:3)],
 						Down_Exc = Down_Exc[, -c(1:3)],
-                        junc_PSI = junc_PSI[, -c(1:4)]
+                        junc_PSI = junc_PSI[, -c(1:4)],
+                        junc_count = junc_count[, -c(1:4)]
 					)				
 				# }
 			}
