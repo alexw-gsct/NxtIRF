@@ -32,7 +32,7 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
     _["lengths"] = 0 
   );
   
-  if(start > end){
+  if(start > end || start < 0){
     return(NULL_RLE);
   }
 

@@ -11,7 +11,7 @@
 #' @importFrom stats as.formula model.matrix qt runif na.omit
 #' @importFrom utils download.file packageVersion setTxtProgressBar txtProgressBar
 #' @importFrom Rcpp evalCpp
-#' @importFrom dplyr %>%
+#' @importFrom dplyr %>% left_join
 #' @importFrom AnnotationHub AnnotationHub cache
 #' @importFrom assertthat assert_that
 #' @importFrom BiocGenerics start end width strand

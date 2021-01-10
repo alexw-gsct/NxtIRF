@@ -7,8 +7,10 @@
 #'
 #' @param sample_path: The path in which to recursively search for files
 #'   that match the given `suffix`
-#' @param suffix: A string that specifies the file suffix (e.g. '.bam'
-#'   denotes BAM files).
+#' @param suffix: A vector of strings that specifies the file suffix 
+#'   (e.g. '.bam' denotes BAM files).
+#' @param suffix_type: A vector of string that determines the column
+#'   names of the files retrieved by `suffix`
 #' @param use_subdir: Whether to assume the directory name containing
 #'   the found files denote the sample name. If `FALSE`, the base name
 #'   of the file is assumed to be the sample name. See below example.
@@ -33,23 +35,40 @@
 #' ## "/path/to/project/samples/Banana/Aligned.BAM")
 #' @md
 #' @export
-FindSamples <- function(sample_path, suffix = ".txt.gz", use_subdir = FALSE) {
+FindSamples <- function(sample_path, suffix = ".txt.gz", 
+            suffix_type = "path", use_subdir = FALSE) {
+    
     assert_that(dir.exists(sample_path),
         msg = "Given path does not exist")
-    
-    files_found = list.files(pattern = paste0("\\", suffix, "$"),
-        path = normalizePath(sample_path), full.names = TRUE, recursive = TRUE)
-    if(length(files_found) > 0) {
-      df = data.frame(sample = "", path = files_found)
-      if(use_subdir) {
-          df$sample = basename(dirname(df$path))
-      } else {
-          df$sample = sub(suffix,"",basename(df$path))
-      }
-      return(df)
-    } else {
-      return(NULL)
+    assert_that(length(suffix) > 0 && length(suffix) == length(suffix_type),
+        msg = "suffix must be of length greater than zero and same length as suffix_type")
+
+    df.list = list()
+    for(i in seq_len(length(suffix))) {
+        files_found = list.files(pattern = paste0("\\", suffix[i], "$"),
+        path = normalizePath(sample_path), full.names = TRUE, recursive = TRUE)    
+        if(length(files_found) > 0) {
+            df = data.frame(sample = "", path = files_found)
+            if(use_subdir) {
+                df$sample = basename(dirname(df$path))
+            } else {
+                df$sample = sub(suffix[i],"",basename(df$path))
+            }
+            colnames(df)[2] = suffix_type[i]
+            df.list[[i]] = df
+        } else {
+            df.list[[i]] = NULL
+        }
     }
+    final = df.list[[1]]
+    if(length(suffix) > 1) {
+        for(i in seq(2, length(suffix))) {
+            if(!is.null(df.list[[i]])) {
+                final = suppressMessages(left_join(final, df.list[[i]]))
+            }
+        }
+    }
+    return(final)
 }
 
 #' Processes data from IRFinder output
@@ -1182,6 +1201,29 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 		}
 	}
   
+  # Rewrite junc_PSI and junc_count by adding in NxtIRF rownames
+    junc_index = fst::read.fst(file.path(
+        se_output_path, "junc_PSI_index.fst"
+    ))
+    junc_PSI = fst::read.fst(file.path(
+        se_output_path, "junc_PSI.fst"
+    ))  
+    junc_count = fst::read.fst(file.path(
+        se_output_path, "junc_count.fst"
+    ))
+    rownames(junc_PSI) = with(junc_index, 
+        paste0(seqnames, ":", start, "-", end, "/", strand))
+    rownames(junc_count) = rownames(junc_PSI)
+    fst::write.fst(junc_PSI,file.path(
+        se_output_path, "junc_PSI.fst"
+    ))
+    fst::write.fst(junc_count,file.path(
+        se_output_path, "junc_count.fst"
+    ))
+    file.remove(file.path(
+        se_output_path, "junc_PSI_index.fst"
+    ))   
+    
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
 	write.fst(as.data.frame(df.internal), outfile)
 	
@@ -1216,6 +1258,8 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 
 #' @export
 MakeSE = function(fst_path, colData) {
+    # Includes iterative filtering for IR events with highest mean PSI
+        # To annotate IR events of major isoforms
 
   item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
     "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
@@ -1223,17 +1267,22 @@ MakeSE = function(fst_path, colData) {
   assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
-  if(missing(colData)) {
-      assert_that(file.exists(file.path(fst_path, "colData.Rds")),
-        msg = "colData.Rds does not exist in given path")
-      colData.Rds = readRDS(file.path(fst_path, "colData.Rds"))
-      assert_that("df.anno" %in% names(colData.Rds),
-        msg = "colData.Rds must contain df.anno containing annotations")
-    
+  assert_that(file.exists(file.path(fst_path, "colData.Rds")),
+    msg = "colData.Rds does not exist in given path")
+  colData.Rds = readRDS(file.path(fst_path, "colData.Rds"))
+  assert_that("df.anno" %in% names(colData.Rds),
+    msg = "colData.Rds must contain df.anno containing annotations")
+
+  if(missing(colData)) {    
       colData = colData.Rds$df.anno
+  } else {
+      assert_that("sample" %in% colnames(colData),
+        msg = "'sample' must be a column name in colData containing sample names")
+      assert_that(all(colData$sample %in% colData.Rds$df.anno$sample),
+        msg = "some samples in colData were not found")
   }
   colData = as.data.frame(colData)
-  colnames(colData)[1] = "sample"
+  # colnames(colData)[1] = "sample"
   remove_na = NULL
   if(ncol(colData) > 1) {
     for(i in seq(2, ncol(colData))) {
@@ -1290,6 +1339,68 @@ MakeSE = function(fst_path, colData) {
         names(S4Vectors::metadata(se)$cov_file) = colData.Rds$df.files$sample       
     }
 
+# Iterative filtering of IR
+    message("Iterating through IR events to determine introns of main isoforms")
+    
+    # junc_index = fst::read.fst(file.path(
+        # normalizePath(fst_path), "junc_PSI_index.fst"
+    # ))
+    junc_PSI = fst::read.fst(file.path(
+        normalizePath(fst_path), "junc_PSI.fst"
+    ))
+    # rownames(junc_PSI) = 
+        # with(junc_index, paste0(seqnames, ":", start, "-", end, "/", strand))
+        
+    se.IR = se[SummarizedExperiment::rowData(se)$EventType == "IR",]
+    se.IR = se.IR[SummarizedExperiment::rowData(se.IR)$EventRegion %in% rownames(junc_PSI),]
+
+    junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR)$EventRegion,]
+    se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
+    se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
+
+    OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
+    junc_PSI.group = as.data.table(junc_PSI)
+    junc_PSI.group$group = OL@to
+    junc_PSI.group$means = rowMeans(junc_PSI)
+    junc_PSI.group[, max_means := max(means), by = "group"]
+
+    se.IR.final = se.IR[junc_PSI.group$means == junc_PSI.group$max_means,]
+    se.IR.excluded = se.IR[junc_PSI.group$means != junc_PSI.group$max_means,]
+
+    # Iteration to find events not overlapping with se.IR.final
+    final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
+    excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
+
+    OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
+    include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(OL@from)))
+
+    iteration = 0
+    while(length(include) > 0) {
+        iteration = iteration + 1
+        message(paste("Iteration", iteration))
+        se.IR.excluded = se.IR.excluded[include,]
+        junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,]
+        se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
+        se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
+
+        OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
+        junc_PSI.group = as.data.table(junc_PSI)
+        junc_PSI.group$group = OL@to
+        junc_PSI.group$means = rowMeans(junc_PSI)
+        junc_PSI.group[, max_means := max(means), by = "group"]
+        
+        se.IR.final = rbind(se.IR.final, se.IR.excluded[junc_PSI.group$means == junc_PSI.group$max_means,])
+        se.IR.excluded = se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,]
+
+        final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
+        excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
+
+        OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
+        include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(OL@from)))
+    }
+    
+  se = rbind(se.IR[rownames(se.IR) %in% rownames(se.IR.final),],
+    se[SummarizedExperiment::rowData(se)$EventType != "IR",])
   return(se)
 }
 
@@ -1398,10 +1509,18 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
         cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
         cond_vars = unique(cond_vec)
       }
-      Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)
-      Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)
-			IntronDepth = as.matrix(SummarizedExperiment::assay(filterObject, "Included"))
-			IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE"),]
+      Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)[
+        SummarizedExperiment::rowData(filterObject)$EventName[
+            SummarizedExperiment::rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
+        ],
+      ]
+      Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)[
+        SummarizedExperiment::rowData(filterObject)$EventName[
+            SummarizedExperiment::rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
+        ],
+      ]
+        IntronDepth = as.matrix(SummarizedExperiment::assay(filterObject, "Included"))
+        IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE"),]
       minDepth.Inc = Up_Inc + Down_Inc
       Up_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
       Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold

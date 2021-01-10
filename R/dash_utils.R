@@ -374,7 +374,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         view_chr, view_start, view_end, view_strand))
                     # bin anything with cur_zoom > 5
                     df = bin_df(df, max(1, 3^(cur_zoom - 5)))
-
+                    message(paste("Group GetCoverage performed for", condition))
                     for(todo in seq_len(length(samples))) {
                         df[, samples[todo]] = 
                             df[, samples[todo]] / event_norms[todo]
@@ -507,6 +507,8 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     if(t_test == TRUE && !is.null(fac) && length(unique(fac)) == 2) {
         fac = factor(fac)
         t_test = genefilter::rowttests(data.t_test[, -1], fac)
+         message(paste("rowttests performed for", condition))
+
         DT = data.table(x = data.t_test[, 1])
         DT[, c("t_stat") := -log10(t_test$p.value)]
         gp_track[[5]] = ggplot() + 
@@ -585,6 +587,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
     # ggplot equivalent: list of ggplots. Allows advanced end-users to apply final edits to ggplots
     
+    message("Cov Plot finished")
     return(list(ggplot = gp_track, final_plot = final_plot))
 
 }
@@ -638,7 +641,7 @@ Plot_Coverage <- function(se, Event, cov_data,
     }
     # Prepare zoom window
     if((!missing(seqnames) & !missing(start) & !missing(end))) {
-        view_chr = seqnames
+        view_chr = as.character(seqnames)
         view_start = start
         view_end = end
     } else if(!missing(Gene)) {
@@ -655,7 +658,7 @@ Plot_Coverage <- function(se, Event, cov_data,
                 msg = paste(Gene, "is an ambiguous name referring to 2 or more genes.",
                     "Please provide its gene_id instead"))
         }
-        view_chr = gene.df$seqnames
+        view_chr = as.character(gene.df$seqnames)
         view_start = gene.df$start
         view_end = gene.df$end        
     } else {
@@ -960,16 +963,16 @@ make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_thr
 
 	# use logit method to calculate geometric mean
 
-	mat.nom = logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
-	mat.denom = logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
+	mat.nom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == nom_DE])
+	mat.denom = boot::logit(mat[, SummarizedExperiment::colData(se)[,condition] == denom_DE])
 	
 	mat.nom[mat.nom > logit_max] = logit_max
 	mat.denom[mat.denom > logit_max] = logit_max
 	mat.nom[mat.nom < -logit_max] = -logit_max
 	mat.denom[mat.denom < -logit_max] = -logit_max
 			
-	df = data.frame(EventName = event_list, nom = inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
-		denom = inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
+	df = data.frame(EventName = event_list, nom = boot::inv.logit(rowMeans(mat.nom, na.rm = TRUE)),
+		denom = boot::inv.logit(rowMeans(mat.denom, na.rm = TRUE)))
 	
 	return(df)
 }

@@ -4,14 +4,22 @@
 \alias{FindSamples}
 \title{Searches a specified path for files of a particular file pattern}
 \usage{
-FindSamples(sample_path, suffix = ".txt.gz", use_subdir = FALSE)
+FindSamples(
+  sample_path,
+  suffix = ".txt.gz",
+  suffix_type = "path",
+  use_subdir = FALSE
+)
 }
 \arguments{
 \item{sample_path:}{The path in which to recursively search for files
 that match the given \code{suffix}}
 
-\item{suffix:}{A string that specifies the file suffix (e.g. '.bam'
-denotes BAM files).}
+\item{suffix:}{A vector of strings that specifies the file suffix
+(e.g. '.bam' denotes BAM files).}
+
+\item{suffix_type:}{A vector of string that determines the column
+names of the files retrieved by \code{suffix}}
 
 \item{use_subdir:}{Whether to assume the directory name containing
 the found files denote the sample name. If \code{FALSE}, the base name
