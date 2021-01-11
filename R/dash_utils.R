@@ -1061,9 +1061,17 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
 
     df = NxtIRF.SpliceCurve(data$start, data$end, 0,0,data[,sample_name], rownames(data))
     y_range = max(df$y)
+    
+    data_mod = data
+    data_mod$x = ifelse(data_mod$start < start, start,
+        ifelse(data_mod$end > end, end), (data_mod$start + data_mod$end) / 2)
+    data_mod$start = ifelse(data_mod$start < start, start, data_mod$start)
+    data_mod$end = ifelse(data_mod$end < end, end, data_mod$end)
+    
     pl = ggplot() + 
         geom_line(data = df, mapping = aes(x = x, y = y, color = info, group = info)) +
-        geom_text(data = df, mapping = aes(x = x, y = y, label = info), 
+        geom_text(data = data_mod, mapping = 
+            aes_string(x = "x", y = sample_name, label = "info"), 
             nudge_y = 0.1 * y_range) +
         theme_white
     return(pl)
