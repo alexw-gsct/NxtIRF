@@ -1073,8 +1073,8 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
     pl = ggplot() + 
         geom_line(data = df, mapping = aes(x = x, y = y, color = info, group = info)) +
         geom_text(data = data_mod, mapping = 
-            aes(x = x, y = sample, label = info), 
-            nudge_y = 0.1 * y_range) +
+            aes(x = x, y = sample, label = as.character(y)), 
+            nudge_y = 0.05 * y_range) +
         theme_white
     return(pl)
 }
