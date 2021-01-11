@@ -1057,7 +1057,8 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
     data = data[sort(unique(OL@from)),sample_name, drop = FALSE]
     index = as.data.frame(index.gr[sort(unique(OL@from))])
     data = cbind(data, index)
-    data = data[data[,sample_name] > 0,]
+    colnames(data)[1] = "sample"
+    data = data[data$sample > 0,]
 
     df = NxtIRF.SpliceCurve(data$start, data$end, 0,0,data[,sample_name], rownames(data))
     y_range = max(df$y)
@@ -1071,7 +1072,7 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
     pl = ggplot() + 
         geom_line(data = df, mapping = aes(x = x, y = y, color = info, group = info)) +
         geom_text(data = data_mod, mapping = 
-            aes_string(x = "x", y = sample_name, label = "info"), 
+            aes(x = x, y = sample, label = info), 
             nudge_y = 0.1 * y_range) +
         theme_white
     return(pl)
