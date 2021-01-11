@@ -1064,7 +1064,7 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
     
     data_mod = data
     data_mod$x = ifelse(data_mod$start < start, start,
-        ifelse(data_mod$end > end, end), (data_mod$start + data_mod$end) / 2)
+        ifelse(data_mod$end > end, end, (data_mod$start + data_mod$end) / 2))
     data_mod$start = ifelse(data_mod$start < start, start, data_mod$start)
     data_mod$end = ifelse(data_mod$end < end, end, data_mod$end)
     
