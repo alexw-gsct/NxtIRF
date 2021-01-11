@@ -1201,7 +1201,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 		}
 	}
   
-  # Rewrite junc_PSI and junc_count by adding in NxtIRF rownames
+  # Rewrite junc_PSI and junc_count by adding in NxtIRF rownames (as first column)
     junc_index = fst::read.fst(file.path(
         se_output_path, "junc_PSI_index.fst"
     ))
@@ -1211,18 +1211,17 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
     junc_count = fst::read.fst(file.path(
         se_output_path, "junc_count.fst"
     ))
-    rownames(junc_PSI) = with(junc_index, 
+    junc_PSI$rownames = with(junc_index, 
         paste0(seqnames, ":", start, "-", end, "/", strand))
-    rownames(junc_count) = rownames(junc_PSI)
-    fst::write.fst(junc_PSI,file.path(
+    junc_count$rownames = rownames(junc_PSI)
+    fst::write.fst(cbind(junc_PSI[,ncol(junc_PSI),drop=FALSE],
+        junc_PSI[,-ncol(junc_PSI)]),file.path(
         se_output_path, "junc_PSI.fst"
     ))
-    fst::write.fst(junc_count,file.path(
+    fst::write.fst(cbind(junc_count[,ncol(junc_count),drop=FALSE],
+        junc_count[,-ncol(junc_count)]),file.path(
         se_output_path, "junc_count.fst"
     ))
-    file.remove(file.path(
-        se_output_path, "junc_PSI_index.fst"
-    ))   
     
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))
 	write.fst(as.data.frame(df.internal), outfile)
@@ -1348,6 +1347,8 @@ MakeSE = function(fst_path, colData) {
     junc_PSI = fst::read.fst(file.path(
         normalizePath(fst_path), "junc_PSI.fst"
     ))
+    rownames(junc_PSI) = junc_PSI$rownames
+    junc_PSI = junc_PSI[,-1,drop=FALSE]
     # rownames(junc_PSI) = 
         # with(junc_index, paste0(seqnames, ":", start, "-", end, "/", strand))
         
