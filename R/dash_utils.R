@@ -1060,7 +1060,7 @@ Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) 
     colnames(data)[1] = "sample"
     data = data[data$sample > 0,]
 
-    df = NxtIRF.SpliceCurve(data$start, data$end, 0,0,data[,sample_name], rownames(data))
+    df = NxtIRF.SpliceCurve(data$start, data$end, 0,0,data$sample, rownames(data))
     y_range = max(df$y)
     
     data_mod = data
