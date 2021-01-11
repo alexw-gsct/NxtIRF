@@ -730,7 +730,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 	
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
   item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", 
-    "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI", "junc_count")
+    "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI", "junc_counts")
 
   se_output_path = norm_output_path
   # if(!dir.exists(se_output_path)) {
@@ -850,7 +850,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
             junc_PSI = as.data.table(read.fst(
                 file.path(se_output_path, "junc_PSI_index.fst")
             ))
-            junc_count = copy(junc_PSI)
+            junc_counts = copy(junc_PSI)
             
 			for(i in seq_len(length(work))) {
 				junc = as.data.table(
@@ -1088,7 +1088,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
                 
 				junc_PSI[junc, on = c("seqnames", "start", "end", "strand"),
                     c(block$sample[i]) := i.PSI]
-				junc_count[junc, on = c("seqnames", "start", "end", "strand"),
+				junc_counts[junc, on = c("seqnames", "start", "end", "strand"),
                     c(block$sample[i]) := i.count]
     
                     
@@ -1136,9 +1136,9 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
 					paste("junc_PSI", as.character(x), "txt.gz", sep=".")), 
 					col.names = FALSE, row.names = FALSE)
-				value = t(as.matrix(junc_count[, -c(1:4)]))
+				value = t(as.matrix(junc_counts[, -c(1:4)]))
 				fwrite(as.data.frame(value), file.path(norm_output_path, "temp", 
-					paste("junc_count", as.character(x), "txt.gz", sep=".")), 
+					paste("junc_counts", as.character(x), "txt.gz", sep=".")), 
 					col.names = FALSE, row.names = FALSE)
 
 
@@ -1155,7 +1155,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 						Up_Exc = Up_Exc[, -c(1:3)],
 						Down_Exc = Down_Exc[, -c(1:3)],
                         junc_PSI = junc_PSI[, -c(1:4)],
-                        junc_count = junc_count[, -c(1:4)]
+                        junc_counts = junc_counts[, -c(1:4)]
 					)				
 				# }
 			}
@@ -1208,19 +1208,19 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
     junc_PSI = fst::read.fst(file.path(
         se_output_path, "junc_PSI.fst"
     ))  
-    junc_count = fst::read.fst(file.path(
-        se_output_path, "junc_count.fst"
+    junc_counts = fst::read.fst(file.path(
+        se_output_path, "junc_counts.fst"
     ))
     junc_PSI$rownames = with(junc_index, 
         paste0(seqnames, ":", start, "-", end, "/", strand))
-    junc_count$rownames = rownames(junc_PSI)
+    junc_counts$rownames = junc_PSI$rownames
     fst::write.fst(cbind(junc_PSI[,ncol(junc_PSI),drop=FALSE],
         junc_PSI[,-ncol(junc_PSI)]),file.path(
         se_output_path, "junc_PSI.fst"
     ))
-    fst::write.fst(cbind(junc_count[,ncol(junc_count),drop=FALSE],
-        junc_count[,-ncol(junc_count)]),file.path(
-        se_output_path, "junc_count.fst"
+    fst::write.fst(cbind(junc_counts[,ncol(junc_counts),drop=FALSE],
+        junc_counts[,-ncol(junc_counts)]),file.path(
+        se_output_path, "junc_counts.fst"
     ))
     
 	outfile = file.path(se_output_path, paste("stats", "fst", sep="."))

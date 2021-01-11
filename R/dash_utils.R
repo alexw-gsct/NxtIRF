@@ -931,6 +931,7 @@ apply_filters <- function(se, filters) {
     return(filterSummary)
 }
 
+#' @export
 make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5, na.percent.max = 0.1) {
 
 	inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
@@ -954,6 +955,7 @@ make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 1
 	
 }
 
+#' @export
 make_diagonal <- function(se, event_list, condition, nom_DE, denom_DE, depth_threshold = 10, logit_max = 5) {
 
 	inc = SummarizedExperiment::assay(se, "Included")[event_list, ]
@@ -1011,3 +1013,58 @@ update_data_frame <- function(existing_df, new_df) {
   return(as.data.frame(newDT))
 }
 
+NxtIRF.SpliceCurve = function(xstart,xend,ystart,yend,y_height,info) {
+    source.df = data.frame(
+        xstart = xstart, xend = xend,
+        ystart = ystart, yend = yend,
+        y_height = y_height, info = info,
+        stringsAsFactors = FALSE
+    )
+    final = c()
+    for(i in seq_len(nrow(source.df))) {
+        temp = with(source.df, 
+            data.frame(info = info[i],
+                x = seq(xstart[i],xend[i], length.out = 20),
+                stringsAsFactors = FALSE)
+            )
+        temp$y = with(source.df, seq(ystart[i],yend[i], length.out = 20))
+        temp$y = with(source.df, temp$y + 
+            y_height[i] * sinpi((temp$x - xstart[i]) / (xend[i] - xstart[i]))
+            )
+        final = rbind(final, temp)
+    }
+	return(final)
+}
+
+#' @export
+Plot_Junctions <- function(fst_path, seqnames, start, end, strand, sample_name) {
+    assert_that(file.exists(file.path(fst_path, "junc_counts.fst")),
+        msg = paste("The file", file.path(fst_path, "junc_counts.fst"), "was not found"))
+
+    data = fst::read.fst(file.path(fst_path, "junc_counts.fst"))
+    assert_that(sample_name %in% colnames(data),
+        msg = paste(sample_name, "was not a sample in the given data set"))
+    
+    rownames(data) = data$rownames
+    data$rownames = NULL
+    
+    index.gr = NxtIRF.CoordToGR(rownames(data))
+    region.gr = GenomicRanges::GRanges(seqnames = seqnames, 
+        ranges = IRanges::IRanges(start = start, end = end),
+        strand = strand)
+        
+    OL = GenomicRanges::findOverlaps(index.gr, region.gr)
+    data = data[sort(unique(OL@from)),sample_name, drop = FALSE]
+    index = as.data.frame(index.gr[sort(unique(OL@from))])
+    data = cbind(data, index)
+    data = data[data[,sample_name] > 0,]
+
+    df = NxtIRF.SpliceCurve(data$start, data$end, 0,0,data[,sample_name], rownames(data))
+    y_range = max(df$y)
+    pl = ggplot() + 
+        geom_line(data = df, mapping = aes(x = x, y = y, color = info, group = info)) +
+        geom_text(data = df, mapping = aes(x = x, y = y, label = info), 
+            nudge_y = 0.1 * y_range) +
+        theme_white
+    return(pl)
+}
