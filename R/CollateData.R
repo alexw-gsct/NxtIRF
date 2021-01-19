@@ -1338,6 +1338,8 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
         names(S4Vectors::metadata(se)$cov_file) = colData.Rds$df.files$sample       
     }
 
+    if(RemoveOverlapping == TRUE) {
+
 # Iterative filtering of IR
     message("Iterating through IR events to determine introns of main isoforms")
     
@@ -1368,7 +1370,6 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
     se.IR.final = se.IR[junc_PSI.group$means == junc_PSI.group$max_means,]
     se.IR.excluded = se.IR[junc_PSI.group$means != junc_PSI.group$max_means,]
 
-    if(RemoveOverlapping == TRUE) {
         # Iteration to find events not overlapping with se.IR.final
         final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
         excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
