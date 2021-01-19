@@ -1256,7 +1256,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 }
 
 #' @export
-MakeSE = function(fst_path, colData) {
+MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
     # Includes iterative filtering for IR events with highest mean PSI
         # To annotate IR events of major isoforms
 
@@ -1368,40 +1368,42 @@ MakeSE = function(fst_path, colData) {
     se.IR.final = se.IR[junc_PSI.group$means == junc_PSI.group$max_means,]
     se.IR.excluded = se.IR[junc_PSI.group$means != junc_PSI.group$max_means,]
 
-    # Iteration to find events not overlapping with se.IR.final
-    final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
-    excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
-
-    OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
-    include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(OL@from)))
-
-    iteration = 0
-    while(length(include) > 0) {
-        iteration = iteration + 1
-        message(paste("Iteration", iteration))
-        se.IR.excluded = se.IR.excluded[include,]
-        junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,]
-        se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
-        se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
-
-        OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
-        junc_PSI.group = as.data.table(junc_PSI)
-        junc_PSI.group$group = OL@to
-        junc_PSI.group$means = rowMeans(junc_PSI)
-        junc_PSI.group[, max_means := max(means), by = "group"]
-        
-        se.IR.final = rbind(se.IR.final, se.IR.excluded[junc_PSI.group$means == junc_PSI.group$max_means,])
-        se.IR.excluded = se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,]
-
+    if(RemoveOverlapping == TRUE) {
+        # Iteration to find events not overlapping with se.IR.final
         final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
         excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
 
         OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
         include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(OL@from)))
+
+        iteration = 0
+        while(length(include) > 0) {
+            iteration = iteration + 1
+            message(paste("Iteration", iteration))
+            se.IR.excluded = se.IR.excluded[include,]
+            junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,]
+            se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
+            se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
+
+            OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
+            junc_PSI.group = as.data.table(junc_PSI)
+            junc_PSI.group$group = OL@to
+            junc_PSI.group$means = rowMeans(junc_PSI)
+            junc_PSI.group[, max_means := max(means), by = "group"]
+            
+            se.IR.final = rbind(se.IR.final, se.IR.excluded[junc_PSI.group$means == junc_PSI.group$max_means,])
+            se.IR.excluded = se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,]
+
+            final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
+            excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
+
+            OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
+            include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(OL@from)))
+        }
+        
+      se = rbind(se.IR[rownames(se.IR) %in% rownames(se.IR.final),],
+        se[SummarizedExperiment::rowData(se)$EventType != "IR",])
     }
-    
-  se = rbind(se.IR[rownames(se.IR) %in% rownames(se.IR.final),],
-    se[SummarizedExperiment::rowData(se)$EventType != "IR",])
   return(se)
 }
 
