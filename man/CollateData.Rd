@@ -8,7 +8,6 @@ CollateData(
   Experiment,
   reference_path,
   output_path,
-  coverage_files = "",
   IRMode = c("SpliceOverMax", "SpliceMax"),
   localHub = FALSE,
   ah = AnnotationHub(localHub = localHub),
@@ -48,7 +47,10 @@ in offline mode}
 records to be used.}
 
 \item{low_memory_mode:}{Use this mode in memory-limited systems with many samples (> 16).
-CollateData will write to file for every N samples as defined by `samples_per_block = N`.}
+CollateData will write to file for every N samples as defined by `samples_per_block = N`.
+Memory usage is often a problem for large datasets or using multiple cores. If you
+experience crashes due to running out of memory, set this to true and make sure
+`n_threads = 1`}
 
 \item{samples_per_block:}{How many samples to process per thread. Use in conjunction
 with low_memory_mode to lower memory requirements}

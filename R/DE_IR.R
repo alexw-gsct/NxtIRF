@@ -163,6 +163,13 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
  
     res.ASE = rowData.DT[res.ASE, on = "EventName"]
 
+    # Add average PIR / PSI values
+    
+    diag = make_diagonal(se, res.ASE$EventName, test_factor, test_nom, test_denom)
+    colnames(diag)[2:3] = c(paste0("PSI_", test_nom), paste0("PSI_", denom))
+    
+    res.ASE = cbind(res.ASE, as.data.table(diag[,2:3]))
+
     res.ASE
 }
 
@@ -330,6 +337,13 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     rowData.DT = as.data.table(rowData[,c("EventName","EventType","EventRegion", "NMD_direction")])
  
     res.ASE = rowData.DT[res.ASE, on = "EventName"]
+
+    # Add average PIR / PSI values
+    
+    diag = make_diagonal(se, res.ASE$EventName, test_factor, test_nom, test_denom)
+    colnames(diag)[2:3] = c(paste0("PSI_", test_nom), paste0("PSI_", denom))
+    
+    res.ASE = cbind(res.ASE, as.data.table(diag[,2:3]))
 
     res.ASE
 }

@@ -169,12 +169,15 @@ IRFinder <- function(
 #'   records to be used.
 #' @param low_memory_mode: Use this mode in memory-limited systems with many samples (> 16).
 #'   CollateData will write to file for every N samples as defined by `samples_per_block = N`.
+#'   Memory usage is often a problem for large datasets or using multiple cores. If you
+#'   experience crashes due to running out of memory, set this to true and make sure
+#'   `n_threads = 1`
 #' @param samples_per_block: How many samples to process per thread. Use in conjunction
 #'   with low_memory_mode to lower memory requirements
 #' @param n_threads: The number of threads to use.
 #'   records to be used.
 #' @export
-CollateData <- function(Experiment, reference_path, output_path, coverage_files = "",
+CollateData <- function(Experiment, reference_path, output_path,
         IRMode = c("SpliceOverMax", "SpliceMax"), 
         localHub = FALSE, ah = AnnotationHub(localHub = localHub), 
         low_memory_mode = FALSE, samples_per_block = 16, n_threads = 1) {
@@ -1333,6 +1336,36 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
   message("NxtIRF Collation Finished")
 }
 
+
+#' Constructs a SummarizedExperiment object from the collated data
+#'
+#' This function creates a SummarizedExperiment object from the data collated
+#' from IRFinder output using CollateData().
+#'
+#' @param fst_path The output path given to CollateData() pointing to the
+#'   collated data
+#' @param colData A data frame containing the sample annotation information. Note
+#'   that the first column must contain the sample names. If the names of only a subset
+#'   of samples are given, then `MakeSE()` will construct the SE object based only on
+#'   the samples given. Omit `colData` to generate an SE object based on the whole dataset.
+#'   The colData can be set later using `SummarizedExperiment::colData()`
+#' @param RemoveOverlapping (default = TRUE) Whether to filter out overlapping introns
+#'   of IR events belonging to minor isoforms. MakeSE will try to identify which junctions
+#'   belong to major isoforms, then select the junctions from non-overlapping minor isoforms
+#'   in an iterative approach, until no non-overlapping introns remain. This is important
+#'   to make sure IR events are not 'double-counted'
+#'
+#' @return A SummarizedExperiment object containing the following assays:
+#'   "Included", "Excluded" : contains the IntronDepth and SpliceJunction counts of IR events.
+#'   For alternative splicing events, they represent counts of Included and Excluded isoforms.
+#'   For mutually exclusive events, Included represents counts for selection of the upstream
+#'   cassette exon. For alternative 5' or 3' events and for alternate first / last exons, 
+#'   Included represents splicing of the shorter splice junction.
+#'   Other assays for advanced users include:
+#'   "Depth": Sum of included and excluded counts
+#'   "Coverage": Fraction of the intron covered by bases
+#'   "MinDepth": Intron depth for IR events, or the count of the minor isoform for AS events
+#'
 #' @export
 MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
     # Includes iterative filtering for IR events with highest mean PSI
@@ -1486,6 +1519,58 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
   return(se)
 }
 
+#' Filtering for IR and Alternative Splicing Events
+#'
+#' This function implements filtering of IR or AS events based on customisable criteria
+#' 
+#' @details
+#'   \strong{Annotation Filters}\cr\cr 
+#'     \strong{Protein_Coding}: Filters for alternative splicing or IR events within protein reading
+#'       frames. No additional parameters required.\cr \cr 
+#'     \strong{NMD_Switching}: Filters for events in which one isoform is a predicted NMD substrate.\cr \cr 
+#'     \strong{Transcript_Support_Level}: filters for events in which both isoforms have a TSL level
+#'       below or equal to filterVars$minimum\cr \cr 
+#'   \strong{Data Filters}\cr\cr 
+#'     \strong{Depth}: Filters IR or alternative splicing events of transcripts that are "expressed"
+#'       with adequate \code{Depth} as calculated by the sum of all splicing and IR reads spanning the event.
+#'       Events with \code{Depth} below filterVars$minimum are excluded\cr\cr 
+#'     \strong{Coverage}: Coverage means different things to IR and alternative splicing.\cr\cr 
+#'       For \emph{IR}, Coverage refers to the percentage of the measured intron covered with
+#'       reads. Introns of samples with an IntronDepth above \code{filterVars$minDepth} are
+#'       assessed, with introns with coverage below \code{filterVars$minimum} are excluded.\cr\cr 
+#'       For \emph{Alternative Splicing}, Coverage refers to the percentage of all splicing events
+#'       observed across the genomic region that is compatible with either the included
+#'       or excluded event. This prevents NxtIRF from doing differential analysis
+#'       between two minor isoforms. Instead of IntronDepth, in AS events NxtIRF considers
+#'       events where the spliced reads from both exonic regions exceed \code{filterVars$minDepth}.
+#'       Then, events with a splicing coverage below \code{filterVars$minimum} are excluded.
+#'       We recommend testing IR events for > 90% coverage and AS events for > 60% coverage
+#'       as given in the default filters which can be accessed using \code{get_default_filters()}\cr\cr  
+#'     \strong{Consistency}: Skipped exons (SE) and mutually exclusive exons (MXE) comprise reads of
+#'       two contiguous splice junctions (for the included casette exon). Summating counts 
+#'       from both junctions is misleading as there may be overlapping events (e.g. alternate
+#'       first / last exons) that only rely on one splice event. To ensure the SE / MXE is the
+#'       dominant event, we require both splice junctions to have comparable counts.\cr\cr
+#'       Events are excluded if either of the upstream or downstream
+#'       event is lower than total splicing events by a log-2 magnitude above filterVars$maximum.
+#'       For example, if \code{filterVars$maximum = 2}, we require both upstream and downstream events
+#'       to represent at least 1/(2^2) = 1/4 of the sum of upstream and downstream event.
+#'       This is considered for each isoform of each event, as long as the total counts belonging
+#'       to the considered isoform is above \code{filterVars$minDepth}.
+#'
+#'  We highly recommend using the default filters, which can be acquired using \code{get_default_filters()}
+#' 
+#' @param filterClass: One of either \code{Annotation} or \code{Data}
+#' @param filterType: For filterClass \code{Annotation}, either one of 
+#'   \code{Protein_Coding}, \code{NMD_Switching}, \code{Transcript_Support_Level}.
+#'   For filterClass \code{Data}, either one of
+#'   \code{Depth}, \code{Coverage}, \code{Consistency}.
+#' @param filterVars: A list of parameters, as explained below
+#' @param filterObject: the SummarizedExperiment to filter
+#'
+#' @return A vector of type \code{logical} designating which events to retain \code{TRUE} and which
+#'   to remove \code{FALSE}.
+#'
 #' @export
 runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 # Internal function
@@ -1533,14 +1618,14 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       if(use_cond == TRUE) {
         for(cond in cond_vars) {
           depth.subset = depth[, which(cond_vec == cond)]
-          sum = rowSums(depth.subset > minimum)
+          sum = rowSums(depth.subset >= minimum)
           sum_res = sum_res + ifelse(sum * 100 / ncol(depth.subset) >= usePC, 1, 0)
         }
         n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
-        sum = rowSums(depth > minimum)
+        sum = rowSums(depth >= minimum)
         res = ifelse(sum * 100 / ncol(depth) >= usePC, TRUE, FALSE)
       }
       if("EventTypes" %in% names(filterVars)) {
@@ -1566,14 +1651,14 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
       if(use_cond == TRUE) {
         for(cond in cond_vars) {
           cov.subset = cov[, which(cond_vec == cond)]
-          sum = rowSums(cov.subset > minimum / 100)
+          sum = rowSums(cov.subset >= minimum / 100)
           sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= usePC, 1, 0)
         }
         n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
         if(n_TRUE == -1) n_TRUE = length(cond_vars)
         res = (sum_res >= n_TRUE)
       } else {
-        sum = rowSums(cov > minimum / 100)
+        sum = rowSums(cov >= minimum / 100)
         res = ifelse(sum * 100 / ncol(cov) >= usePC, TRUE, FALSE)
       }
       if("EventTypes" %in% names(filterVars)) {
