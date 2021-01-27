@@ -22,6 +22,31 @@ int Has_OpenMP() {
 }
 
 // [[Rcpp::export]]
+bool IRF_Check_Cov(std::string s_in) {
+	// Checks if given file is a valid COV file
+	
+  std::ifstream inCov_stream;
+  inCov_stream.open(s_in, std::ifstream::binary);	
+
+  covFile inCov;
+  inCov.SetInputHandle(&inCov_stream);
+
+  if(inCov.fail()){
+		inCov_stream.close();
+    return(false);
+  }
+
+  int ret = inCov.ReadHeader();
+  if(ret == -1){
+		inCov_stream.close();	
+    return(false);
+  }	
+	
+  inCov_stream.close();	
+	return(true);
+}
+
+// [[Rcpp::export]]
 List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end, int strand) {
 // Returns an RLE covering the region described above
 // s_in: The coverage file
@@ -42,9 +67,15 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
   covFile inCov;
   inCov.SetInputHandle(&inCov_stream);
 
+  if(inCov.fail()){
+		inCov_stream.close();
+    return(NULL_RLE);
+  }
+	
   int ret = inCov.ReadHeader();
   if(ret < 0){
 		Rcout << s_in << " appears to not be valid COV file... exiting\n";
+		inCov_stream.close();	
     return(NULL_RLE);
   }
   
@@ -52,6 +83,7 @@ List IRF_RLE_From_Cov(std::string s_in, std::string seqname, int start, int end,
   int ref_index;
   auto it_chr = std::find(inCov.chr_names.begin(), inCov.chr_names.end(), seqname);
   if(it_chr == inCov.chr_names.end()) {
+		inCov_stream.close();	
     return(NULL_RLE);
   } else {
     ref_index = distance(inCov.chr_names.begin(), it_chr);
@@ -105,10 +137,16 @@ List IRF_RLEList_From_Cov(std::string s_in, int strand) {
   
   covFile inCov;
   inCov.SetInputHandle(&inCov_stream);
+
+  if(inCov.fail()){
+		inCov_stream.close();
+    return(NULL_RLE);
+  }
   
   int ret = inCov.ReadHeader();
   if(ret == -1){
 		Rcout << s_in << " appears to not be valid COV file... exiting";
+		inCov_stream.close();	
     return(NULL_RLE);
   }
   

@@ -57,7 +57,6 @@ Collate: Imports.R
 	DE_IR.R
 	CollateData.R
 	filterModules_shiny.R
-	Interactive.R
 	dash_settings.R
 	dash_utils.R
 	dash_ui.R

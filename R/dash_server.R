@@ -1083,10 +1083,20 @@ dash_server = function(input, output, session) {
                             i_done, "of", length(selected_rows), "done")
                     )
                     for(i in selected_rows) {
-                        run_IRFinder(
-                            settings_expr$df.files$bam_file[i], 
-                            file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
-                            file.path(output_path, settings_expr$df.files$sample[i])
+                        # run_IRFinder(
+                            # settings_expr$df.files$bam_file[i], 
+                            # file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"), 
+                            # file.path(output_path, settings_expr$df.files$sample[i])
+                        # )
+                        IRFinder(
+                            bamfiles = settings_expr$df.files$bam_file[i],
+                            sample_names = settings_expr$df.files$sample[i],
+                            reference_path = settings_loadref$loadref_path,
+                            output_path = settings_expr$irf_path,
+                            n_threads = 1,
+                            run_featureCounts = FALSE,
+                            localHub = FALSE,
+                            ah = AnnotationHub(localHub = localHub)                            
                         )
                         i_done = i_done + 1
                         incProgress(1 / length(selected_rows), 
@@ -1123,17 +1133,27 @@ dash_server = function(input, output, session) {
                         selected_rows_subset = seq(row_starts[i], 
                             min(length(selected_rows), row_starts[i] + n_threads - 1)
                         )
-                        BiocParallel::bplapply(selected_rows_subset, 
-                            function(i, run_IRF, df, reference_file, output_path) {
-                                run_IRF(df$bam_file[i], reference_file, 
-                                    file.path(output_path, df$sample[i]))
-                            }, 
+                        # BiocParallel::bplapply(selected_rows_subset, 
+                            # function(i, run_IRF, df, reference_file, output_path) {
+                                # run_IRF(df$bam_file[i], reference_file, 
+                                    # file.path(output_path, df$sample[i]))
+                            # }, 
 
-                            df = settings_expr$df.files, 
-                            run_IRF = run_IRFinder, 
-                            reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
-                            output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod
-                        )
+                            # df = settings_expr$df.files, 
+                            # run_IRF = run_IRFinder, 
+                            # reference_file = file.path(settings_loadref$loadref_path, "IRFinder.ref.gz"),
+                            # output_path = settings_expr$irf_path, BPPARAM = BPPARAM_mod
+                        # )
+                        IRFinder(
+                            bamfiles = settings_expr$df.files$bam_file[selected_rows_subset],
+                            sample_names = settings_expr$df.files$sample[selected_rows_subset],
+                            reference_path = settings_loadref$loadref_path,
+                            output_path = settings_expr$irf_path,
+                            n_threads = n_threads,
+                            run_featureCounts = FALSE,
+                            localHub = FALSE,
+                            ah = AnnotationHub(localHub = localHub)                            
+                        )                        
                         i_done = i_done + n_threads
                         incProgress(n_threads / length(selected_rows), 
                             message = paste(i_done, "of", length(selected_rows), "done")
@@ -1408,7 +1428,7 @@ dash_server = function(input, output, session) {
     observeEvent(input$run_collate_expr, {
         req(settings_expr$df.files)
 
-        Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file")]))
+        Experiment = na.omit(as.data.table(settings_expr$df.files[, c("sample", "irf_file", "cov_file")]))
         reference_path = settings_loadref$loadref_path
         output_path = settings_expr$collate_path
         # BPPARAM = BPPARAM_mod

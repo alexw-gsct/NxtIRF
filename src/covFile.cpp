@@ -168,7 +168,7 @@ void covFile::SetInputHandle(std::istream *in_stream) {
         mode = "read";
 
     } else {
-        Rcout << "EOF bit not detected\n";
+        // Rcout << "EOF bit not detected\n";
         EOF_POS = 0;
 				IS_EOF = 1;
 				IS_FAIL = 1;				
@@ -182,8 +182,7 @@ int covFile::ReadBuffer() {
     if((size_t)IN->tellg() >= EOF_POS) {
         IS_EOF = 1;
         return(Z_STREAM_END);
-    } else if(IN->fail()) {
-        IS_FAIL = 1;
+    } else if(fail()) {
         return(Z_STREAM_ERROR);
     }
 
@@ -409,7 +408,16 @@ bool covFile::eof() {
 }
 
 bool covFile::fail() {
-    return(IN->fail());
+    if(IS_FAIL == 1) {
+        return (true);
+    } else {
+        if(IN->fail()) {
+            IS_FAIL = 1;
+            return (true);
+        } else {
+            return (false);
+        }
+    }
 }
 
 int covFile::ReadHeader() {

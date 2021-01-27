@@ -15,11 +15,11 @@ FindSamples(
 \item{sample_path:}{The path in which to recursively search for files
 that match the given \code{suffix}}
 
-\item{suffix:}{A vector of strings that specifies the file suffix
-(e.g. '.bam' denotes BAM files).}
+\item{suffix:}{A vector of or or more strings that specifies the file suffix
+(e.g. '.bam' denotes BAM files, whereas ".txt.gz" denotes gzipped txt files).}
 
 \item{suffix_type:}{A vector of string that determines the column
-names of the files retrieved by \code{suffix}}
+names of the files retrieved by \code{suffix}. Must be the same length as \code{suffix}}
 
 \item{use_subdir:}{Whether to assume the directory name containing
 the found files denote the sample name. If \code{FALSE}, the base name
@@ -31,25 +31,29 @@ the sample name, and the second column being the file path.
 }
 \description{
 This convenience function identifies files with the specified suffix.
-The sample name is assumed to be the base name of the file
-\code{use_subdir = FALSE}, but can also be changed to extract the names
-of the parent directory \code{use_subdir = TRUE}. See example below.
+The sample name is assumed to be the name of the file minus its suffix
+(\code{use_subdir = FALSE}), but can also be changed to be the names
+of the parent directory (\code{use_subdir = TRUE}). See example below.
 }
 \examples{
-## If your sample files are contained like this:
-## /path/to/project/samples/Apple.BAM and /path/to/project/samples/Banana.BAM
-## df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
+\dontrun{
+ # If your sample files are contained like this:
+ #   /path/to/project/samples/Apple.BAM and /path/to/project/samples/Banana.BAM
+ df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
   use_subdir = FALSE)
-## returns df with df$sample = c("Apple", "Banana"), 
-## df$path = c("/path/to/project/samples/Apple.BAM",
-## "/path/to/project/samples/Banana.BAM")
+ # returns df with 
+ #   df$sample = c("Apple", "Banana")
+ #   df$path = c("/path/to/project/samples/Apple.BAM",
+ #     "/path/to/project/samples/Banana.BAM")
 
-## Alternately, if your sample files are contained like this:
-## /path/to/project/samples/Apple/Aligned.BAM and
-## /path/to/project/samples/Banana/Aligned.BAM
-## df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-##  use_subdir = TRUE)
-## returns df with df$sample = c("Apple", "Banana"), 
-## df$path = c("/path/to/project/samples/Apple/Aligned.BAM",
-## "/path/to/project/samples/Banana/Aligned.BAM")
+ # Alternately, if your sample files are contained like this:
+ #   /path/to/project/samples/Apple/Aligned.BAM and
+ #   /path/to/project/samples/Banana/Aligned.BAM
+ df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
+  use_subdir = TRUE)
+ # returns df with 
+ #   df$sample = c("Apple", "Banana"), 
+ #   df$path = c("/path/to/project/samples/Apple/Aligned.BAM",
+ #     "/path/to/project/samples/Banana/Aligned.BAM")
+}
 }

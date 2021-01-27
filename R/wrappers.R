@@ -1,6 +1,5 @@
 # wrappers to R/C++
 
-#' @export
 run_IRFinder_multithreaded = function(
     reference_path = "./Reference", 
     bamfiles = "Unsorted.bam", 
@@ -41,6 +40,9 @@ run_IRFinder_multithreaded = function(
         msg = paste(file.path(s_ref, "IRFinder.ref.gz"), "not found"))
 
     ref_file = normalizePath(file.path(s_ref, "IRFinder.ref.gz"))
+    
+    assert_that(length(s_bam) == length(output_files),
+        msg = "Number of output files and bam files must be the same")
     
     if(Has_OpenMP() > 0 & Use_OpenMP) {
         n_threads = floor(max_threads)
@@ -175,7 +177,6 @@ run_IRFinder_multithreaded = function(
 
 }    
 
-#' @export
 run_IRFinder = function(
             bamfile = "Unsorted.bam", 
             ref_file = "./IRFinder.ref.gz", 
@@ -193,7 +194,8 @@ run_IRFinder = function(
     })
 
     assert_that(file.exists(paste0(output_file, ".txt.gz")),
-        msg = paste("IRFinder appears to have failed")
+        msg = paste("IRFinder appears to have failed.",
+            paste0(output_file, ".txt.gz"), "does not exist")
     )
     
     if(run_featureCounts == TRUE) {
@@ -285,7 +287,6 @@ run_IRFinder = function(
     
 }
 
-#' @export
 run_FeatureCounts = function(s_bam, sample_names, s_output, reference_path, strand, paired,
         localHub = FALSE,
         ah = AnnotationHub(localHub = localHub),       
@@ -472,4 +473,16 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
 		final_RLE = S4Vectors::Rle(raw_RLE$values, raw_RLE$length)													 
   }
   
+}
+
+#' @export
+IsCOV = function(coverage_files) {
+    for(i in coverage_files) {
+        if(file.exists(i) && IRF_Check_Cov(normalizePath(i))) {
+            # do nothing
+        } else {
+            return(FALSE)
+        }
+    }    
+    return(TRUE)
 }
