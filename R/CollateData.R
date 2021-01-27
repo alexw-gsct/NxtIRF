@@ -99,7 +99,7 @@ Find_Bams <- function(sample_path) {
 #'   and the third column being the COV file path.
 #' @export
 Find_IRFinder_Output <- function(sample_path) {
-    return(FindSamples(sample_path, c(".txt.gz", "cov"), c("irf_file", "cov_file")))
+    return(FindSamples(sample_path, c(".txt.gz", ".cov"), c("irf_file", "cov_file")))
 }
 
 #' @export
@@ -802,7 +802,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 	write.fst(as.data.frame(irf.common), file.path(norm_output_path, "annotation", "IR.fst"))
 	write.fst(as.data.frame(Splice.Anno), file.path(norm_output_path, "annotation", "Splice.fst"))
 
-	# make rowEvent here
+	# make rowEvent brief here
 	irf.anno.brief = irf.common[, c("Name", "EventRegion")]
 	setnames(irf.anno.brief, "Name", "EventName")
 	irf.anno.brief[, EventType := "IR"]
@@ -811,6 +811,9 @@ CollateData <- function(Experiment, reference_path, output_path,
 	splice.anno.brief = Splice.Anno[, c("EventName", "EventType", "EventRegion")]
 	
 	rowEvent = rbind(irf.anno.brief, splice.anno.brief)	
+    
+  write.fst(rowEvent, file.path(norm_output_path, "rowEvent.brief.fst"))
+    
   item.todo = c("Included", "Excluded", "Depth", "Coverage", "minDepth", 
     "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc", "junc_PSI", "junc_counts")
 
@@ -910,7 +913,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 	ExonToIntronReadsRight <- NULL      
 			
       # Read this from fst file
-      rowEvent = as.data.table(read.fst(file.path(norm_output_path, "rowEvent.fst")))
+      rowEvent = as.data.table(read.fst(file.path(norm_output_path, "rowEvent.brief.fst")))
       junc.common = as.data.table(read.fst(file.path(norm_output_path, "annotation", "Junc.fst")))
       irf.common = as.data.table(read.fst(file.path(norm_output_path, "annotation","IR.fst")))
       Splice.Anno = as.data.table(read.fst(file.path(norm_output_path, "annotation","Splice.fst")))
@@ -1782,3 +1785,52 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
   }
 }
 
+#' Convenience function to apply a list of filters to a SummarizedExperiment object
+#'
+#' See `?runFilter` for details regarding filters
+#' 
+#' @param se A SummarizedExperiment object created by `MakeSE()`
+#' @param filters A list of filters to apply. Each filter must contain the elements
+#'   `filterClass`, `filterType` and `filterVars`. See `?runFilter` for details
+#' @return A vector of logicals, with `TRUE` indicating events to be retained, and
+#'   `FALSE` for events to be filtered out
+#' @md
+#' @export
+apply_filters <- function(se, filters) {
+    # filters are a list of filters to apply on se
+    # returns a vector of TRUE / FALSE
+    # a filtered se can be made using:
+    #       se.filtered = se[apply_filters(se, filters),]
+   
+    assert_that(is(filters, "list"), msg = "filters must be a list")
+    for(i in seq_len(length(filters))) {
+        assert_that("filterVars" %in% names(filters[[i]]),
+            msg = paste("filterVars is missing from filters @ index #", i))
+        assert_that("filterClass" %in% names(filters[[i]]),
+            msg = paste("filterClass is missing from filters @ index #", i))
+        assert_that("filterType" %in% names(filters[[i]]),
+            msg = paste("filterType is missing from filters @ index #", i))
+    }
+    assert_that(is(se, "SummarizedExperiment"), 
+        msg = "se must be a SummarizedExperiment object")
+    
+    # Simple test to make sure se is a SummarizedExperiment made by NxtIRF::MakeSE()
+    assert_that(all(c("Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc") %in%
+            names(S4Vectors::metadata(se))),
+        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
+    assert_that(all(c("Included", "Excluded", "Depth", "Coverage", "minDepth") %in%
+            names(SummarizedExperiment::assays(se))),
+        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
+   
+    filterSummary = rep(TRUE, nrow(se))
+    for(i in seq_len(length(filters))) {
+        filterSummary = filterSummary & runFilter(
+            filters[[i]]$filterClass,
+            filters[[i]]$filterType,
+            filters[[i]]$filterVars,
+            se
+        )
+    }
+    
+    return(filterSummary)
+}

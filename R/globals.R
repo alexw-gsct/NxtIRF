@@ -130,6 +130,7 @@ make.path.relative = function(base, target) {
 
 # GGPLOT themes
 
+#' @export
 theme_white = theme(axis.line.x = element_line(colour = "black"),
 			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
 			panel.grid.minor = element_blank(),
@@ -145,6 +146,8 @@ theme_white = theme(axis.line.x = element_line(colour = "black"),
 			# axis.title.x=element_blank(),
 			# axis.title.y=element_blank()
             )
+
+#' @export
 theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
 			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
 			panel.grid.minor = element_blank(),
@@ -160,3 +163,29 @@ theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
 			# axis.title.x=element_blank(),
 			# axis.title.y=element_blank()
             )
+
+#' @export
+download_NxtIRF_example <- function(destination_dir = tempdir()) {
+    assert_that(dir.exists(dirname(destination_dir)),
+        msg = paste(dirname(destination_dir), "must exist"))
+        
+        resource_path = "https://raw.github.com/alexw-gsct/NxtIRF_resources/main/example"
+        
+    files = c("UT_1.bam", "UT_2.bam", "UT_3.bam", "D2_1.bam", "D2_2.bam", "D2_3.bam")
+    
+    for(sample_file in files) {
+        cache_file = parse_valid_file(file.path(resource_path, sample_file))
+        if(file.exists(cache_file)) {
+            file.copy(cache_file, file.path(destination_dir, sample_file))
+            message(paste(sample_file, "downloaded to", destination_dir))
+        } else {
+            message(paste(sample_file, "could not be downloaded from", resource_path))
+        }
+    }
+    
+    if(all(file.exists(file.path(destination_dir, files)))) {
+        message(paste("All files successfully downloaded to", destination_dir))
+    } else {
+        message(paste("One or more example files could not be downloaded to", destination_dir))        
+    }
+}

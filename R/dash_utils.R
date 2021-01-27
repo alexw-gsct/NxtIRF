@@ -309,7 +309,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
         max_plot_level = max(group.DT$plot_level)
     }
     gp = p + geom_text(data = data.frame(x = anno[["x"]], y = anno[["y"]], text = anno[["text"]]), 
-        aes(x = x, y = y, label = text))
+        aes(x = x, y = y, label = text)) + coord_cartesian(xlim = c(view_start, view_end))
     pl = ggplotly(p, source = "plotly_ViewRef", tooltip = "text") %>% 
     layout(
         annotations = anno,
@@ -678,7 +678,7 @@ Plot_Coverage <- function(se, Event, cov_data,
     view_length = view_end - view_start
     assert_that(view_chr %in% names(seqinfo(cov_data$genome)),
         msg = paste(view_chr, "is not a valid chromosome reference name in the given genome"))
-    assert_that(zoom_factor > 0,
+    assert_that(zoom_factor >= 0,
         msg = "zoom_factor must be a positive number")
     assert_that(bases_flanking > 0,
         msg = "bases_flanking must be a positive number")
@@ -891,48 +891,11 @@ get_default_filters <- function() {
     return(filters)
 }
 
-#' @export
-apply_filters <- function(se, filters) {
-    # filters are a list of filters to apply on se
-    # returns a vector of TRUE / FALSE
-    # a filtered se can be made using:
-    #       se.filtered = se[apply_filters(se, filters),]
-   
-    assert_that(is(filters, "list"), msg = "filters must be a list")
-    for(i in seq_len(length(filters))) {
-        assert_that("filterVars" %in% names(filters[[i]]),
-            msg = paste("filterVars is missing from filters @ index #", i))
-        assert_that("filterClass" %in% names(filters[[i]]),
-            msg = paste("filterClass is missing from filters @ index #", i))
-        assert_that("filterType" %in% names(filters[[i]]),
-            msg = paste("filterType is missing from filters @ index #", i))
-    }
-    assert_that(is(se, "SummarizedExperiment"), 
-        msg = "se must be a SummarizedExperiment object")
-    
-    # Simple test to make sure se is a SummarizedExperiment made by NxtIRF::MakeSE()
-    assert_that(all(c("Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc") %in%
-            names(S4Vectors::metadata(se))),
-        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
-    assert_that(all(c("Included", "Excluded", "Depth", "Coverage", "minDepth") %in%
-            names(SummarizedExperiment::assays(se))),
-        msg = "se must be a SummarizedExperiment object created using NxtIRF::MakeSE()")
-   
-    filterSummary = rep(TRUE, nrow(se))
-    for(i in seq_len(length(filters))) {
-        filterSummary = filterSummary & runFilter(
-            filters[[i]]$filterClass,
-            filters[[i]]$filterType,
-            filters[[i]]$filterVars,
-            se
-        )
-    }
-    
-    return(filterSummary)
-}
+
 
 #' @export
-make_matrix <- function(se, event_list, sample_list, method, depth_threshold = 10, logit_max = 5, na.percent.max = 0.1) {
+make_matrix <- function(se, event_list, sample_list = ncol(se), method = "PSI", 
+    depth_threshold = 10, logit_max = 5, na.percent.max = 0.1) {
 
 	inc = SummarizedExperiment::assay(se, "Included")[event_list, sample_list]
 	exc = SummarizedExperiment::assay(se, "Excluded")[event_list, sample_list]

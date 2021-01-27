@@ -40,7 +40,7 @@ This function implements filtering of IR or AS events based on customisable crit
       For \emph{IR}, Coverage refers to the percentage of the measured intron covered with
       reads. Introns of samples with an IntronDepth above \code{filterVars$minDepth} are
       assessed, with introns with coverage below \code{filterVars$minimum} are excluded.\cr\cr 
-      For \emph{alternative splicing}, Coverage refers to the percentage of all splicing events
+      For \emph{Alternative Splicing}, Coverage refers to the percentage of all splicing events
       observed across the genomic region that is compatible with either the included
       or excluded event. This prevents NxtIRF from doing differential analysis
       between two minor isoforms. Instead of IntronDepth, in AS events NxtIRF considers
