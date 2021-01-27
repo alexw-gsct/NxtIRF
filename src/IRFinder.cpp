@@ -493,7 +493,7 @@ int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, S
 	int ret = gz_in.LoadGZ(reference_file, true);
 	if(ret != 0) return(-1);
 
-	Rcout << "Running IRFinder multithreaded using " << use_threads << " threads\n";
+	Rcout << "Running IRFinder with OpenMP using " << use_threads << " threads\n";
 	#pragma omp parallel for
   for(unsigned int z = 0; z < v_bam.size(); z++) {
     std::string s_bam = v_bam.at(z);
@@ -571,6 +571,8 @@ int IRF_main_multithreaded(std::string reference_file, StringVector bam_files, S
   inbam_stream.open(s_bam, std::ios::in | std::ios::binary);
   inbam.SetInputHandle(&inbam_stream);
   
+	Rcout << "Processing " << s_bam << "\n";
+	
   BB.openFile(&inbam); // This file needs to be a decompressed BAM. (setup via fifo / or expect already decompressed via stdin).
   BB.processAll(myLine, true);
 

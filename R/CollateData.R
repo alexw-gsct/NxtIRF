@@ -76,6 +76,32 @@ FindSamples <- function(sample_path, suffix = ".txt.gz",
     return(final)
 }
 
+#' Convenience Function to find BAM files in a certain folder
+#' 
+#' Runs FindSamples to find BAM files. Assumes file names are names of samples.
+#' 
+#' @param sample_path: The path in which to recursively search for BAM files
+#' @return A 2-column data frame with the first column containing
+#'   the sample name, and the second column being the BAM file path.
+#' @export
+Find_Bams <- function(sample_path) {
+    return(FindSamples(sample_path, ".bam", "BAM"))
+}
+
+#' Convenience Function to find IRFinder output and COV files
+#' 
+#' Runs FindSamples to find IRFinder .txt.gz and .cov files. 
+#' Assumes file names are names of samples.
+#' 
+#' @param sample_path: The path in which to recursively search for BAM files
+#' @return A 3-column data frame with the first column containing
+#'   the sample name, and the second column being the IRFinder main output path,
+#'   and the third column being the COV file path.
+#' @export
+Find_IRFinder_Output <- function(sample_path) {
+    return(FindSamples(sample_path, c(".txt.gz", "cov"), c("irf_file", "cov_file")))
+}
+
 #' @export
 IRFinder <- function(
         bamfiles = "Unsorted.bam", 
@@ -1280,7 +1306,7 @@ CollateData <- function(Experiment, reference_path, output_path, coverage_files 
 	write.fst(as.data.frame(df.internal), outfile)
 	
     # Create barebones colData.Rds - save coverage files as well
-    if(length(coverage_files) == nrow(df.internal) & IsCov(coverage_files)) {
+    if(length(coverage_files) == nrow(df.internal) & IsCOV(coverage_files)) {
         df.files = data.table(
             sample = df.internal$sample,
             bam_file = "",
