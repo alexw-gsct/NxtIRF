@@ -1464,7 +1464,7 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
 
         se.IR = se[SummarizedExperiment::rowData(se)$EventType == "IR",]
         se.IR = se.IR[SummarizedExperiment::rowData(se.IR)$EventRegion %in% rownames(junc_PSI),]
-        junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR)$EventRegion,]
+        junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR)$EventRegion,, drop = FALSE]
         
         if(nrow(se.IR) > 0) {
             message("Iterating through IR events to determine introns of main isoforms")
@@ -1494,7 +1494,7 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
                 iteration = iteration + 1
                 message(paste("Iteration", iteration))
                 se.IR.excluded = se.IR.excluded[include,]
-                junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,]
+                junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,, drop = FALSE]
                 se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
                 se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
 
