@@ -43,3 +43,5 @@ vignettes/*.pdf
 src/*.o
 src/*.dll
 
+doc
+Meta
