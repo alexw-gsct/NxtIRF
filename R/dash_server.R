@@ -654,6 +654,17 @@ dash_server = function(input, output, session) {
             # If successfully created, load this reference automatically
             if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
                 settings_loadref$loadref_path = settings_newref$newref_path
+                sendSweetAlert(
+                    session = session,
+                    title = "Reference Build complete!",
+                    type = "success"
+                )           
+            } else {
+                sendSweetAlert(
+                    session = session,
+                    title = "Reference Build failed. An error must have occurred",
+                    type = "error"
+                )               
             }
         }
     })
@@ -893,7 +904,7 @@ dash_server = function(input, output, session) {
     # First assume bams are named by subdirectory names
         if(!is_valid(settings_expr$bam_path)) return(-1)
         temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             temp.DT = as.data.table(temp.DT)
             if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
                 # Assume subdirectory names designate sample names
@@ -929,7 +940,7 @@ dash_server = function(input, output, session) {
             temp.DT = NULL
         }
     # compile experiment df with bam paths
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0)  {
             colnames(temp.DT)[2] = "bam_file"
             if(is_valid(settings_expr$df.files)) {
         # merge with existing dataframe	
@@ -1182,7 +1193,7 @@ dash_server = function(input, output, session) {
         if(!is_valid(settings_expr$irf_path)) return(-1)
 		# merge irfinder paths
         temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             temp.DT = as.data.table(temp.DT)
             if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
                 # Assume output names designate sample names
@@ -1202,7 +1213,7 @@ dash_server = function(input, output, session) {
         }
         
     # compile experiment df with irfinder paths
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             colnames(temp.DT)[2] = "irf_file"
             if(is_valid(settings_expr$df.files)) {
         # merge with existing dataframe	
@@ -1218,7 +1229,7 @@ dash_server = function(input, output, session) {
         
         # Attempt to find Coverage files
         temp.DT2 = FindSamples(settings_expr$irf_path, suffix = ".cov", use_subdir = FALSE)
-        if(!is.null(temp.DT2)) {
+        if(!is.null(temp.DT2) && nrow(temp.DT2) > 0) {
             temp.DT2 = as.data.table(temp.DT2)
             if(length(unique(temp.DT2$sample)) == nrow(temp.DT2)) {
                 # Assume output names designate sample names
@@ -1236,13 +1247,13 @@ dash_server = function(input, output, session) {
         }
         
     # compile experiment df with irfinder paths
-        if(!is.null(temp.DT2)) {
+        if(!is.null(temp.DT2) && nrow(temp.DT2) > 0) {
             colnames(temp.DT2)[2] = "cov_file"
         # merge with existing dataframe	
             settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT2)
         }			
         
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0)  {
             return(0)
         } else {
             return(-1)

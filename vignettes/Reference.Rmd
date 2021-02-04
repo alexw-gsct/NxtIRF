@@ -195,21 +195,29 @@ library(NxtIRF)
 nxtIRF()
 ```
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Title page"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Title page"}
 knitr::include_graphics("img/Ref_1_title.png")
 ```
 
 Next, navigate to the `Reference` tab:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Reference"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Reference"}
 knitr::include_graphics("img/Ref_2_ref_empty.png")
 ```
 
 Clicking on the `Choose Reference Path` to choose a reference path.
-A dialog box will pop up. Select the path to the reference folder
-on the left hand box as shown:
+A dialog box will pop up. Select the working directory (which is the
+directory set by setwd(). Click "Create new folder" and type in
+"Reference" to create this folder in the highlighted path
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Reference path dialog box"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Create a new folder for the Reference"}
+knitr::include_graphics("img/Ref_3_path_create.png")
+```
+
+Now, select the path to the created reference folderon the left hand box, 
+and click "Select":
+
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select Reference path dialog box"}
 knitr::include_graphics("img/Ref_3_path.png")
 ```
 
@@ -217,7 +225,7 @@ Next, we can navigate AnnotationHub's Ensembl database for the Homo
 Sapiens release-94 FASTA and GTF files. First, type in `Homo Sapiens`
 to filter for species:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Select species"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select species"}
 knitr::include_graphics("img/Ref_4_species.png")
 ```
 
@@ -225,13 +233,13 @@ The next drop-down box will be auto-filled using the filtered options.
 Select `release-94` to filter for transcriptome GTF annotations belonging
 to this release:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Select Ensembl release"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select Ensembl release"}
 knitr::include_graphics("img/Ref_5_version.png")
 ```
 
 Next, select the correct GTF file:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Select GTF file"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select GTF file"}
 knitr::include_graphics("img/Ref_6_GTF.png")
 ```
 
@@ -239,28 +247,28 @@ The FASTA files can be chosen. NxtIRF automatically filters for all
 genome files compatible with the chosen GTF file. We select the
 FASTA file from the same release as shown:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Select FASTA file"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select FASTA file"}
 knitr::include_graphics("img/Ref_7_FASTA.png")
 ```
 
 Note that the user can select their own FASTA and GTF files (see below).
 In this case, leave the AnnotationHub settings blank:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Supply custom FASTA/GTF files"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Supply custom FASTA/GTF files"}
 knitr::include_graphics("img/Ref_8_USER.png")
 ```
 
 Finally, set the genome defaults for Mappability Exclusion and non-
 PolyA BED files using the genome drop-down box:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Select defaults for hg38"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Select defaults for hg38"}
 knitr::include_graphics("img/Ref_9_genome_type.png")
 ```
 
 Note that the below fields auto-populate to system-supplied
 defaults:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Ready to run Reference"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Ready to run Reference"}
 knitr::include_graphics("img/Ref_10_final.png")
 ```
 
@@ -268,14 +276,14 @@ The last step is to click the `Build Reference` button at the
 bottom-right area. Note that the progress can be seen in the
 bottom-right corner:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Running BuildReference"}
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Running BuildReference"}
 knitr::include_graphics("img/Ref_11_progress.png")
 ```
 
 When this is completed:
 
-```{r, echo=FALSE, out.width='800pt', fig.align = 'center', fig.cap="Reference build complete"}
-knitr::include_graphics("img/Ref_11_progress.png")
+```{r, echo=FALSE, out.width='640pt', fig.align = 'center', fig.cap="Reference build complete"}
+knitr::include_graphics("img/Ref_12_complete.png")
 ```
 
 Now you are ready to process the experiment!
