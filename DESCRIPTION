@@ -49,8 +49,6 @@ LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
-Suggests: knitr
-VignetteBuilder: knitr
 SystemRequirements: C++11
 Collate: Imports.R
 	RcppExports.R
