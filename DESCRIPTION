@@ -46,6 +46,8 @@ Imports:
 	IRanges,
 	DESeq2, limma
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 Suggests: knitr
 VignetteBuilder: knitr
