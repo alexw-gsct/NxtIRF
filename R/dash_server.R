@@ -246,6 +246,24 @@ dash_server = function(input, output, session) {
             settings_Cov$transcripts.DT <- loadTranscripts(settings_loadref$loadref_path)
             
             # Populate events here
+
+            if(!is.null(settings_Cov$gene_list)) {
+                # Only refresh if new reference added
+                if(settings_Cov$loaded_reference != settings_loadref$loadref_path) {
+                    message(paste("Populating drop-down box with", 
+                        length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
+                    updateSelectInput(session = session, inputId = "chr_cov", 
+                        choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+                    updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                        choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")
+                    settings_Cov$loaded_reference = settings_loadref$loadref_path
+                }
+            } else {
+                updateSelectInput(session = session, inputId = "chr_cov", 
+                    choices = c("(none)"), selected = "(none)")    								
+                updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
+                    choices = c("(none)"), selected = "(none)") 
+            }
             
             if(is_valid(settings_DE$res)) {
                 if(input$select_events_cov == "Highlighted") {
@@ -260,27 +278,22 @@ dash_server = function(input, output, session) {
                 }
 
                 if(length(selected) > 0 & is_valid(settings_DE$res)) {
+                    if(is_valid(input$events_cov)) {
+                        selected_event = input$events_cov
+                        if(!(selected_event %in% settings_DE$res$EventName[selected])) {
+                            selected_event = "(none)"
+                        }
+                    } else {
+                        selected_event = "(none)"
+                    }
                     updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
-                        choices = c("(none)", settings_DE$res$EventName[selected]), selected = "(none)")    								
+                        choices = c("(none)", settings_DE$res$EventName[selected]), selected = selected_event)    								
                 } else {
                     updateSelectizeInput(session = session, inputId = "events_cov", server = TRUE,
                         choices = c("(none)"), selected = "(none)")    								    
-                }        
+                }
             }
-            
-            if(!is.null(settings_Cov$gene_list)) {
-                message(paste("Populating drop-down box with", 
-                length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
-                updateSelectInput(session = session, inputId = "chr_cov", 
-                    choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
-                updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-                    choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")    								
-            } else {
-                updateSelectInput(session = session, inputId = "chr_cov", 
-                    choices = c("(none)"), selected = "(none)")    								
-                updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
-                    choices = c("(none)"), selected = "(none)") 
-            }
+
             if(is_valid(settings_SE$se)) {
                 # dissect rowData ranges
                 rowData = as.data.frame(SummarizedExperiment::rowData(settings_SE$se))
@@ -299,29 +312,7 @@ dash_server = function(input, output, session) {
                 names(settings_Cov$avail_cov) = DT.files$sample
                 settings_Cov$avail_cov = settings_Cov$avail_cov[file.exists(settings_Cov$avail_cov)]
 
-                if(input$mode_cov == "By Condition") {
-                    colData = as.data.frame(SummarizedExperiment::colData(settings_SE$se))
-                    colData = colData[rownames(colData) %in% DT.files$sample,]
-                    conditions_avail = colnames(colData)
-                    if(is_valid(input$condition_cov) && input$condition_cov %in% conditions_avail) {
-                        cur_condition = input$condition_cov
-                        updateSelectInput(session = session, inputId = "condition_cov", 
-                            choices = c("(none)", conditions_avail), selected = cur_condition)                    
-                    } else {
-                         updateSelectInput(session = session, inputId = "condition_cov", 
-                            choices = c("(none)", conditions_avail))                 
-                    }
-                } else if(input$mode_cov == "Individual") {
-                    avail_samples = names(settings_Cov$avail_cov)
-                    updateSelectInput(session = session, inputId = "track1_cov", 
-                        choices = c("(none)", avail_samples), selected = "(none)")
-                    updateSelectInput(session = session, inputId = "track2_cov", 
-                        choices = c("(none)", avail_samples), selected = "(none)")
-                    updateSelectInput(session = session, inputId = "track3_cov", 
-                        choices = c("(none)", avail_samples), selected = "(none)")
-                    updateSelectInput(session = session, inputId = "track4_cov", 
-                        choices = c("(none)", avail_samples), selected = "(none)")
-                }
+                refresh_tracks_cov()
             }        
         }
     })
@@ -654,6 +645,17 @@ dash_server = function(input, output, session) {
             # If successfully created, load this reference automatically
             if(file.exists(file.path(settings_newref$newref_path, "settings.Rds"))) {
                 settings_loadref$loadref_path = settings_newref$newref_path
+                sendSweetAlert(
+                    session = session,
+                    title = "Reference Build complete!",
+                    type = "success"
+                )           
+            } else {
+                sendSweetAlert(
+                    session = session,
+                    title = "Reference Build failed. An error must have occurred",
+                    type = "error"
+                )               
             }
         }
     })
@@ -893,7 +895,7 @@ dash_server = function(input, output, session) {
     # First assume bams are named by subdirectory names
         if(!is_valid(settings_expr$bam_path)) return(-1)
         temp.DT = FindSamples(settings_expr$bam_path, suffix = ".bam", use_subdir = TRUE)
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             temp.DT = as.data.table(temp.DT)
             if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
                 # Assume subdirectory names designate sample names
@@ -929,7 +931,7 @@ dash_server = function(input, output, session) {
             temp.DT = NULL
         }
     # compile experiment df with bam paths
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0)  {
             colnames(temp.DT)[2] = "bam_file"
             if(is_valid(settings_expr$df.files)) {
         # merge with existing dataframe	
@@ -1182,7 +1184,7 @@ dash_server = function(input, output, session) {
         if(!is_valid(settings_expr$irf_path)) return(-1)
 		# merge irfinder paths
         temp.DT = FindSamples(settings_expr$irf_path, suffix = ".txt.gz", use_subdir = FALSE)
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             temp.DT = as.data.table(temp.DT)
             if(length(unique(temp.DT$sample)) == nrow(temp.DT)) {
                 # Assume output names designate sample names
@@ -1202,7 +1204,7 @@ dash_server = function(input, output, session) {
         }
         
     # compile experiment df with irfinder paths
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0) {
             colnames(temp.DT)[2] = "irf_file"
             if(is_valid(settings_expr$df.files)) {
         # merge with existing dataframe	
@@ -1218,7 +1220,7 @@ dash_server = function(input, output, session) {
         
         # Attempt to find Coverage files
         temp.DT2 = FindSamples(settings_expr$irf_path, suffix = ".cov", use_subdir = FALSE)
-        if(!is.null(temp.DT2)) {
+        if(!is.null(temp.DT2) && nrow(temp.DT2) > 0) {
             temp.DT2 = as.data.table(temp.DT2)
             if(length(unique(temp.DT2$sample)) == nrow(temp.DT2)) {
                 # Assume output names designate sample names
@@ -1236,13 +1238,13 @@ dash_server = function(input, output, session) {
         }
         
     # compile experiment df with irfinder paths
-        if(!is.null(temp.DT2)) {
+        if(!is.null(temp.DT2) && nrow(temp.DT2) > 0) {
             colnames(temp.DT2)[2] = "cov_file"
         # merge with existing dataframe	
             settings_expr$df.files = update_data_frame(settings_expr$df.files, temp.DT2)
         }			
         
-        if(!is.null(temp.DT)) {
+        if(!is.null(temp.DT) && nrow(temp.DT) > 0)  {
             return(0)
         } else {
             return(-1)
@@ -2505,23 +2507,39 @@ dash_server = function(input, output, session) {
         } else {
             updateSelectInput(session = session, inputId = "condition_cov", 
                 choices = c("(none)"))
-        }
+        }        
+        refresh_tracks_cov()
     })
 
     observeEvent(input$condition_cov, {
         req(input$condition_cov)
         req(settings_SE$se)
-        if(is_valid(input$condition_cov)) {
-            colData = SummarizedExperiment::colData(settings_SE$se)
-            updateSelectInput(session = session, inputId = "track1_cov", 
-                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-            updateSelectInput(session = session, inputId = "track2_cov", 
-                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-            updateSelectInput(session = session, inputId = "track3_cov", 
-                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-            updateSelectInput(session = session, inputId = "track4_cov", 
-                choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
-        } else if(input$mode_cov == "Individual") {
+        refresh_tracks_cov()
+    })
+
+    refresh_tracks_cov <- function() {
+        if(input$mode_cov == "By Condition") {
+            if(is_valid(input$condition_cov)) {
+                colData = SummarizedExperiment::colData(settings_SE$se)
+                updateSelectInput(session = session, inputId = "track1_cov", 
+                    choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+                updateSelectInput(session = session, inputId = "track2_cov", 
+                    choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+                updateSelectInput(session = session, inputId = "track3_cov", 
+                    choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+                updateSelectInput(session = session, inputId = "track4_cov", 
+                    choices = c("(none)", unique(as.character(unlist(colData[, input$condition_cov])))))    
+            }  else {
+                updateSelectInput(session = session, inputId = "track1_cov", 
+                    choices = "(none)")    
+                updateSelectInput(session = session, inputId = "track2_cov", 
+                    choices = "(none)")    
+                updateSelectInput(session = session, inputId = "track3_cov", 
+                    choices = "(none)")    
+                updateSelectInput(session = session, inputId = "track4_cov", 
+                    choices = "(none)")    
+            }
+        } else {
             avail_samples = names(settings_Cov$avail_cov)
             updateSelectInput(session = session, inputId = "track1_cov", 
                 choices = c("(none)", avail_samples), selected = "(none)")
@@ -2531,17 +2549,9 @@ dash_server = function(input, output, session) {
                 choices = c("(none)", avail_samples), selected = "(none)")
             updateSelectInput(session = session, inputId = "track4_cov", 
                 choices = c("(none)", avail_samples), selected = "(none)")
-        } else {
-            updateSelectInput(session = session, inputId = "track1_cov", 
-                choices = "(none)")    
-            updateSelectInput(session = session, inputId = "track2_cov", 
-                choices = "(none)")    
-            updateSelectInput(session = session, inputId = "track3_cov", 
-                choices = "(none)")    
-            updateSelectInput(session = session, inputId = "track4_cov", 
-                choices = "(none)")    
-        }
-    })
+        }        
+        
+    }
 
     settings_Cov$plotly_relayout = reactive({
         req(settings_Cov$plot_ini == TRUE)

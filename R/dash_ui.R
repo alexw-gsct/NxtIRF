@@ -556,7 +556,7 @@ ui_tab_analyse <- function() {
                     c("(none)")),
                 selectInput('batch2_DE', 'Batch Factor 2', 
                     c("(none)")),
-                shinyWidgets::switchInput("adjP_DE", label = "Multiple Tessting", 
+                shinyWidgets::switchInput("adjP_DE", label = "Multiple Testing", 
                     value = TRUE, labelWidth = "100px"),                    
                 actionButton("perform_DE", "Perform DE"),
                 shinyFilesButton("load_DE", label = "Load DE", 

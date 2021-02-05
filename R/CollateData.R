@@ -84,8 +84,8 @@ FindSamples <- function(sample_path, suffix = ".txt.gz",
 #' @return A 2-column data frame with the first column containing
 #'   the sample name, and the second column being the BAM file path.
 #' @export
-Find_Bams <- function(sample_path) {
-    return(FindSamples(sample_path, ".bam", "BAM"))
+Find_Bams <- function(sample_path, ...) {
+    return(FindSamples(sample_path, ".bam", "BAM", ...))
 }
 
 #' Convenience Function to find IRFinder output and COV files
@@ -98,8 +98,8 @@ Find_Bams <- function(sample_path) {
 #'   the sample name, and the second column being the IRFinder main output path,
 #'   and the third column being the COV file path.
 #' @export
-Find_IRFinder_Output <- function(sample_path) {
-    return(FindSamples(sample_path, c(".txt.gz", ".cov"), c("irf_file", "cov_file")))
+Find_IRFinder_Output <- function(sample_path, ...) {
+    return(FindSamples(sample_path, c(".txt.gz", ".cov"), c("irf_file", "cov_file"), ...))
 }
 
 #' @export
@@ -195,8 +195,10 @@ CollateData <- function(Experiment, reference_path, output_path,
     
     coverage_files = ""
     
-    if(ncol(Experiment) > 2 && all(file.exists(Experiment[,3]))) {
-        coverage_files = Experiment[,3]
+    Experiment.df = as.data.frame(Experiment)
+    
+    if(ncol(Experiment) > 2 && all(file.exists(Experiment.df[,3]))) {
+        coverage_files = Experiment.df[,3]
     }
     if(!IsCOV(coverage_files)){
         message("Some coverage files do not exist or are corrupted")

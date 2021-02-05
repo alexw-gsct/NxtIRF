@@ -4,7 +4,7 @@
 \alias{Find_Bams}
 \title{Convenience Function to find BAM files in a certain folder}
 \usage{
-Find_Bams(sample_path)
+Find_Bams(sample_path, ...)
 }
 \arguments{
 \item{sample_path:}{The path in which to recursively search for BAM files}

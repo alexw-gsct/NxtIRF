@@ -4,7 +4,7 @@
 \alias{Find_IRFinder_Output}
 \title{Convenience Function to find IRFinder output and COV files}
 \usage{
-Find_IRFinder_Output(sample_path)
+Find_IRFinder_Output(sample_path, ...)
 }
 \arguments{
 \item{sample_path:}{The path in which to recursively search for BAM files}

@@ -395,7 +395,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     n = length(samples)
                     df$ci = qt((1 + conf.int)/2,df=	n-1) * df$sd / sqrt(n)
 
-                    df$track = as.character(i)
+                    if(length(track_names) == length(tracks)) {
+                        df$track = track_names[i]
+                    } else {
+                        df$track = as.character(i)
+                    }
                     DT = as.data.table(df)
                     DT = DT[, c("x", "mean", "ci", "track")]
                     data.list[[i]] <- DT 
@@ -406,12 +410,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         if(stack_tracks == TRUE) {
             df = as.data.frame(rbindlist(data.list))
             if(nrow(df) > 0) {
+                if(length(track_names) == length(tracks)) {
+                    df$track = factor(df$track, track_names)
+                }
                 gp_track[[1]] = ggplot() + 
                     geom_hline(yintercept = 0) +
                     geom_ribbon(data = df, alpha = 0.2, 
                         aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
                     geom_line(data = df, aes(x = x, y = mean, colour = track)) +
-                    labs(y = "Stacked Tracks Normalized Coverage") +
+                    labs(y = "Normalized Coverage") +
                     theme_white_legend
                 pl_track[[1]] = ggplotly(gp_track[[1]],
                     tooltip = c("x", "y", "ymin", "ymax", "colour")
@@ -442,7 +449,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         geom_ribbon(data = df, alpha = 0.2, colour = NA, 
                             aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci)) +
                         geom_line(data = df, aes(x = x, y = mean)) +
-                        labs(y = paste("Track", i, "Normalized Coverage")) +
+                        labs(y = paste(condition, tracks[[i]])) + # paste("Track", i, "Normalized Coverage")) +
                         theme_white_legend
                     pl_track[[i]] = ggplotly(gp_track[[i]],
                         tooltip = c("x", "y", "ymin", "ymax")
@@ -453,7 +460,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         yaxis = list(rangemode = "tozero")
                     )
                     pl_track[[i]]$x$data[[2]]$showlegend = FALSE
-                    pl_track[[i]]$x$data[[3]]$showlegend = TRUE
+                    pl_track[[i]]$x$data[[3]]$showlegend = FALSE
                     if(!missing(track_names) && length(track_names) >= i) {
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]
                         pl_track[[i]]$x$data[[3]]$name = track_names[i]
@@ -594,6 +601,45 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 
 # Exported wrapper functions to plot coverage plots from command line:
 
+#' Generate plotly / ggplot RNA-seq coverage plots from command line
+#'
+#' This function generates a coverage plot illustrating differential expression of intron retention
+#' or alternative splicing (differential exon coverage). It can normalise coverage of samples
+#' per condition using NxtIRF's SpliceOver parameter that normalises the flanking exon boundaries to 1.
+#' 
+#' @param se A SummarizedExperiment object. It must contain the Event to be displayed
+#' @param Event The `EventName` or the IR / alternative splicing event to be normalised. Valid names 
+#'   are all entries within rownames(se)
+#' @param cov_data A list containing all the data required by this function. Generate this data using
+#'   prepare_covplot_data()
+#' @param strand Whether to show coverage of both strands "*" (default), or from the "+" or "-" strand only.
+#' @param tracks The names of individual samples (if condition is not set), or the names of the different
+#'   conditions to be plotted.
+#' @param condition The name of the column (of SummarizedExperiment::colData(se) containing the conditions to be contrasted.
+#'   If this is not set, `tracks` are assumed to be names of individual samples
+#' @param selected_transcripts Transcript ID or transcript names of transcripts to be displayed on the gene annotation 
+#'   rack. Useful to remove overlapping transcripts that are not relevant to the samples being displayed.
+#' @param condense_tracks Whether to collapse the transcript tracks by gene.
+#' @param stack_tracks Whether to graph all the conditions on a single coverage track. If set to true, each condition
+#'   will be displayed in a different colour
+#' @param t_test Whether to perform a pair-wise T-test. Only used if there are TWO condition tracks.
+#' @param norm_event Whether to normalise by an event different to that given in "Event". The difference between this
+#'   and Event is that the genomic coordinates are only centered around Event. norm_event overrides Event if both are given.
+#' @param stack_tracks Whether to graph all the conditions on a single coverage track. If set to true, each condition
+#' @param zoom_factor Zoom out from event. Each level of zoom zooms out by a factor of 3.
+#' @param bases_flanking How many bases flanking the zoomed window. Useful when used in conjunction with zoom_factor == 0
+#' @param Gene Whether to use the range for the given Gene. If given and valid, overrides Event (but `Event` or `norm_event` will 
+#'  be used to normalise by condition). Valid Gene entries include gene_id (Ensembl ID) or gene_name (Gene Symbol)
+#' @param seqnames Use chromosome. Only used if `seqnames`, `start` and `end` are also given and valid.
+#'   If these coordinates are set, they will override Event and Gene, although Event / norm_event is still required for normalising
+#'   by condition
+#' @param start Overrides with given start coordinate. See `seqnames`
+#' @param end Overrides with given end coordinate. See `seqnames`
+#' 
+#' @return A list containing two objects. final_plot is the plotly object. ggplot is a list of ggplot tracks.
+#'   ggplot[[n]] is the nth track (this function supports up to 4 tracks). ggplot[[5]] contains the T-test track if valid.
+#'   ggplot[[6]] always contains the genome track.
+#' @md
 #' @export
 Plot_Coverage <- function(se, Event, cov_data,
     strand = c("*", "+", "-"),
@@ -605,7 +651,7 @@ Plot_Coverage <- function(se, Event, cov_data,
     stack_tracks = TRUE,  # Whether to stack tracks. Requires condition
     t_test = TRUE,  # Whether to include T test. Requires condition
     norm_event,
-    zoom_factor = 1,        # Log zoom out from event
+    zoom_factor = 1,        # Zoom out from event. Each level of zoom zooms out by a factor of 3.
     bases_flanking = 100,   # How many bases flanking the zoomed window. Only useful for zoom_factor == 0
     Gene,
     seqnames, start, end   # Optional
@@ -753,6 +799,11 @@ Plot_Coverage <- function(se, Event, cov_data,
     )
 }
 
+#' Generates the requisite data for Plot_Coverage()
+#'
+#' @param reference_path The directory containing the NxtIRF reference
+#' @return A list, containing the genome, gene_list, elem.DT (containing information about
+#'   introns, exons and UTRs, and transcripts.DT which contains a list of transcripts
 #' @export
 prepare_covplot_data <- function(reference_path,
     localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
