@@ -1,12 +1,12 @@
 ---
-title: 'NxtIRF: Building an Experiment'
+title: 'NxtIRF: 2 - Building an Experiment'
 author: "Alex Chit Hei Wong"
 date: "`r Sys.Date()`"
 output:
     rmarkdown::html_vignette:
         toc: true
 vignette: >
-    %\VignetteIndexEntry{NxtIRF: Building an Experiment}
+    %\VignetteIndexEntry{NxtIRF: 2 - Building an Experiment}
     %\VignetteEngine{knitr::rmarkdown}
     \usepackage[utf8]{inputenc}
 ---
@@ -211,6 +211,12 @@ between the "D2" and "UT" samples in the "Treatment" field.
 Feel free to view the `res.limma` output table to view the results. For more
 information about this output, refer to `?limma_ASE`
 
+Do not forget to save the results of this data frame. We will save it as a csv file,
+as shown:
+
+```{r, eval = FALSE}
+data.table::fwrite(res.limma, file = "res.limma.csv")
+```
 
 # Graphics User Interface
 

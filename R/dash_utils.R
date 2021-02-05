@@ -395,7 +395,11 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                     n = length(samples)
                     df$ci = qt((1 + conf.int)/2,df=	n-1) * df$sd / sqrt(n)
 
-                    df$track = as.character(i)
+                    if(length(track_names) == length(tracks)) {
+                        df$track = track_names[i]
+                    } else {
+                        df$track = as.character(i)
+                    }
                     DT = as.data.table(df)
                     DT = DT[, c("x", "mean", "ci", "track")]
                     data.list[[i]] <- DT 
@@ -406,12 +410,15 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
         if(stack_tracks == TRUE) {
             df = as.data.frame(rbindlist(data.list))
             if(nrow(df) > 0) {
+                if(length(track_names) == length(tracks)) {
+                    df$track = factor(df$track, track_names)
+                }
                 gp_track[[1]] = ggplot() + 
                     geom_hline(yintercept = 0) +
                     geom_ribbon(data = df, alpha = 0.2, 
                         aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci, fill = track)) +
                     geom_line(data = df, aes(x = x, y = mean, colour = track)) +
-                    labs(y = "Stacked Tracks Normalized Coverage") +
+                    labs(y = "Normalized Coverage") +
                     theme_white_legend
                 pl_track[[1]] = ggplotly(gp_track[[1]],
                     tooltip = c("x", "y", "ymin", "ymax", "colour")
@@ -442,7 +449,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         geom_ribbon(data = df, alpha = 0.2, colour = NA, 
                             aes(x = x, y = mean, ymin = mean - ci, ymax = mean + ci)) +
                         geom_line(data = df, aes(x = x, y = mean)) +
-                        labs(y = paste("Track", i, "Normalized Coverage")) +
+                        labs(y = paste(condition, tracks[[i]])) + # paste("Track", i, "Normalized Coverage")) +
                         theme_white_legend
                     pl_track[[i]] = ggplotly(gp_track[[i]],
                         tooltip = c("x", "y", "ymin", "ymax")
@@ -453,7 +460,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                         yaxis = list(rangemode = "tozero")
                     )
                     pl_track[[i]]$x$data[[2]]$showlegend = FALSE
-                    pl_track[[i]]$x$data[[3]]$showlegend = TRUE
+                    pl_track[[i]]$x$data[[3]]$showlegend = FALSE
                     if(!missing(track_names) && length(track_names) >= i) {
                         pl_track[[i]]$x$data[[2]]$name = track_names[i]
                         pl_track[[i]]$x$data[[3]]$name = track_names[i]

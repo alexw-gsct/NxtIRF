@@ -86,6 +86,8 @@ setreactive_Heat <- function() {
 
 setreactive_Cov <- function() {
     reactiveValues(
+    # Memory
+        loaded_reference = "",
     # data
         seqInfo = NULL,
         gene_list = NULL,

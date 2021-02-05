@@ -1,12 +1,12 @@
 ---
-title: 'NxtIRF: Generating a Reference'
+title: 'NxtIRF: 1 - Generating a Reference'
 author: "Alex Chit Hei Wong"
 date: "`r Sys.Date()`"
 output:
     rmarkdown::html_vignette:
         toc: true
 vignette: >
-    %\VignetteIndexEntry{NxtIRF: Generating a Reference}
+    %\VignetteIndexEntry{NxtIRF: 1 - Generating a Reference}
     %\VignetteEngine{knitr::rmarkdown}
     \usepackage[utf8]{inputenc}
 ---

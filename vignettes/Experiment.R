@@ -63,6 +63,9 @@
 #  )
 
 ## ---- eval = FALSE------------------------------------------------------------
+#  data.table::fwrite(res.limma, file = "res.limma.csv")
+
+## ---- eval = FALSE------------------------------------------------------------
 #  library(NxtIRF)
 #  nxtIRF()
 
