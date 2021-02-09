@@ -7,7 +7,7 @@ NxtIRF quantifies Intron Retention and Alternative Splicing from BAM files using
 * Development version from Github:
 ```
 library("devtools")
-install_github("/alexw-gsct/NxtIRF", ref = "Thesis_branch", dependencies=TRUE)
+install_github("alexw-gsct/NxtIRF", ref = "Thesis_branch", dependencies=TRUE)
 ```
 
 ## Vignettes
