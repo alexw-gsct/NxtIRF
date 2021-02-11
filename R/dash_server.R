@@ -1171,6 +1171,15 @@ dash_server = function(input, output, session) {
         }
         settings_expr$selected_rows = c()
         Expr_Load_IRFs()
+        if(is_valid(settings_expr$df.files) && "irf_file" %in% colnames(settings_expr$df.files)) {
+            irf_files = settings_expr$df.files$irf_file
+        } else {
+            irf_files = NULL
+        }
+        
+        output$irf_expr_infobox <- renderUI({
+            ui_infobox_irf(settings_expr$irf_path, irf_files)
+        })      
     })
 
     shinyDirChoose(input, "dir_irf_path_load", 
