@@ -5,6 +5,7 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 	assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
 
+    message("Initialising AnnotationHub resources:")
     .GlobalEnv$.ah = AnnotationHub(localHub = offline)
 	on.exit(rm(.ah, envir=.GlobalEnv))
     
