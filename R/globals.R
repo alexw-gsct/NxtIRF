@@ -2,20 +2,6 @@ globalVariables(c(":=","."))
 
 is.nan.data.frame <- function(x) do.call(cbind, lapply(x, is.nan))
 
-NxtIRF.gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
-  if(any(x < 0, na.rm = TRUE)){
-    return(NaN)
-  }
-  if(zero.propagate){
-    if(any(x == 0, na.rm = TRUE)){
-      return(0)
-    }
-    exp(mean(log(x), na.rm = na.rm))
-  } else {
-    exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
-  }
-}
-
 #' @export
 NxtIRF.CoordToGR = function(coordinates) {
 	temp = tstrsplit(coordinates,split="/")
@@ -54,31 +40,6 @@ NxtIRF.CoordToInt = function(coordinates, type = "") {
 		names(final) = c("seqnames","start","end","strand")
 		return(final)
 	}
-}
-
-NxtIRF.StartBenchmarkTimer <- function(irf = NULL, handle = "1") {
-
-	assert_that(is(irf, "NxtProject"),
-		msg = "Valid NxtProject object required")
-
-	irf@benchmarks[[handle]] <- Sys.time()
-	return(irf)
-
-}
-
-NxtIRF.Benchmark <- function(irf = NULL, handle = "1", msg = "Time elapsed:", units = "auto") {
-
-	assert_that(is(irf, "NxtProject"),
-		msg = "Valid NxtProject object required")
-
-	end_time <- Sys.time()
-	time_diff = round(difftime(end_time, irf@benchmarks[[handle]], units = units),2)
-	message(handle, ":", msg,
-		time_diff,
-		units(time_diff), "\n")
-	irf@benchmarks[[handle]] = NULL
-	return(irf)	
-	
 }
 
 NxtIRF.CheckPackageInstalled <- function(package = "DESeq2", version = "1.0.0") {

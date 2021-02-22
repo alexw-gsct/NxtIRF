@@ -1,13 +1,16 @@
 # NxtIRF
 NxtIRF quantifies Intron Retention and Alternative Splicing from BAM files using the IRFinder engine. Features interactive visualisation including RNA-seq coverage plots normalised by condition at the splice junction level.
 
+## Thesis version of NxtIRF
+The thesis version of NxtIRF can be found at: https://github.com/alexw-gsct/NxtIRF/tree/Thesis_branch
+
 ## Installation
 
 ### On current R (>= 4.0.0)
 * Development version from Github:
 ```
 library("devtools")
-install_github("alexw-gsct/NxtIRF", ref = "Thesis_branch", dependencies=TRUE)
+install_github("alexw-gsct/NxtIRF", dependencies=TRUE)
 ```
 
 ## Vignettes

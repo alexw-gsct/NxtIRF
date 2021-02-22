@@ -1529,7 +1529,10 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
         message("Iterative filtering of IR appears to have run into an error. Using RemoveOverlapping = FALSE")
       })
     }
-    
+  
+  # Encapsulate as NxtSE object
+  
+  se = as(se, "NxtSE")
   return(se)
 }
 
