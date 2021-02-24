@@ -13,7 +13,7 @@ Description: NxtIRF is the next evolution for Intron Retention detection for RNA
     visualisation.
 License: MIT + file LICENSE
 Imports:
-	methods, stats, utils, boot, R.utils,
+	methods, stats, utils, boot,
 	Rcpp (>= 1.0.5),
 	data.table,
 	shiny,

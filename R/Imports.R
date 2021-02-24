@@ -8,14 +8,14 @@
 #' @import ggplot2
 #' @importFrom boot logit inv.logit
 #' @importFrom methods as is
-#' @importFrom stats as.formula model.matrix qt runif na.omit
+#' @importFrom stats as.formula model.matrix qt runif na.omit prcomp
 #' @importFrom utils download.file packageVersion setTxtProgressBar txtProgressBar
 #' @importFrom Rcpp evalCpp
 #' @importFrom dplyr %>% left_join
 #' @importFrom AnnotationHub AnnotationHub cache
 #' @importFrom assertthat assert_that
 #' @importFrom BiocGenerics start end width strand
-#' @importFrom Biostrings getSeq readDNAStringSet DNAStringSet translate replaceAmbiguities
+#' @importFrom Biostrings getSeq readDNAStringSet DNAStringSet translate replaceAmbiguities type
 #' @importFrom BiocParallel bpparam bplapply SnowParam MulticoreParam SerialParam
 #' @importFrom DT datatable selectRows 
 #' @importFrom fst read.fst write.fst
@@ -26,8 +26,8 @@
 #' @importFrom heatmaply heatmaply
 #' @importFrom matrixStats rowSds
 #' @importFrom parallel detectCores
-#' @importFrom plotly config layout plotlyOutput event_data ggplotly plotlyProxy plotlyProxyInvoke renderPlotly subplot
-#' @importFrom rtracklayer import export TwoBitFile
+#' @importFrom plotly config layout plotlyOutput event_data ggplotly plotlyProxy plotlyProxyInvoke renderPlotly subplot highlight
+#' @importFrom rtracklayer import export TwoBitFile track
 #' @importFrom RColorBrewer brewer.pal.info
 #' @importFrom stringr str_locate
 #' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay

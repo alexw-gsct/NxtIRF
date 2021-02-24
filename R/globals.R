@@ -150,3 +150,11 @@ download_NxtIRF_example <- function(destination_dir = tempdir()) {
         message(paste("One or more example files could not be downloaded to", destination_dir))        
     }
 }
+
+dash_progress <- function(message = "", total_items = 1) {
+    assert_that(total_items = round(total_items) & total_items > 0,
+        msg = "dash_progress needs at least 1 item")
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/total_items, message = message)
+    }
+}
