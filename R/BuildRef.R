@@ -8,7 +8,9 @@
 # |- .process_gtf
 # |- .process_introns
 # |- .gen_irf
-#    |- estimateDispersionsGeneEst
+# |- .gen_nmd
+# |- .gen_splice
+# |- .gen_splice_proteins
 
 
 #' Builds reference files used by IRFinder / NxtIRF.
@@ -147,10 +149,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     
 # Annotating Alternative Splicing Events
     dash_progress("Annotating Splice Events",N)
-    gen_splice(reference_path, genome)
+    .gen_splice(reference_path, genome)
 
     dash_progress("Translating AS Peptides",N)
-    gen_splice_proteins(reference_path, genome)
+    .gen_splice_proteins(reference_path, genome)
 
     message("Splice Annotations finished\n")
 	message("Reference build finished")
@@ -2073,7 +2075,7 @@ gen_splice <- function(reference_path, genome) {
 }
 
 ################################################################################
-gen_splice_proteins <- function(reference_path, genome) {
+.gen_splice_proteins <- function(reference_path, genome) {
     message("Translating Alternate Splice Peptides...", appendLF = FALSE)
 
     AS_Table <- as.data.table(
