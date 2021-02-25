@@ -1030,7 +1030,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             "intron_width", "width", "strand", "gene_name", "transcript_id",
             "known_exon_dir", "GG", "EG_up", "EG_down")
         := list(
-            get("i_seqnames"), get("i.intron_start"), 
+            get("i.seqnames"), get("i.intron_start"), 
             get("i.intron_end"), get("i.intron_width"),
             get("i.width"), get("i.strand"), get("i.gene_name"), 
             get("i.transcript_id"), get("i.known_exon_dir"),
@@ -1098,7 +1098,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             "intron_width", "width", "strand", "gene_name", "transcript_id",
             "known_exon_nd", "antiover", "antinear", "GG", "EG_up", "EG_down")
         := list(
-            get("i_seqnames"), get("i.intron_start"), 
+            get("i.seqnames"), get("i.intron_start"), 
             get("i.intron_end"), get("i.intron_width"),
             get("i.width"), get("i.strand"), get("i.gene_name"), 
             get("i.transcript_id"),
@@ -2583,10 +2583,10 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
         intron.part.short[, c("seq") := as.character(getSeq(genome, intron.short_gr))]    
         intron.part.upstream[exon.DT, 
             on = c("transcript_id", "seqnames", "start", "end", "strand"), 
-            c("seq") := get("i_seq")]
+            c("seq") := get("i.seq")]
         intron.part.upstream[intron.part.short, 
             on = c("intron_id", "type"), 
-            c("seq") := get("i_seq")]
+            c("seq") := get("i.seq")]
 
         # Test introns by translation
         setorder(intron.part.upstream, transcript_id, elem_number)
