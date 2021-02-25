@@ -111,27 +111,27 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         fasta_file = fasta
     }
     if(ah_transcriptome != "") {
-		gtf.gr = .fetch_gtf(ah_transcriptome = ah_transcriptome, 
+		gtf_gr = .fetch_gtf(ah_transcriptome = ah_transcriptome, 
 			reference_path = reference_path, ah = ah)
         gtf_file = ""
     } else {
-		gtf.gr = .fetch_gtf(gtf = gtf, 
+		gtf_gr = .fetch_gtf(gtf = gtf, 
 			reference_path = reference_path, ah = ah)
         gtf_file = gtf
     }
 
-	# make sure all seqnames in gtf.gr is also in supplied genome
+	# make sure all seqnames in gtf_gr is also in supplied genome
 	chrOrder = names(seqinfo(genome))
-	assert_that(any(as.character(GenomicRanges::seqnames(gtf.gr)) %in% chrOrder),
+	assert_that(any(as.character(GenomicRanges::seqnames(gtf_gr)) %in% chrOrder),
 		msg = paste("Chromosomes in genome and gene annotation does not match",
 			"likely incompatible FASTA and GTF file"))
 	
-	seqlevels(gtf.gr, pruning.mode = "tidy") <- chrOrder
+	seqlevels(gtf_gr, pruning.mode = "tidy") <- chrOrder
 	
     dash_progress("Processing gtf file",N)
-    .process_gtf(gtf.gr, reference_path, genome)
+    .process_gtf(gtf_gr, reference_path, genome)
     # To save memory, remove original gtf
-    rm(gtf.gr)
+    rm(gtf_gr)
     gc()
 
     dash_progress("Processing introns",N)
@@ -216,7 +216,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 }
 
 .fetch_fasta <- function(reference_path = "./Reference",
-		fasta = "", ah_genome = "", ah = AnnotationHub(localHub = localHub)) {
+		fasta = "", ah_genome = "", 
+		localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
     genome = NULL
 	if(ah_genome != "") {
         assert_that(substr(ah_genome,1,2) == "AH",
@@ -249,12 +250,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
 .fetch_gtf <- function(reference_path = "./Reference",
 		gtf = "", ah_transcriptome = "",
-		ah = AnnotationHub(localHub = localHub)) {
-	gtf.gr = NULL
+		localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+	gtf_gr = NULL
     if(ah_transcriptome != "") {
         assert_that(substr(ah_transcriptome,1,2) == "AH",
             msg = "Given transcriptome AnnotationHub reference is incorrect")
-        gtf.gr = .fetch_AH(ah_transcriptome, ah = ah)
+        gtf_gr = .fetch_AH(ah_transcriptome, ah = ah)
         message("done\n")
     } else {
         assert_that(file.exists(gtf),
@@ -263,11 +264,11 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         gtf_file = gtf
 
         message("Reading source GTF file...", appendLF = FALSE)
-        gtf.gr = rtracklayer::import(gtf, "gtf")
+        gtf_gr = rtracklayer::import(gtf, "gtf")
         message("done\n")
     }
     gc()
-	gtf.gr
+	gtf_gr
 }
 
 ################################################################################
@@ -283,23 +284,23 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             "is not found in AnnotationHub index.",
             "Perhaps check online connection or record name"))
 
-    ah.record = ah[names(ah) == ah_record_name]
+    ah_record = ah[names(ah) == ah_record_name]
 
 	if(verbose) message("Downloading asset from AnnotationHub, if required...", 
         appendLF = FALSE)
-    cache_loc = AnnotationHub::cache(ah.record)
+    cache_loc = AnnotationHub::cache(ah_record)
     if(verbose) message("done")
     
     assert_that(file.exists(cache_loc), 
         msg = "AnnotationHub cache error - asset not found")
 
-    if(ah.record$rdataclass == "GRanges") {
+    if(ah_record$rdataclass == "GRanges") {
         if(verbose) message("Importing to memory as GRanges object...", 
             appendLF = FALSE)
         gtf = rtracklayer::import(cache_loc, "gtf")
         if(verbose) message("done")
         return(gtf)
-    } else if(ah.record$rdataclass == "TwoBitFile") {
+    } else if(ah_record$rdataclass == "TwoBitFile") {
         if(verbose) message("Importing to memory as GRanges object...", 
             appendLF = FALSE)
         twobit = rtracklayer::TwoBitFile(cache_loc)
@@ -348,7 +349,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         ah_record = ah[ah$genome == genome_type & 
             ah$sourceurl == resource_path]
         if(length(ah_record) == 1) {
-            MappabilityFile = AnnotationHub::cache(ah.record)
+            MappabilityFile = AnnotationHub::cache(ah_record)
         } else {
             if(genome_type == "hg38") {
                 MappabilityFile = .parse_valid_file(
@@ -384,7 +385,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 }
 
 ################################################################################
-.process_gtf <- function(gtf.gr, reference_path, genome) {
+.process_gtf <- function(gtf_gr, reference_path, genome) {
     # Extracting and saving Genes, Transcripts, Exons, Proteins 
     # and saving as .fst files for faster random access    
     message("Processing gtf file...", appendLF = FALSE)
@@ -393,39 +394,39 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 	########################################################
     # Genes
 	# fix gene / transcript names with '/' (which breaks IRFinder code)
-    gtf.gr$gene_name = gsub("/","_",gtf.gr$gene_name)
-    gtf.gr$transcript_name = gsub("/","_",gtf.gr$transcript_name)
+    gtf_gr$gene_name = gsub("/","_",gtf_gr$gene_name)
+    gtf_gr$transcript_name = gsub("/","_",gtf_gr$transcript_name)
 
-    Genes = gtf.gr[gtf.gr$type == "gene"]
+    Genes = gtf_gr[gtf_gr$type == "gene"]
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
     Genes$gene_display_name = paste0(Genes$gene_name, " (", Genes$gene_id, ")")
 
     # Annotate gene_groups_stranded
-    Genes.Group.stranded = as.data.table(reduce(Genes))
-    setorder(Genes.Group.stranded, seqnames, start, strand)
+    Genes_group.stranded = as.data.table(reduce(Genes))
+    setorder(Genes_group.stranded, seqnames, start, strand)
 
-    Genes.Group.stranded[, c("gene_group_stranded") := .I]
+    Genes_group.stranded[, c("gene_group_stranded") := .I]
     OL = findOverlaps(
-        Genes, .grDT(Genes.Group.stranded))
+        Genes, .grDT(Genes_group.stranded))
     Genes$gene_group_stranded[from(OL)] =
-        Genes.Group.stranded$gene_group_stranded[to(OL)]
+        Genes_group.stranded$gene_group_stranded[to(OL)]
 
     # Annotate gene_groups_unstranded
-    Genes.Group.unstranded = as.data.table(reduce(Genes, ignore.strand = TRUE))
-    setorder(Genes.Group.unstranded, seqnames, start)
-    Genes.Group.unstranded[, c("gene_group_unstranded") := .I]
+    Genes_group.unstranded = as.data.table(reduce(Genes, ignore.strand = TRUE))
+    setorder(Genes_group.unstranded, seqnames, start)
+    Genes_group.unstranded[, c("gene_group_unstranded") := .I]
     OL = findOverlaps(Genes, 
-        .grDT(Genes.Group.unstranded, ignore.strand = TRUE))
+        .grDT(Genes_group.unstranded, ignore.strand = TRUE))
     Genes$gene_group_unstranded[from(OL)] =
-        Genes.Group.unstranded$gene_group_unstranded[to(OL)]
+        Genes_group.unstranded$gene_group_unstranded[to(OL)]
     
     write.fst(as.data.frame(Genes), 
 		file.path(reference_path,"fst","Genes.fst"))
 
 	########################################################
     # Transcripts        
-    Transcripts = gtf.gr[gtf.gr$type == "transcript"]
+    Transcripts = gtf_gr[gtf_gr$type == "transcript"]
     Transcripts <- GenomeInfoDb::sortSeqlevels(Transcripts)
     Transcripts <- sort(Transcripts)
     
@@ -449,7 +450,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
 	########################################################
     # Exons   
-    Exons = gtf.gr[gtf.gr$type == "exon"]
+    Exons = gtf_gr[gtf_gr$type == "exon"]
     Exons <- GenomeInfoDb::sortSeqlevels(Exons)
     Exons <- sort(Exons)
 
@@ -469,19 +470,19 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
 
     # Assign gene groups then bake exon-groups into Exons
-    tmp.Exons.Group.stranded = as.data.table(reduce(tmp.exons.exclude))
+    tmp.Exons_group.stranded = as.data.table(reduce(tmp.exons.exclude))
     
     OL = findOverlaps(
-        .grDT(tmp.Exons.Group.stranded), 
-        .grDT(Genes.Group.stranded))
-    tmp.Exons.Group.stranded$gene_group[from(OL)] =
-        Genes.Group.stranded$gene_group_stranded[to(OL)]
+        .grDT(tmp.Exons_group.stranded), 
+        .grDT(Genes_group.stranded))
+    tmp.Exons_group.stranded$gene_group[from(OL)] =
+        Genes_group.stranded$gene_group_stranded[to(OL)]
 
     # Some retained_intron transcripts have terminal exons lying outside of
     #   main transcripts. Include these also
     tmp.exons.exclude.span = split(
-      .grDT(tmp.Exons.Group.stranded),
-      tmp.Exons.Group.stranded$gene_group)
+      .grDT(tmp.Exons_group.stranded),
+      tmp.Exons_group.stranded$gene_group)
     tmp.exons.exclude.span = 
 		unlist(range(tmp.exons.exclude.span), use.names=TRUE)
  
@@ -494,62 +495,62 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         tmp.exons.RI = tmp.exons.RI[-from(OL)]
         tmp.exons.exclude = c(tmp.exons.exclude, tmp.exons.RI)
     # Reassign everything
-        tmp.Exons.Group.stranded = as.data.table(reduce(tmp.exons.exclude))
+        tmp.Exons_group.stranded = as.data.table(reduce(tmp.exons.exclude))
       
         OL = findOverlaps(
-            .grDT(tmp.Exons.Group.stranded), 
-            .grDT(Genes.Group.stranded)
+            .grDT(tmp.Exons_group.stranded), 
+            .grDT(Genes_group.stranded)
         )
-        tmp.Exons.Group.stranded$gene_group[from(OL)] =
-            Genes.Group.stranded$gene_group_stranded[to(OL)]
+        tmp.Exons_group.stranded$gene_group[from(OL)] =
+            Genes_group.stranded$gene_group_stranded[to(OL)]
     }
 
-    setorder(tmp.Exons.Group.stranded, seqnames, start, strand)
-    tmp.Exons.Group.stranded[, c("exon_group") := 
+    setorder(tmp.Exons_group.stranded, seqnames, start, strand)
+    tmp.Exons_group.stranded[, c("exon_group") := 
 		data.table::rowid(get("gene_group"))]
-    tmp.Exons.Group.stranded[get("strand") == "-", 
+    tmp.Exons_group.stranded[get("strand") == "-", 
         c("exon_group") := max(get("exon_group")) + 1 - get("exon_group"),
         by = "gene_group"]
 
-    tmp.Exons.Group.unstranded = as.data.table(reduce(tmp.exons.exclude,
+    tmp.Exons_group.unstranded = as.data.table(reduce(tmp.exons.exclude,
         ignore.strand = TRUE))
     OL = findOverlaps(
-        .grDT(tmp.Exons.Group.unstranded), 
-        .grDT(Genes.Group.unstranded, ignore.strand = TRUE))
-    tmp.Exons.Group.unstranded$gene_group[from(OL)] =
-        Genes.Group.unstranded$gene_group_unstranded[to(OL)]
-    setorder(tmp.Exons.Group.unstranded, seqnames, start, strand)
-    tmp.Exons.Group.unstranded[, c("exon_group") := 
+        .grDT(tmp.Exons_group.unstranded), 
+        .grDT(Genes_group.unstranded, ignore.strand = TRUE))
+    tmp.Exons_group.unstranded$gene_group[from(OL)] =
+        Genes_group.unstranded$gene_group_unstranded[to(OL)]
+    setorder(tmp.Exons_group.unstranded, seqnames, start, strand)
+    tmp.Exons_group.unstranded[, c("exon_group") := 
         data.table::rowid(get("gene_group"))]
-    tmp.Exons.Group.unstranded[strand == "-", 
+    tmp.Exons_group.unstranded[strand == "-", 
         c("exon_group") := max(get("exon_group")) + 1 - get("exon_group"), 
         by = "gene_group"]
 
     # Now annotate all exons in Exons with the gene and exon groups
     OL = findOverlaps(
-        Exons, .grDT(tmp.Exons.Group.stranded))
+        Exons, .grDT(tmp.Exons_group.stranded))
     Exons$gene_group_stranded[from(OL)] =
-        tmp.Exons.Group.stranded$gene_group[to(OL)]
+        tmp.Exons_group.stranded$gene_group[to(OL)]
     Exons$exon_group_stranded[from(OL)] =
-        tmp.Exons.Group.stranded$exon_group[to(OL)]
+        tmp.Exons_group.stranded$exon_group[to(OL)]
 
     OL = findOverlaps(
-        Exons, .grDT(tmp.Exons.Group.unstranded,
+        Exons, .grDT(tmp.Exons_group.unstranded,
         ignore.strand = TRUE))
     Exons$gene_group_unstranded[from(OL)] =
-        tmp.Exons.Group.unstranded$gene_group[to(OL)]
+        tmp.Exons_group.unstranded$gene_group[to(OL)]
     Exons$exon_group_unstranded[from(OL)] =
-        tmp.Exons.Group.unstranded$exon_group[to(OL)]
+        tmp.Exons_group.unstranded$exon_group[to(OL)]
     
     # Finally write to disk
     write.fst(as.data.frame(Exons), file.path(reference_path,"fst","Exons.fst"))
     # Also write tmp.Exon groups
-    write.fst(rbind(tmp.Exons.Group.stranded, tmp.Exons.Group.unstranded), 
-        file.path(reference_path,"fst","Exons.Group.fst"))
+    write.fst(rbind(tmp.Exons_group.stranded, tmp.Exons_group.unstranded), 
+        file.path(reference_path,"fst","Exons_group.fst"))
 
 	########################################################
     # Proteins
-    Proteins = gtf.gr[gtf.gr$type == "CDS"]
+    Proteins = gtf_gr[gtf_gr$type == "CDS"]
     Proteins <- GenomeInfoDb::sortSeqlevels(Proteins)
     Proteins <- sort(Proteins)
     write.fst(as.data.frame(Proteins),
@@ -557,7 +558,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
 	########################################################
     # Misc
-    gtf.misc = gtf.gr[!gtf.gr$type %in% c("gene", "transcript", "exon", "CDS")]
+    gtf.misc = gtf_gr[!gtf_gr$type %in% c("gene", "transcript", "exon", "CDS")]
     gtf.misc <- GenomeInfoDb::sortSeqlevels(gtf.misc)
     gtf.misc <- sort(gtf.misc)
     write.fst(as.data.frame(gtf.misc),
@@ -603,12 +604,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         read.fst(file.path(reference_path,"fst","Proteins.fst")),
         keep.extra.columns = TRUE
     )
-    Exons.Group = makeGRangesFromDataFrame(
-        read.fst(file.path(reference_path,"fst","Exons.Group.fst")),
+    Exons_group = makeGRangesFromDataFrame(
+        read.fst(file.path(reference_path,"fst","Exons_group.fst")),
         keep.extra.columns = TRUE
     )
-    Exons.Group.stranded = Exons.Group[strand(Exons.Group) != "*"]
-    Exons.Group.unstranded = Exons.Group[strand(Exons.Group) == "*"]
+    Exons_group.stranded = Exons_group[strand(Exons_group) != "*"]
+    Exons_group.unstranded = Exons_group[strand(Exons_group) == "*"]
     
     if(UseExtendedTranscripts == FALSE) {
         candidate.transcripts = Exons[Exons$transcript_biotype %in% 
@@ -645,15 +646,15 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         stop = ifelse(candidate.introns$strand == "+",
             candidate.introns$start + 1, candidate.introns$end),
         strand = candidate.introns$strand)
-    donor.seq = getSeq(genome, makeGRangesFromDataFrame(donor.introns))
+    donor_seq = getSeq(genome, makeGRangesFromDataFrame(donor.introns))
     acceptor.introns = data.frame(seqnames = candidate.introns$seqnames,
         start = ifelse(candidate.introns$strand == "+", 
             candidate.introns$end - 1, candidate.introns$start),
         stop = ifelse(candidate.introns$strand == "+", 
             candidate.introns$end, candidate.introns$start + 1),
         strand = candidate.introns$strand)
-    acceptor.seq = getSeq(genome, makeGRangesFromDataFrame(acceptor.introns))
-    candidate.introns$splice_motif = paste0(donor.seq, acceptor.seq)
+    acceptor_seq = getSeq(genome, makeGRangesFromDataFrame(acceptor.introns))
+    candidate.introns$splice_motif = paste0(donor_seq, acceptor_seq)
 
 	# Do other annotations here:   
     candidate.introns[as.data.table(Transcripts), on = "transcript_id", 
@@ -688,28 +689,28 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     candidate.introns$exon_group_stranded_downstream = NA        
     
     OL = .overlaps_exon_island(candidate.introns, 
-        Exons.Group.stranded, upstream = TRUE)
+        Exons_group.stranded, upstream = TRUE)
     candidate.introns$gene_group_stranded[from(OL)] =
-        Exons.Group.stranded$gene_group[to(OL)]
+        Exons_group.stranded$gene_group[to(OL)]
     candidate.introns$exon_group_stranded_upstream[from(OL)] =
-        Exons.Group.stranded$exon_group[to(OL)]		
+        Exons_group.stranded$exon_group[to(OL)]		
 
     OL = .overlaps_exon_island(candidate.introns, 
-        Exons.Group.stranded, upstream = FALSE)
+        Exons_group.stranded, upstream = FALSE)
     candidate.introns$exon_group_stranded_downstream[from(OL)] =
-        Exons.Group.stranded$exon_group[to(OL)]		
+        Exons_group.stranded$exon_group[to(OL)]		
 
     # Need fix for retained_introns or sense_intronic where junction extends 
     #   into the obligate introns
-    tmp = .grDT(Exons.Group.stranded, keep.extra.columns = TRUE)
-    tmp.Introns.Group.stranded = .grlGaps(
+    tmp = .grDT(Exons_group.stranded, keep.extra.columns = TRUE)
+    tmp.Introns_group.stranded = .grlGaps(
         split(tmp, tmp$gene_group)
     )
-    tmp.Introns.Group.stranded = as.data.table(tmp.Introns.Group.stranded)
-    setnames(tmp.Introns.Group.stranded, "group_name", "gene_group")
-    tmp.Introns.Group.stranded[,c("intron_number") := 
+    tmp.Introns_group.stranded = as.data.table(tmp.Introns_group.stranded)
+    setnames(tmp.Introns_group.stranded, "group_name", "gene_group")
+    tmp.Introns_group.stranded[,c("intron_number") := 
         data.table::rowid(get("gene_group"))]
-    tmp.Introns.Group.stranded[get("strand") == "-", 
+    tmp.Introns_group.stranded[get("strand") == "-", 
         c("intron_number") := 
             max(get("intron_number")) + 1 - get("intron_number"),
         by = "gene_group"]
@@ -720,25 +721,25 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         candidate.introns[!is.na(get("exon_group_stranded_upstream"))]
     
     OL = .overlaps_exon_island(candidate.introns.subset, 
-        tmp.Introns.Group.stranded, 
+        tmp.Introns_group.stranded, 
         upstream = TRUE)
     candidate.introns.subset$gene_group_stranded[from(OL)] =
-        tmp.Introns.Group.stranded$gene_group[to(OL)]
+        tmp.Introns_group.stranded$gene_group[to(OL)]
     candidate.introns.subset$exon_group_stranded_upstream[from(OL)] =
-        tmp.Introns.Group.stranded$intron_number[to(OL)]		
+        tmp.Introns_group.stranded$intron_number[to(OL)]		
 
     candidate.introns = rbind(candidate.introns, candidate.introns.subset)
 
     candidate.introns.subset =
-        candidate.introns[is.na(exon_group_stranded_downstream)]
+        candidate.introns[is.na(get("exon_group_stranded_downstream"))]
     candidate.introns =
-        candidate.introns[!is.na(exon_group_stranded_downstream)]
+        candidate.introns[!is.na(get("exon_group_stranded_downstream"))]
     
     OL = .overlaps_exon_island(candidate.introns.subset, 
-        tmp.Introns.Group.stranded, 
+        tmp.Introns_group.stranded, 
         upstream = FALSE)			
     candidate.introns.subset$exon_group_stranded_downstream[from(OL)] =
-        tmp.Introns.Group.stranded$intron_number[to(OL)] + 1		
+        tmp.Introns_group.stranded$intron_number[to(OL)] + 1		
 
     candidate.introns = rbind(candidate.introns, candidate.introns.subset)
     
@@ -748,28 +749,28 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     candidate.introns$exon_group_unstranded_downstream = NA
 
     OL = .overlaps_exon_island(candidate.introns, 
-        Exons.Group.unstranded, upstream = TRUE)
+        Exons_group.unstranded, upstream = TRUE)
     candidate.introns$gene_group_unstranded[from(OL)] =
-        Exons.Group.unstranded$gene_group[to(OL)]
+        Exons_group.unstranded$gene_group[to(OL)]
     candidate.introns$exon_group_unstranded_upstream[from(OL)] =
-        Exons.Group.unstranded$exon_group[to(OL)]		
+        Exons_group.unstranded$exon_group[to(OL)]		
 
     OL = .overlaps_exon_island(candidate.introns, 
-        Exons.Group.unstranded, upstream = FALSE)
+        Exons_group.unstranded, upstream = FALSE)
     candidate.introns$exon_group_unstranded_downstream[from(OL)] =
-        Exons.Group.unstranded$exon_group[to(OL)]		
+        Exons_group.unstranded$exon_group[to(OL)]		
 
     # Need fix for retained_introns or sense_intronic where 
     #   junction extends into the obligate introns
-    tmp = .grDT(Exons.Group.unstranded, keep.extra.columns = TRUE)
-    tmp.Introns.Group.unstranded = .grlGaps(
+    tmp = .grDT(Exons_group.unstranded, keep.extra.columns = TRUE)
+    tmp.Introns_group.unstranded = .grlGaps(
         split(tmp, tmp$gene_group)
     )
-    tmp.Introns.Group.unstranded = 
-        as.data.table(tmp.Introns.Group.unstranded)
-    setnames(tmp.Introns.Group.unstranded,
+    tmp.Introns_group.unstranded = 
+        as.data.table(tmp.Introns_group.unstranded)
+    setnames(tmp.Introns_group.unstranded,
         "group_name", "gene_group")
-    tmp.Introns.Group.unstranded[,
+    tmp.Introns_group.unstranded[,
         c("intron_number") := data.table::rowid(get("gene_group"))]
 
     candidate.introns.subset =
@@ -778,12 +779,12 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         candidate.introns[!is.na(get("exon_group_unstranded_upstream"))]
 
     OL = .overlaps_exon_island(candidate.introns.subset, 
-        tmp.Introns.Group.unstranded, 
+        tmp.Introns_group.unstranded, 
         upstream = TRUE)
     candidate.introns.subset$gene_group_unstranded[from(OL)] =
-        tmp.Introns.Group.unstranded$gene_group[to(OL)]
+        tmp.Introns_group.unstranded$gene_group[to(OL)]
     candidate.introns.subset$exon_group_unstranded_upstream[from(OL)] =
-        tmp.Introns.Group.unstranded$intron_number[to(OL)]		
+        tmp.Introns_group.unstranded$intron_number[to(OL)]		
 
     candidate.introns = rbind(candidate.introns, candidate.introns.subset)
 
@@ -793,10 +794,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         candidate.introns[!is.na(get("exon_group_unstranded_downstream"))]
     
     OL = .overlaps_exon_island(candidate.introns.subset, 
-        tmp.Introns.Group.unstranded, 
+        tmp.Introns_group.unstranded, 
         upstream = FALSE)
     candidate.introns.subset$exon_group_unstranded_downstream[from(OL)] =
-        tmp.Introns.Group.unstranded$intron_number[to(OL)] + 1		
+        tmp.Introns_group.unstranded$intron_number[to(OL)] + 1		
 
     candidate.introns = rbind(candidate.introns, candidate.introns.subset)
 
@@ -842,7 +843,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     
     tmp.exons.exclude =  Exons[!grepl("intron", Exons$transcript_biotype)]
 
-    candidate.introns = candidate.introns[transcript_biotype %in% 
+    candidate.introns = candidate.introns[get("transcript_biotype") %in% 
         c("protein_coding", "processed_transcript",
         "lincRNA", "antisense", "nonsense_mediated_decay")]
 
@@ -1029,7 +1030,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             "intron_width", "width", "strand", "gene_name", "transcript_id",
             "known_exon_dir", "GG", "EG_up", "EG_down")
         := list(
-            get("i.seqnames"), get("i.intron_start"), 
+            get("i_seqnames"), get("i.intron_start"), 
             get("i.intron_end"), get("i.intron_width"),
             get("i.width"), get("i.strand"), get("i.gene_name"), 
             get("i.transcript_id"), get("i.known_exon_dir"),
@@ -1097,7 +1098,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             "intron_width", "width", "strand", "gene_name", "transcript_id",
             "known_exon_nd", "antiover", "antinear", "GG", "EG_up", "EG_down")
         := list(
-            get("i.seqnames"), get("i.intron_start"), 
+            get("i_seqnames"), get("i.intron_start"), 
             get("i.intron_end"), get("i.intron_width"),
             get("i.width"), get("i.strand"), get("i.gene_name"), 
             get("i.transcript_id"),
@@ -1347,7 +1348,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     )
     start.DT = Misc[get("type") == "start_codon"]
 
-    Exons.tr = Exons.tr[transcript_id %in% start.DT$transcript_id]
+    Exons.tr = Exons.tr[get("transcript_id") %in% start.DT$transcript_id]
     
     Exons.tr[start.DT, on = c("transcript_id"), 
       c("sc_start", "sc_end") := list(get("i.start"), get("i.end"))]    
@@ -1362,7 +1363,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     Exons.tr = Exons.tr[get("start") < get("end")]
     
     protein.introns = candidate.introns[
-        transcript_id %in% Exons.tr$transcript_id]
+        get("transcript_id") %in% Exons.tr$transcript_id]
     # determine here whether protein introns are CDS, 5' or 3' UTR introns
     UTR5 = Misc[get("type") == "five_prime_utr"]
     UTR5.introns = .grlGaps(
@@ -1401,7 +1402,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 }
 
 ################################################################################
-gen_splice <- function(reference_path, genome) {
+.gen_splice <- function(reference_path, genome) {
 
     message("Annotating Splice Events\n")
 
@@ -1441,45 +1442,45 @@ gen_splice <- function(reference_path, genome) {
     message("Annotating Mutually-Exclusive-Exon Splice Events...",
         appendLF = FALSE)
 
-	introns.search.MXE = introns.skipcoord[introns.skipcoord[,
+	introns_search_MXE = introns.skipcoord[introns.skipcoord[,
 		.I[get("intron_number") < max(get("intron_number"))], 
             by = "transcript_id"]$V1]
-	introns.search.MXE = introns.search.MXE[introns.search.MXE[
+	introns_search_MXE = introns_search_MXE[introns_search_MXE[
         ,.N,by = c("gene_id", "skip_coord")],
 		on = c("gene_id", "skip_coord"), c("N") := get("i.N")]
-	introns.search.MXE = introns.search.MXE[get("N") > 1]
-	introns.search.MXE.pos = introns.search.MXE[strand == "+"]
-	setorder(introns.search.MXE.pos, seqnames, intron_start, intron_end)
-	introns.search.MXE.neg = introns.search.MXE[strand == "-"]
-	setorder(introns.search.MXE.neg, seqnames, intron_end, -intron_start)
-	introns.search.MXE = rbindlist(
-        list(introns.search.MXE.pos, introns.search.MXE.neg)
+	introns_search_MXE = introns_search_MXE[get("N") > 1]
+	introns_search_MXE_pos = introns_search_MXE[strand == "+"]
+	setorder(introns_search_MXE_pos, seqnames, intron_start, intron_end)
+	introns_search_MXE_neg = introns_search_MXE[strand == "-"]
+	setorder(introns_search_MXE_neg, seqnames, intron_end, -intron_start)
+	introns_search_MXE = rbindlist(
+        list(introns_search_MXE_pos, introns_search_MXE_neg)
     )
 	
-	introns.search.MXE = introns.search.MXE[, 
+	introns_search_MXE = introns_search_MXE[, 
         c("skip_coord", "gene_id", "Event", "transcript_id",
 		"transcript_name", "intron_number")]
-	setnames(introns.search.MXE, old = "Event", new = "Event1")
+	setnames(introns_search_MXE, old = "Event", new = "Event1")
 	
-	introns.search.MXE2 = introns.skipcoord[,
+	introns_search_MXE2 = introns.skipcoord[,
         c("skip_coord_2","gene_id","Event","transcript_id","transcript_name")]
-	setnames(introns.search.MXE2, 
+	setnames(introns_search_MXE2, 
         old = c("skip_coord_2","Event"), 
             new = c("skip_coord", "Event2"))
 	
-	introns.search.MXE[introns.search.MXE2, 
+	introns_search_MXE[introns_search_MXE2, 
         on = c("gene_id","transcript_id","transcript_name","skip_coord"),
 		c("Event2") := get("i.Event2")]
 	
-	introns.search.MXE = unique(introns.search.MXE, 
+	introns_search_MXE = unique(introns_search_MXE, 
         by= c("gene_id","skip_coord","Event1"))
-	introns.search.MXE = unique(introns.search.MXE, 
+	introns_search_MXE = unique(introns_search_MXE, 
         by= c("gene_id","skip_coord","Event2"))
-	introns.search.MXE = introns.search.MXE[, if(.N>1) .SD,
+	introns_search_MXE = introns_search_MXE[, if(.N>1) .SD,
         by = c("gene_id","skip_coord")]
 	
-    if(nrow(introns.search.MXE) > 0) {
-        introns.found.MXE = introns.search.MXE[ , 
+    if(nrow(introns_search_MXE) > 0) {
+        introns_found_MXE = introns_search_MXE[ , 
 			{
             edge1 = rep(seq_len(.N), (.N:1) - 1L)
             i = 2L:(.N * (.N - 1L) / 2L + 1L)
@@ -1501,19 +1502,19 @@ gen_splice <- function(reference_path, genome) {
             )
 		}, by = "skip_coord"]
 
-        introns.found.MXE[, 
+        introns_found_MXE[, 
             c("gene_id") := factor(get("gene_id"),GeneOrder$gene_id,ordered=TRUE)]
-        setorderv(introns.found.MXE, c("gene_id", "transcript_name_a"))
-        introns.found.MXE[, 
+        setorderv(introns_found_MXE, c("gene_id", "transcript_name_a"))
+        introns_found_MXE[, 
             c("EventName") := paste0("MXE:", get("transcript_name_a"), "-exon",
                 (1 + get("intron_number_a")),";",
                 get("transcript_name_b"),"-exon",(1 + get("intron_number_b")))
         ]
-        introns.found.MXE[, c("EventID") := paste0("MXE#", seq_len(.N))]
-        setnames(introns.found.MXE, 
+        introns_found_MXE[, c("EventID") := paste0("MXE#", seq_len(.N))]
+        setnames(introns_found_MXE, 
             old = "skip_coord", new = "EventRegion")
-        introns.found.MXE[, c("EventType") := "MXE"]
-        introns.found.MXE = introns.found.MXE[, 
+        introns_found_MXE[, c("EventType") := "MXE"]
+        introns_found_MXE = introns_found_MXE[, 
             c(
                 "EventType","EventID","EventName","Event1a","Event1b",
                 "Event2a","Event2b", "gene_id","gene_id_b","EventRegion",
@@ -1522,10 +1523,10 @@ gen_splice <- function(reference_path, genome) {
             )
         ]
 
-        introns.found.MXE = unique(introns.found.MXE, 
+        introns_found_MXE = unique(introns_found_MXE, 
             by = c("Event1a", "Event1b", "Event2a", "Event2b"))
     } else {
-        introns.found.MXE = c()
+        introns_found_MXE = c()
     }
 	message("done\n")
     gc() 
@@ -1534,57 +1535,57 @@ gen_splice <- function(reference_path, genome) {
 # annotate skipped junctions with two included junctions
     message("Annotating Skipped-Exon Splice Events...", appendLF = FALSE)
 
-	introns.found.SE = introns.skippedJn[,"skip_coord"]
-	introns.search.SE = candidate.introns[,
+	introns_found_SE = introns.skippedJn[,"skip_coord"]
+	introns_search_SE = candidate.introns[,
         c("gene_id","Event","transcript_id", 
             "transcript_name","intron_number")
     ]
-	setnames(introns.search.SE, 
+	setnames(introns_search_SE, 
         old = c("Event", "transcript_id", "transcript_name", "intron_number"),
 		new = c("skip_coord", "skip_transcript_id", "skip_transcript_name", 
             "skip_intron_number"))
-	introns.found.SE[introns.search.SE, on = "skip_coord", 
+	introns_found_SE[introns_search_SE, on = "skip_coord", 
 		c("gene_id_b", "skip_transcript_id",
             "skip_transcript_name", "skip_intron_number") :=
 		list(get("i.gene_id"), get("i.skip_transcript_id"),
             get("i.skip_transcript_name"), get("i.skip_intron_number"))]
-	introns.found.SE = unique(introns.found.SE,
+	introns_found_SE = unique(introns_found_SE,
         by = c("gene_id_b","skip_coord"))	
 
-	introns.search.SE2 = introns.skipcoord[,
+	introns_search_SE2 = introns.skipcoord[,
         c("skip_coord","gene_id","Event","transcript_id","transcript_name",
 			"intron_number")]
-	introns.found.SE[introns.search.SE2, on = "skip_coord",
+	introns_found_SE[introns_search_SE2, on = "skip_coord",
         c("gene_id", "inc_coord_upst", "inc_transcript_id",
             "inc_transcript_name", "inc_intron_number") :=
         list(get("i.gene_id"), get("i.Event"), get("i.transcript_id"),
             get("i.transcript_name"), get("i.intron_number"))]
 
-	introns.search.SE3 = introns.skipcoord[,
+	introns_search_SE3 = introns.skipcoord[,
         c("skip_coord_2","gene_id","Event",
             "transcript_id","transcript_name")]
-	setnames(introns.search.SE3, 
+	setnames(introns_search_SE3, 
         old = c("skip_coord_2", "transcript_id"),
         new = c("skip_coord", "inc_transcript_id"))
-	introns.found.SE[introns.search.SE3, 
+	introns_found_SE[introns_search_SE3, 
         on = c("skip_coord", "inc_transcript_id"),
         c("inc_coord_downst") := get("i.Event")]
 
-	introns.found.SE = unique(introns.found.SE, 
+	introns_found_SE = unique(introns_found_SE, 
         by = c("gene_id","skip_coord",
             "inc_transcript_id", "inc_transcript_name"))
-	introns.found.SE[, 
+	introns_found_SE[, 
         c("gene_id") := factor(get("gene_id"), GeneOrder$gene_id, ordered = TRUE)]
-	setorderv(introns.found.SE, c("gene_id", "inc_transcript_name"))
-	introns.found.SE[, c("EventName") := paste0(
+	setorderv(introns_found_SE, c("gene_id", "inc_transcript_name"))
+	introns_found_SE[, c("EventName") := paste0(
 			"SE:",get("inc_transcript_name"),"-exon",(1 + get("inc_intron_number")),";",
 			get("skip_transcript_name"),"-int",get("skip_intron_number")
 			)]
-	introns.found.SE[, c("EventID") := paste0("SE#",seq_len(.N))]
-	introns.found.SE[, c("EventType") := "SE"]
-	introns.found.SE[, c("Event2b") := NA]
-	introns.found.SE[, c("EventRegion") := get("skip_coord")]
-	introns.found.SE = introns.found.SE[, 
+	introns_found_SE[, c("EventID") := paste0("SE#",seq_len(.N))]
+	introns_found_SE[, c("EventType") := "SE"]
+	introns_found_SE[, c("Event2b") := NA]
+	introns_found_SE[, c("EventRegion") := get("skip_coord")]
+	introns_found_SE = introns_found_SE[, 
         c(
             "EventType","EventID","EventName","inc_coord_upst",
 			"skip_coord","inc_coord_downst","Event2b",
@@ -1593,15 +1594,15 @@ gen_splice <- function(reference_path, genome) {
 			"skip_transcript_id","skip_transcript_name","skip_intron_number"
         )
     ]
-	setnames(introns.found.SE, 
+	setnames(introns_found_SE, 
         old = c("inc_coord_upst", "inc_coord_downst", "skip_coord"),
 		new = c("Event1a", "Event2a", "Event1b"))
-	setnames(introns.found.SE, 
+	setnames(introns_found_SE, 
         old = c("inc_transcript_id", "inc_transcript_name",
             "skip_transcript_id","skip_transcript_name"),
 		new = c("transcript_id_a", "transcript_name_a",
             "transcript_id_b","transcript_name_b"))
-	setnames(introns.found.SE, 
+	setnames(introns_found_SE, 
         new = c("intron_number_a","intron_number_b"),
         old = c("inc_intron_number", "skip_intron_number")
     )
@@ -1615,57 +1616,57 @@ gen_splice <- function(reference_path, genome) {
 
 	# AFE/ALE
 
-	introns.search.AFE = candidate.introns[get("intron_number") == 1]
-	introns.search.AFE[,
+	introns_search_AFE = candidate.introns[get("intron_number") == 1]
+	introns_search_AFE[,
         c("seqnames") := factor(get("seqnames"), chrOrder, ordered = TRUE)]
 
-	introns.search.AFE.pos = introns.search.AFE[get("strand") == "+"]
-	setorderv(introns.search.AFE.pos, 
+	introns_search_AFE_pos = introns_search_AFE[get("strand") == "+"]
+	setorderv(introns_search_AFE_pos, 
         c("seqnames", "intron_end", "intron_start"), 
         order = c(1,1,-1))
-	introns.search.AFE.pos = introns.search.AFE.pos[,
+	introns_search_AFE_pos = introns_search_AFE_pos[,
         c("seqnames", "intron_end", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number")]
-	setnames(introns.search.AFE.pos, old = "intron_end", new = "intron_coord")
+	setnames(introns_search_AFE_pos, old = "intron_end", new = "intron_coord")
 
-	introns.search.AFE.neg = introns.search.AFE[get("strand") == "-"]
-	setorderv(introns.search.AFE.neg, c("seqnames", "intron_start", "intron_end"))
-	introns.search.AFE.neg = introns.search.AFE.neg[,
+	introns_search_AFE_neg = introns_search_AFE[get("strand") == "-"]
+	setorderv(introns_search_AFE_neg, c("seqnames", "intron_start", "intron_end"))
+	introns_search_AFE_neg = introns_search_AFE_neg[,
         c("seqnames", "intron_start", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number")]
-	setnames(introns.search.AFE.neg, old = "intron_start", new = "intron_coord")
+	setnames(introns_search_AFE_neg, old = "intron_start", new = "intron_coord")
 
-	introns.search.AFE = rbindlist(
-        list(introns.search.AFE.pos, introns.search.AFE.neg))
-	introns.search.AFE = unique(introns.search.AFE, by = "Event")
+	introns_search_AFE = rbindlist(
+        list(introns_search_AFE_pos, introns_search_AFE_neg))
+	introns_search_AFE = unique(introns_search_AFE, by = "Event")
 
-	introns.search.ALE = candidate.introns[candidate.introns[,
+	introns_search_ALE = candidate.introns[candidate.introns[,
 			.I[get("intron_number") == max(get("intron_number"))], 
             by = "transcript_id"]$V1]
-	introns.search.ALE[, 
+	introns_search_ALE[, 
         c("seqnames") := factor(get("seqnames"), chrOrder, ordered = TRUE)]
 
-	introns.search.ALE.pos = introns.search.ALE[get("strand") == "+"]
-	setorderv(introns.search.ALE.pos, c("seqnames", "intron_start", "intron_end"))
-	introns.search.ALE.pos = introns.search.ALE.pos[,
+	introns_search_ALE_pos = introns_search_ALE[get("strand") == "+"]
+	setorderv(introns_search_ALE_pos, c("seqnames", "intron_start", "intron_end"))
+	introns_search_ALE_pos = introns_search_ALE_pos[,
         c("seqnames", "intron_start", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number")]
-	setnames(introns.search.ALE.pos, 
+	setnames(introns_search_ALE_pos, 
         old = "intron_start", new = "intron_coord")
 
-	introns.search.ALE.neg = introns.search.ALE[get("strand") == "-"]
-	setorderv(introns.search.ALE.neg, c("seqnames", "intron_end", "intron_start"),
+	introns_search_ALE_neg = introns_search_ALE[get("strand") == "-"]
+	setorderv(introns_search_ALE_neg, c("seqnames", "intron_end", "intron_start"),
         order = c(1,1,-1))
-	introns.search.ALE.neg = introns.search.ALE.neg[,
+	introns_search_ALE_neg = introns_search_ALE_neg[,
         c("seqnames", "intron_end", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number")]
-	setnames(introns.search.ALE.neg, old = "intron_end", new = "intron_coord")
+	setnames(introns_search_ALE_neg, old = "intron_end", new = "intron_coord")
 
-	introns.search.ALE = rbindlist(
-        list(introns.search.ALE.pos, introns.search.ALE.neg))
-	introns.search.ALE = unique(introns.search.ALE, by = "Event")
+	introns_search_ALE = rbindlist(
+        list(introns_search_ALE_pos, introns_search_ALE_neg))
+	introns_search_ALE = unique(introns_search_ALE, by = "Event")
 
-	introns.found.AFE = introns.search.AFE[ , 
+	introns_found_AFE = introns_search_AFE[ , 
 			{	
 		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
@@ -1685,9 +1686,9 @@ gen_splice <- function(reference_path, genome) {
 			intron_number_b = get("intron_number")[edge2]
 		)
 	}, by = c("seqnames", "intron_coord")]
-	introns.found.AFE = introns.found.AFE[!is.na(get("gene_id"))]
+	introns_found_AFE = introns_found_AFE[!is.na(get("gene_id"))]
 	
-	introns.found.ALE = introns.search.ALE[ , 
+	introns_found_ALE = introns_search_ALE[ , 
 			{		
 		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
@@ -1707,39 +1708,39 @@ gen_splice <- function(reference_path, genome) {
 			intron_number_b = get("intron_number")[edge2]
 		)
 	}, by = c("seqnames", "intron_coord")]
-	introns.found.ALE = introns.found.ALE[!is.na(get("gene_id"))]
+	introns_found_ALE = introns_found_ALE[!is.na(get("gene_id"))]
 
 ################################################################################
-	introns.found.AFE = unique(introns.found.AFE, by = c("Event1a", "Event1b"))
-	introns.found.AFE = introns.found.AFE[, 
+	introns_found_AFE = unique(introns_found_AFE, by = c("Event1a", "Event1b"))
+	introns_found_AFE = introns_found_AFE[, 
         c("gene_id") := factor(get("gene_id"), GeneOrder$gene_id, ordered = TRUE)]
-	setorderv(introns.found.AFE, c("gene_id", "transcript_name_a"))
-	introns.found.AFE = introns.found.AFE[, 
+	setorderv(introns_found_AFE, c("gene_id", "transcript_name_a"))
+	introns_found_AFE = introns_found_AFE[, 
         c("EventName") := paste0("AFE:",get("transcript_name_a"),"-exon",
             get("intron_number_a"), ";",
             get("transcript_name_b"),"-exon",get("intron_number_b"))]
-	introns.found.AFE = introns.found.AFE[, c("EventType") := "AFE"]
-	introns.found.AFE = introns.found.AFE[, c("EventRegion") := get("Event1b")]
-	introns.found.AFE[, c("EventID") := paste0("AFE#", seq_len(.N))]
-	introns.found.AFE = introns.found.AFE[, 
+	introns_found_AFE = introns_found_AFE[, c("EventType") := "AFE"]
+	introns_found_AFE = introns_found_AFE[, c("EventRegion") := get("Event1b")]
+	introns_found_AFE[, c("EventID") := paste0("AFE#", seq_len(.N))]
+	introns_found_AFE = introns_found_AFE[, 
         c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
 		"transcript_id_a", "transcript_name_a", "intron_number_a",
 		"transcript_id_b", "transcript_name_b", "intron_number_b")]
 	
-	introns.found.ALE = unique(introns.found.ALE, by = c("Event1a", "Event1b"))
-	introns.found.ALE = introns.found.ALE[, 
+	introns_found_ALE = unique(introns_found_ALE, by = c("Event1a", "Event1b"))
+	introns_found_ALE = introns_found_ALE[, 
         c("gene_id") := factor(get("gene_id"), GeneOrder$gene_id, ordered = TRUE)]
-	setorderv(introns.found.ALE, c("gene_id", "transcript_name_a"))
-	introns.found.ALE = introns.found.ALE[, 
+	setorderv(introns_found_ALE, c("gene_id", "transcript_name_a"))
+	introns_found_ALE = introns_found_ALE[, 
         c("EventName") := paste0("ALE:",get("transcript_name_a"),"-exon",
             get("intron_number_a"),";",
             get("transcript_name_b"),"-exon",get("intron_number_b"))]
-	introns.found.ALE = introns.found.ALE[, c("EventType") := "ALE"]
-	introns.found.ALE = introns.found.ALE[, c("EventRegion") := get("Event1b")]
-	introns.found.ALE[, c("EventID") := paste0("ALE#", seq_len(.N))]
-	introns.found.ALE = introns.found.ALE[,
+	introns_found_ALE = introns_found_ALE[, c("EventType") := "ALE"]
+	introns_found_ALE = introns_found_ALE[, c("EventRegion") := get("Event1b")]
+	introns_found_ALE[, c("EventID") := paste0("ALE#", seq_len(.N))]
+	introns_found_ALE = introns_found_ALE[,
         c("EventType", "EventID", "EventName",
 		"Event1a", "Event1b", "Event2a", "Event2b",
 		"gene_id", "gene_id_b", "EventRegion",
@@ -1761,62 +1762,62 @@ gen_splice <- function(reference_path, genome) {
             "exon_group_stranded_downstream"),
         new = c("exon_groups_start","exon_groups_end"))
     
-	introns.search.A5SS = copy(candidate.introns.ASS)
-	introns.search.A5SS[, 
+	introns_search_A5SS = copy(candidate.introns.ASS)
+	introns_search_A5SS[, 
         c("seqnames") := factor(get("seqnames"), chrOrder, ordered = TRUE)]
 
-	introns.search.A5SS.pos = introns.search.A5SS[get("strand") == "+"]
-	setorderv(introns.search.A5SS.pos, c("seqnames", "intron_end", "intron_start"),
+	introns_search_A5SS_pos = introns_search_A5SS[get("strand") == "+"]
+	setorderv(introns_search_A5SS_pos, c("seqnames", "intron_end", "intron_start"),
         order = c(1,1,-1))
-	introns.search.A5SS.pos = introns.search.A5SS.pos[,
+	introns_search_A5SS_pos = introns_search_A5SS_pos[,
         c("seqnames", "intron_end", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number",
             "exon_groups_start","exon_groups_end")]
-	setnames(introns.search.A5SS.pos, 
+	setnames(introns_search_A5SS_pos, 
         old = "intron_end", new = "intron_coord")
 
-	introns.search.A5SS.neg = introns.search.A5SS[get("strand") == "-"]
-	setorderv(introns.search.A5SS.neg, c("seqnames", "intron_start", "intron_end"))
-	introns.search.A5SS.neg = introns.search.A5SS.neg[,
+	introns_search_A5SS_neg = introns_search_A5SS[get("strand") == "-"]
+	setorderv(introns_search_A5SS_neg, c("seqnames", "intron_start", "intron_end"))
+	introns_search_A5SS_neg = introns_search_A5SS_neg[,
         c("seqnames", "intron_start", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number",
             "exon_groups_start","exon_groups_end")]
-	setnames(introns.search.A5SS.neg, 
+	setnames(introns_search_A5SS_neg, 
         old = "intron_start", new = "intron_coord")
 
-	introns.search.A5SS = rbindlist(
-        list(introns.search.A5SS.pos, introns.search.A5SS.neg))
-	introns.search.A5SS = unique(introns.search.A5SS, by = "Event")
+	introns_search_A5SS = rbindlist(
+        list(introns_search_A5SS_pos, introns_search_A5SS_neg))
+	introns_search_A5SS = unique(introns_search_A5SS, by = "Event")
 
-	introns.search.A3SS = copy(candidate.introns.ASS)
-	introns.search.A3SS[, 
+	introns_search_A3SS = copy(candidate.introns.ASS)
+	introns_search_A3SS[, 
         c("seqnames") := factor(get("seqnames"), chrOrder, ordered = TRUE)]
 
-	introns.search.A3SS.pos = introns.search.A3SS[get("strand") == "+"]
-	setorderv(introns.search.A3SS.pos, c("seqnames", "intron_start", "intron_end"))
-	introns.search.A3SS.pos = introns.search.A3SS.pos[,
+	introns_search_A3SS_pos = introns_search_A3SS[get("strand") == "+"]
+	setorderv(introns_search_A3SS_pos, c("seqnames", "intron_start", "intron_end"))
+	introns_search_A3SS_pos = introns_search_A3SS_pos[,
         c("seqnames", "intron_start", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number",
             "exon_groups_start","exon_groups_end")]
-    setnames(introns.search.A3SS.pos, 
+    setnames(introns_search_A3SS_pos, 
         old = "intron_start", new = "intron_coord")
 
-	introns.search.A3SS.neg = introns.search.A3SS[get("strand") == "-"]
-	setorderv(introns.search.A3SS.neg, c("seqnames", "intron_end", "intron_start"),
+	introns_search_A3SS_neg = introns_search_A3SS[get("strand") == "-"]
+	setorderv(introns_search_A3SS_neg, c("seqnames", "intron_end", "intron_start"),
         order = c(1,1,-1))
-	introns.search.A3SS.neg = introns.search.A3SS.neg[,
+	introns_search_A3SS_neg = introns_search_A3SS_neg[,
         c("seqnames", "intron_end", "strand", "Event", "gene_id", 
             "transcript_id", "transcript_name", "intron_number",
             "exon_groups_start","exon_groups_end")]
-	setnames(introns.search.A3SS.neg, 
+	setnames(introns_search_A3SS_neg, 
         old = "intron_end", new = "intron_coord")
 
-	introns.search.A3SS = rbindlist(
-        list(introns.search.A3SS.pos, introns.search.A3SS.neg))
-	introns.search.A3SS = unique(introns.search.A3SS, by = "Event")
+	introns_search_A3SS = rbindlist(
+        list(introns_search_A3SS_pos, introns_search_A3SS_neg))
+	introns_search_A3SS = unique(introns_search_A3SS, by = "Event")
 
 ################################################################################
-	introns.found.A5SS = introns.search.A5SS[ , 
+	introns_found_A5SS = introns_search_A5SS[ , 
 		{
 		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
@@ -1840,9 +1841,9 @@ gen_splice <- function(reference_path, genome) {
 			exon_groups_end_b = get("exon_groups_end")[edge2]
 		)
 		}, by = intron_coord]
-	introns.found.A5SS = introns.found.A5SS[!is.na(gene_id)]
+	introns_found_A5SS = introns_found_A5SS[!is.na(gene_id)]
 	
-	introns.found.A3SS = introns.search.A3SS[ , 
+	introns_found_A3SS = introns_search_A3SS[ , 
 		{	
 		edge1 = rep(seq_len(.N), (.N:1) - 1L)
 		i = 2L:(.N * (.N - 1L) / 2L + 1L)
@@ -1866,55 +1867,55 @@ gen_splice <- function(reference_path, genome) {
 			exon_groups_end_b = get("exon_groups_end")[edge2]
 		)
 		}, by = intron_coord]
-	introns.found.A3SS = introns.found.A3SS[!is.na(get("gene_id"))]
+	introns_found_A3SS = introns_found_A3SS[!is.na(get("gene_id"))]
 
-	introns.found.A5SS = unique(introns.found.A5SS,
+	introns_found_A5SS = unique(introns_found_A5SS,
         by = c("Event1a", "Event1b"))
     # filter by same exon group starts and ends:
-   	introns.found.A5SS = introns.found.A5SS[
+   	introns_found_A5SS = introns_found_A5SS[
         exon_groups_start_a == exon_groups_start_b]
-   	introns.found.A5SS = introns.found.A5SS[
+   	introns_found_A5SS = introns_found_A5SS[
         exon_groups_end_a == exon_groups_end_b]
 
-	introns.found.A5SS = introns.found.A5SS[, 
+	introns_found_A5SS = introns_found_A5SS[, 
         c("gene_id") := factor(get("gene_id"), GeneOrder$gene_id, ordered = TRUE)]
-	setorderv(introns.found.A5SS, c("gene_id", "transcript_name_a"))
-	introns.found.A5SS = introns.found.A5SS[, 
+	setorderv(introns_found_A5SS, c("gene_id", "transcript_name_a"))
+	introns_found_A5SS = introns_found_A5SS[, 
         c("EventName") := paste0("A5SS:",get("transcript_name_a"),"-exon",
             get("intron_number_a"),";",
             get("transcript_name_b"),"-exon",get("intron_number_b"))]
-	introns.found.A5SS = introns.found.A5SS[, c("EventType") := "A5SS"]
-	introns.found.A5SS = introns.found.A5SS[, c("EventRegion") := get("Event1b")]
-	introns.found.A5SS = introns.found.A5SS[!introns.found.AFE,
+	introns_found_A5SS = introns_found_A5SS[, c("EventType") := "A5SS"]
+	introns_found_A5SS = introns_found_A5SS[, c("EventRegion") := get("Event1b")]
+	introns_found_A5SS = introns_found_A5SS[!introns_found_AFE,
         on = c("Event1a", "Event1b")]
-	introns.found.A5SS[, c("EventID") := paste0("A5SS#", seq_len(.N))]
-	introns.found.A5SS = introns.found.A5SS[,
+	introns_found_A5SS[, c("EventID") := paste0("A5SS#", seq_len(.N))]
+	introns_found_A5SS = introns_found_A5SS[,
         c("EventType", "EventID", "EventName",
             "Event1a", "Event1b", "Event2a", "Event2b",
             "gene_id", "gene_id_b", "EventRegion",
             "transcript_id_a", "transcript_name_a", "intron_number_a",
             "transcript_id_b", "transcript_name_b", "intron_number_b")]
 
-	introns.found.A3SS = unique(introns.found.A3SS,
+	introns_found_A3SS = unique(introns_found_A3SS,
         by = c("Event1a", "Event1b"))
     # filter by same exon group starts and ends:
-   	introns.found.A3SS = introns.found.A3SS[
+   	introns_found_A3SS = introns_found_A3SS[
         get("exon_groups_start_a") == get("exon_groups_start_b")]
-   	introns.found.A3SS = introns.found.A3SS[
+   	introns_found_A3SS = introns_found_A3SS[
         get("exon_groups_end_a") == get("exon_groups_end_b")]
-	introns.found.A3SS = introns.found.A3SS[,
+	introns_found_A3SS = introns_found_A3SS[,
         c("gene_id") := factor(get("gene_id"), GeneOrder$gene_id, ordered = TRUE)]
-	setorderv(introns.found.A3SS, c("gene_id", "transcript_name_a"))
-	introns.found.A3SS = introns.found.A3SS[,
+	setorderv(introns_found_A3SS, c("gene_id", "transcript_name_a"))
+	introns_found_A3SS = introns_found_A3SS[,
         c("EventName") := paste0("A3SS:",get("transcript_name_a"),"-exon",
             get("intron_number_a"),";",
             get("transcript_name_b"),"-exon",get("intron_number_b"))]
-	introns.found.A3SS = introns.found.A3SS[, c("EventType") := "A3SS"]
-	introns.found.A3SS = introns.found.A3SS[, c("EventRegion") := get("Event1b")]
-	introns.found.A3SS = introns.found.A3SS[!introns.found.ALE, 
+	introns_found_A3SS = introns_found_A3SS[, c("EventType") := "A3SS"]
+	introns_found_A3SS = introns_found_A3SS[, c("EventRegion") := get("Event1b")]
+	introns_found_A3SS = introns_found_A3SS[!introns_found_ALE, 
         on = c("Event1a", "Event1b")]
-	introns.found.A3SS[, c("EventID") := paste0("A3SS#", seq_len(.N))]
-	introns.found.A3SS = introns.found.A3SS[,
+	introns_found_A3SS[, c("EventID") := paste0("A3SS#", seq_len(.N))]
+	introns_found_A3SS = introns_found_A3SS[,
         c("EventType", "EventID", "EventName",
             "Event1a", "Event1b", "Event2a", "Event2b",
             "gene_id", "gene_id_b", "EventRegion",
@@ -1927,9 +1928,9 @@ gen_splice <- function(reference_path, genome) {
 
     is_valid_splice_type <- function(x) !is.null(x) && nrow(x) > 0
     
-    tmp_AS = list(introns.found.MXE, introns.found.SE,
-            introns.found.AFE, introns.found.ALE,
-            introns.found.A5SS, introns.found.A3SS)
+    tmp_AS = list(introns_found_MXE, introns_found_SE,
+            introns_found_AFE, introns_found_ALE,
+            introns_found_A5SS, introns_found_A3SS)
     tmp_AS <- base::Filter(is_valid_splice_type, tmp_AS)
     AS_Table = rbindlist(tmp_AS)    
     
@@ -1945,67 +1946,67 @@ gen_splice <- function(reference_path, genome) {
             c("is_last_intron") := 
                 (get("intron_number") == max(get("intron_number")))]
         
-        AS_Table.search.a = AS_Table[,
+        AS_Table_SEarch.a = AS_Table[,
             c("EventType", "EventID", "Event1a", "Event2a")]
-        AS_Table.search.a[,c("Event") := get("Event1a")]
-        AS_Table.search.a = candidate.introns.order[AS_Table.search.a,
+        AS_Table_SEarch.a[,c("Event") := get("Event1a")]
+        AS_Table_SEarch.a = candidate.introns.order[AS_Table_SEarch.a,
             on = "Event", 
             c("EventType","EventID", "Event1a", "Event2a", "transcript_id",
                 "transcript_support_level", "is_protein_coding",
                 "is_last_intron", "intron_number")]
-        setnames(AS_Table.search.a, "intron_number", "in_1a")
-        AS_Table.search.a = 
-            AS_Table.search.a[get("EventType") !=  "AFE" | get("in_1a") == 1]
-        AS_Table.search.a = 
-            AS_Table.search.a[get("EventType") !=  "ALE" | get("is_last_intron")]
-        AS_Table.search.a[,c("Event") := get("Event2a")]
-        AS_Table.search.a[is.na(get("Event")), c("Event") := get("Event1a")]
-        AS_Table.search.a = candidate.introns.order[AS_Table.search.a, 
+        setnames(AS_Table_SEarch.a, "intron_number", "in_1a")
+        AS_Table_SEarch.a = 
+            AS_Table_SEarch.a[get("EventType") !=  "AFE" | get("in_1a") == 1]
+        AS_Table_SEarch.a = 
+            AS_Table_SEarch.a[get("EventType") !=  "ALE" | get("is_last_intron")]
+        AS_Table_SEarch.a[,c("Event") := get("Event2a")]
+        AS_Table_SEarch.a[is.na(get("Event")), c("Event") := get("Event1a")]
+        AS_Table_SEarch.a = candidate.introns.order[AS_Table_SEarch.a, 
             on = c("Event", "transcript_id", "transcript_support_level"),
             c("EventType","EventID", "Event1a", "Event2a", "transcript_id",
                 "transcript_support_level", "is_protein_coding",
                 "is_last_intron","in_1a", "intron_number")]
-        AS_Table.search.a = AS_Table.search.a[!is.na(get("intron_number"))]
-        setnames(AS_Table.search.a, "intron_number", "in_2a")
+        AS_Table_SEarch.a = AS_Table_SEarch.a[!is.na(get("intron_number"))]
+        setnames(AS_Table_SEarch.a, "intron_number", "in_2a")
         
-        AS_Table.search.b = AS_Table[,
+        AS_Table_SEarch.b = AS_Table[,
             c("EventType", "EventID", "Event1b", "Event2b")]
-        AS_Table.search.b[,c("Event") := get("Event1b")]
-        AS_Table.search.b = candidate.introns.order[AS_Table.search.b,
+        AS_Table_SEarch.b[,c("Event") := get("Event1b")]
+        AS_Table_SEarch.b = candidate.introns.order[AS_Table_SEarch.b,
             on = "Event", 
             c("EventType","EventID", "Event1b", "Event2b", "transcript_id",
                 "transcript_support_level", "is_protein_coding",
                 "is_last_intron","intron_number")]
-        setnames(AS_Table.search.b, "intron_number", "in_1b")
-        AS_Table.search.b = 
-            AS_Table.search.b[get("EventType") !=  "AFE" | get("in_1b") == 1]
-        AS_Table.search.b = 
-            AS_Table.search.b[get("EventType") !=  "ALE" | get("is_last_intron")]
-        AS_Table.search.b[,c("Event") := get("Event2b")]
-        AS_Table.search.b[is.na(get("Event")),c("Event") := get("Event1b")]
-        AS_Table.search.b = candidate.introns.order[AS_Table.search.b, 
+        setnames(AS_Table_SEarch.b, "intron_number", "in_1b")
+        AS_Table_SEarch.b = 
+            AS_Table_SEarch.b[get("EventType") !=  "AFE" | get("in_1b") == 1]
+        AS_Table_SEarch.b = 
+            AS_Table_SEarch.b[get("EventType") !=  "ALE" | get("is_last_intron")]
+        AS_Table_SEarch.b[,c("Event") := get("Event2b")]
+        AS_Table_SEarch.b[is.na(get("Event")),c("Event") := get("Event1b")]
+        AS_Table_SEarch.b = candidate.introns.order[AS_Table_SEarch.b, 
             on = c("Event", "transcript_id", "transcript_support_level"),
             c("EventType","EventID", "Event1b", "Event2b", "transcript_id",
                 "transcript_support_level", "is_protein_coding",
                 "is_last_intron", "in_1b", "intron_number")]
-        AS_Table.search.b = AS_Table.search.b[!is.na(get("intron_number"))]
-        setnames(AS_Table.search.b, "intron_number", "in_2b")
+        AS_Table_SEarch.b = AS_Table_SEarch.b[!is.na(get("intron_number"))]
+        setnames(AS_Table_SEarch.b, "intron_number", "in_2b")
 
-        AS_Table.search.a[candidate.introns.order, 
+        AS_Table_SEarch.a[candidate.introns.order, 
             on = "transcript_id", 
             c("transcript_name") := get("i.transcript_name")]
-        AS_Table.search.b[candidate.introns.order, 
+        AS_Table_SEarch.b[candidate.introns.order, 
             on = "transcript_id", 
             c("transcript_name") := get("i.transcript_name")]
-        setorderv(AS_Table.search.a, 
+        setorderv(AS_Table_SEarch.a, 
             c("transcript_support_level", "is_protein_coding", "transcript_name"),
             order = c(1,-1,1))
-        setorderv(AS_Table.search.b, 
+        setorderv(AS_Table_SEarch.b, 
             c("transcript_support_level", "is_protein_coding", "transcript_name"),
             order = c(1,-1,1))
-        AS_Table.find.a = unique(AS_Table.search.a, by = "EventID")
+        AS_Table.find.a = unique(AS_Table_SEarch.a, by = "EventID")
         AS_Table.find.a = AS_Table.find.a[AS_Table[, "EventID"], on = "EventID"]
-        AS_Table.find.b = unique(AS_Table.search.b, by = "EventID")
+        AS_Table.find.b = unique(AS_Table_SEarch.b, by = "EventID")
         AS_Table.find.b = AS_Table.find.b[AS_Table[, "EventID"], on = "EventID"]
 ################################################################################        
         AS_Table$transcript_id_a = AS_Table.find.a$transcript_id
@@ -2055,16 +2056,16 @@ gen_splice <- function(reference_path, genome) {
         ]
         write.fst(as.data.frame(AS_Table), file.path(reference_path,"fst","Splice.fst"))
         
-        setnames(AS_Table.search.a, 
+        setnames(AS_Table_SEarch.a, 
             old = c("Event1a", "Event2a", "in_1a", "in_2a"),
             new = c("Event1", "Event2", "in_1", "in_2"))
-        AS_Table.search.a[, c("isoform") := "A"]
-        setnames(AS_Table.search.b,
+        AS_Table_SEarch.a[, c("isoform") := "A"]
+        setnames(AS_Table_SEarch.b,
             old = c("Event1b", "Event2b", "in_1b", "in_2b"),
             new = c("Event1", "Event2", "in_1", "in_2"))
-        AS_Table.search.b[, c("isoform") := "B"]
+        AS_Table_SEarch.b[, c("isoform") := "B"]
         
-        write.fst(as.data.frame(rbind(AS_Table.search.a, AS_Table.search.b)), 
+        write.fst(as.data.frame(rbind(AS_Table_SEarch.a, AS_Table_SEarch.b)), 
           file.path(reference_path,"fst","Splice.options.fst"))
         message("done\n")
     } else {
@@ -2081,128 +2082,128 @@ gen_splice <- function(reference_path, genome) {
     AS_Table <- as.data.table(
         read.fst(file.path(reference_path,"fst","Splice.fst"))
     )
-    Proteins.Splice = as.data.table(
+    Proteins_Splice = as.data.table(
         read.fst(file.path(reference_path,"fst","Proteins.fst"))
     )
 
     AS_Table.Extended = copy(AS_Table)
     
-    Proteins.Splice$exon_number = as.numeric(Proteins.Splice$exon_number)
+    Proteins_Splice$exon_number = as.numeric(Proteins_Splice$exon_number)
     # make phase easier for me to understand
-    Proteins.Splice[, c("phase") := -get("phase") %% 3]
+    Proteins_Splice[, c("phase") := -get("phase") %% 3]
     # Upstream applicable for MXE, SE, ALE, A3SS
     Upstream = AS_Table[get("EventType") %in% c("MXE", "SE", "ALE", "A3SS")]
 
     # Do A
-    Upstream.A = Upstream[,
+    Upstream_A = Upstream[,
         c("EventID", "transcript_id_a", "intron_number_a")]
-    Upstream.A[, c("transcript_id", "exon_number") := 
+    Upstream_A[, c("transcript_id", "exon_number") := 
         list(get("transcript_id_a"), get("intron_number_a"))]
     # left_join with Exons
-    Upstream.A = Proteins.Splice[Upstream.A, 
+    Upstream_A = Proteins_Splice[Upstream_A, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.A.gr = makeGRangesFromDataFrame(as.data.frame(
-        na.omit(Upstream.A)), keep.extra.columns = TRUE)
-    Upstream.A.seq = getSeq(genome, Upstream.A.gr)
-    Upstream.A[!is.na(get("seqnames")),c("seq") := as.character(Upstream.A.seq)]
+    Upstream_A_gr = makeGRangesFromDataFrame(as.data.frame(
+        na.omit(Upstream_A)), keep.extra.columns = TRUE)
+    Upstream_A_seq = getSeq(genome, Upstream_A_gr)
+    Upstream_A[!is.na(get("seqnames")),c("seq") := as.character(Upstream_A_seq)]
     # Trim sequence by phase
-    seq = substr(Upstream.A$seq[!is.na(Upstream.A$seqnames)],
-        1 + (3 - Upstream.A$phase[!is.na(Upstream.A$seqnames)]) %% 3,
-        nchar(Upstream.A$seq[!is.na(Upstream.A$seqnames)]))        
+    seq = substr(Upstream_A$seq[!is.na(Upstream_A$seqnames)],
+        1 + (3 - Upstream_A$phase[!is.na(Upstream_A$seqnames)]) %% 3,
+        nchar(Upstream_A$seq[!is.na(Upstream_A$seqnames)]))        
     # trim last n bases
     seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
     # translate
     prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Upstream.A[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
+    Upstream_A[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
     AS_Table.Extended[get("EventType") %in% c("MXE", "SE", "ALE", "A3SS"),
-        c("AA_upstr.A") := Upstream.A$AA_seq]
+        c("AA_upstr.A") := Upstream_A$AA_seq]
 
     # repeat for B:
-    Upstream.B = Upstream[,
+    Upstream_B = Upstream[,
         c("EventID", "transcript_id_b", "intron_number_b")]
-    Upstream.B[, c("transcript_id", "exon_number") :=
+    Upstream_B[, c("transcript_id", "exon_number") :=
         list(get("transcript_id_b"), get("intron_number_b"))]
     # left_join with Exons
-    Upstream.B = Proteins.Splice[Upstream.B, 
+    Upstream_B = Proteins_Splice[Upstream_B, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Upstream.B.gr = makeGRangesFromDataFrame(as.data.frame(
-        na.omit(Upstream.B)), keep.extra.columns = TRUE)
-    Upstream.B.seq = getSeq(genome, Upstream.B.gr)
-    Upstream.B[!is.na(get("seqnames")),c("seq") := as.character(Upstream.B.seq)]
+    Upstream_B_gr = makeGRangesFromDataFrame(as.data.frame(
+        na.omit(Upstream_B)), keep.extra.columns = TRUE)
+    Upstream_B_seq = getSeq(genome, Upstream_B_gr)
+    Upstream_B[!is.na(get("seqnames")),c("seq") := as.character(Upstream_B_seq)]
     # Trim sequence by phase
-    seq = substr(Upstream.B$seq[!is.na(Upstream.B$seqnames)],
-        1 + (3 - Upstream.B$phase[!is.na(Upstream.B$seqnames)]) %% 3,
-        nchar(Upstream.B$seq[!is.na(Upstream.B$seqnames)]))        
+    seq = substr(Upstream_B$seq[!is.na(Upstream_B$seqnames)],
+        1 + (3 - Upstream_B$phase[!is.na(Upstream_B$seqnames)]) %% 3,
+        nchar(Upstream_B$seq[!is.na(Upstream_B$seqnames)]))        
     # trim last n bases
     seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
     # translate
     prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Upstream.B[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
+    Upstream_B[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
     AS_Table.Extended[get("EventType") %in% c("MXE", "SE", "ALE", "A3SS"),
-        c("AA_upstr.B") := Upstream.B$AA_seq]
+        c("AA_upstr.B") := Upstream_B$AA_seq]
         
 ################################################################################    
     # Do downstream seq before casette:
     Downstream = AS_Table[get("EventType") %in% c("MXE", "SE", "AFE", "A5SS")]
     # Add EventType as exon_number is conditional on this
-    Downstream.A = Downstream[, 
+    Downstream_A = Downstream[, 
         c("EventType", "EventID", "transcript_id_a", "intron_number_a")]
-    Downstream.A[, c("transcript_id", "exon_number") := 
+    Downstream_A[, c("transcript_id", "exon_number") := 
         list(get("transcript_id_a"), get("intron_number_a"))]
     # Modify downstream exon number
-    Downstream.A[get("EventType") %in% c("MXE", "SE"), 
+    Downstream_A[get("EventType") %in% c("MXE", "SE"), 
        c("exon_number") := get("exon_number") + 2]
-    Downstream.A[get("EventType") %in% c("AFE", "A5SS"), 
+    Downstream_A[get("EventType") %in% c("AFE", "A5SS"), 
         c("exon_number") := get("exon_number") + 1]
     # left_join with Exons
-    Downstream.A = Proteins.Splice[Downstream.A, 
+    Downstream_A = Proteins_Splice[Downstream_A, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.A.gr = makeGRangesFromDataFrame(as.data.frame(
-        na.omit(Downstream.A)), keep.extra.columns = TRUE)
-    Downstream.A.seq = getSeq(genome, Downstream.A.gr)
-    Downstream.A[!is.na(get("seqnames")),c("seq") := as.character(Downstream.A.seq)]
+    Downstream_A_gr = makeGRangesFromDataFrame(as.data.frame(
+        na.omit(Downstream_A)), keep.extra.columns = TRUE)
+    Downstream_A_seq = getSeq(genome, Downstream_A_gr)
+    Downstream_A[!is.na(get("seqnames")),c("seq") := as.character(Downstream_A_seq)]
     # Trim sequence by phase
-    seq = substr(Downstream.A$seq[!is.na(Downstream.A$seqnames)],
-        1 + (3 - Downstream.A$phase[!is.na(Downstream.A$seqnames)]) %% 3,
-        nchar(Downstream.A$seq[!is.na(Downstream.A$seqnames)]))        
+    seq = substr(Downstream_A$seq[!is.na(Downstream_A$seqnames)],
+        1 + (3 - Downstream_A$phase[!is.na(Downstream_A$seqnames)]) %% 3,
+        nchar(Downstream_A$seq[!is.na(Downstream_A$seqnames)]))        
     # trim last n bases
     seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
     # translate
     prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Downstream.A[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
+    Downstream_A[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
     AS_Table.Extended[get("EventType") %in% c("MXE", "SE", "AFE", "A5SS"),
-        AA_downstr.A := Downstream.A$AA_seq]
+        c("AA_downstr_A") := Downstream_A$AA_seq]
     # B:
-    Downstream.B = Downstream[, 
+    Downstream_B = Downstream[, 
         c("EventType", "EventID", "transcript_id_b", "intron_number_b")]
-    Downstream.B[, c("transcript_id", "exon_number") := 
+    Downstream_B[, c("transcript_id", "exon_number") := 
         list(get("transcript_id_b"), get("intron_number_b"))]
     # Modify downstream exon number: Note SE is different for B
-    Downstream.B[get("EventType") %in% c("MXE"), c("exon_number") := get("exon_number") + 2]
-    Downstream.B[get("EventType") %in% c("SE", "AFE", "A5SS"), 
+    Downstream_B[get("EventType") %in% c("MXE"), c("exon_number") := get("exon_number") + 2]
+    Downstream_B[get("EventType") %in% c("SE", "AFE", "A5SS"), 
         c("exon_number") := get("exon_number") + 1]
     # left_join with Exons
-    Downstream.B = Proteins.Splice[Downstream.B, 
+    Downstream_B = Proteins_Splice[Downstream_B, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Downstream.B.gr = makeGRangesFromDataFrame(as.data.frame(
-        na.omit(Downstream.B)), keep.extra.columns = TRUE)
-    Downstream.B.seq = getSeq(genome, Downstream.B.gr)
-    Downstream.B[!is.na(get("seqnames")),c("seq") := as.character(Downstream.B.seq)]
+    Downstream_B_gr = makeGRangesFromDataFrame(as.data.frame(
+        na.omit(Downstream_B)), keep.extra.columns = TRUE)
+    Downstream_B_seq = getSeq(genome, Downstream_B_gr)
+    Downstream_B[!is.na(get("seqnames")),c("seq") := as.character(Downstream_B_seq)]
     # Trim sequence by phase
-    seq = substr(Downstream.B$seq[!is.na(Downstream.B$seqnames)],
-        1 + (3 - Downstream.B$phase[!is.na(Downstream.B$seqnames)]) %% 3,
-        nchar(Downstream.B$seq[!is.na(Downstream.B$seqnames)]))        
+    seq = substr(Downstream_B$seq[!is.na(Downstream_B$seqnames)],
+        1 + (3 - Downstream_B$phase[!is.na(Downstream_B$seqnames)]) %% 3,
+        nchar(Downstream_B$seq[!is.na(Downstream_B$seqnames)]))        
     # trim last n bases
     seq = substr(seq, 1, nchar(seq) - (nchar(seq) %% 3))
     # translate
     prot = Biostrings::translate(as(seq, "DNAStringSet"))
-    Downstream.B[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
+    Downstream_B[!is.na(get("seqnames")), c("AA_seq") := as.character(prot)]
     AS_Table.Extended[get("EventType") %in% c("MXE", "SE", "AFE", "A5SS"),
-        c("AA_downstr.B") := Downstream.B$AA_seq]
+        c("AA_downstr_B") := Downstream_B$AA_seq]
         
 ################################################################################
     # Casette A
@@ -2213,21 +2214,21 @@ gen_splice <- function(reference_path, genome) {
     Casette.A[get("EventType") %in% c("MXE", "SE", "ALE", "A3SS"), 
         c("exon_number") := get("exon_number") + 1]
 
-    Casette.A = Proteins.Splice[Casette.A, 
+    Casette.A = Proteins_Splice[Casette.A, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.A.gr = makeGRangesFromDataFrame(as.data.frame(
+    Casette.A_gr = makeGRangesFromDataFrame(as.data.frame(
         na.omit(Casette.A)), keep.extra.columns = TRUE)
-    Casette.A.seq = getSeq(genome, Casette.A.gr)
+    Casette.A_seq = getSeq(genome, Casette.A_gr)
     Casette.A[!is.na(get("seqnames")),
-        c("casette_seq") := as.character(Casette.A.seq)]
+        c("casette_seq") := as.character(Casette.A_seq)]
 
     setnames(Casette.A, "phase", "phase_casette")
 # Add nucleotides from upstream and downstream
-    Casette.A = Upstream.A[Casette.A, on = "EventID", 
+    Casette.A = Upstream_A[Casette.A, on = "EventID", 
         c("EventID", "phase_casette", "casette_seq", "seq")]
     setnames(Casette.A, "seq", "upstr_seq")
-    Casette.A = Downstream.A[Casette.A, on = "EventID", 
+    Casette.A = Downstream_A[Casette.A, on = "EventID", 
         c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
     setnames(Casette.A, "seq", "Downstr_seq")
     
@@ -2275,20 +2276,20 @@ gen_splice <- function(reference_path, genome) {
     Casette.B[get("EventType") %in% c("MXE", "ALE", "A3SS"), 
         c("exon_number") := get("exon_number") + 1]
 
-    Casette.B = Proteins.Splice[Casette.B, 
+    Casette.B = Proteins_Splice[Casette.B, 
         on = c("transcript_id", "exon_number"), 
         c("EventID", "seqnames", "start", "end", "width", "strand", "phase")]
-    Casette.B.gr = makeGRangesFromDataFrame(as.data.frame(
+    Casette.B_gr = makeGRangesFromDataFrame(as.data.frame(
         na.omit(Casette.B)), keep.extra.columns = TRUE)
-    Casette.B.seq = getSeq(genome, Casette.B.gr)
-    Casette.B[!is.na(get("seqnames")),c("casette_seq") := as.character(Casette.B.seq)]
+    Casette.B_seq = getSeq(genome, Casette.B_gr)
+    Casette.B[!is.na(get("seqnames")),c("casette_seq") := as.character(Casette.B_seq)]
 
     setnames(Casette.B, "phase", "phase_casette")
 # Add nucleotides from upstream and downstream
-    Casette.B = Upstream.B[Casette.B, on = "EventID", 
+    Casette.B = Upstream_B[Casette.B, on = "EventID", 
         c("EventID", "phase_casette", "casette_seq", "seq")]
     setnames(Casette.B, "seq", "upstr_seq")
-    Casette.B = Downstream.B[Casette.B, on = "EventID", 
+    Casette.B = Downstream_B[Casette.B, on = "EventID", 
         c("EventID", "phase_casette", "casette_seq", "upstr_seq", "seq")]
     setnames(Casette.B, "seq", "Downstr_seq")
     
@@ -2330,15 +2331,15 @@ gen_splice <- function(reference_path, genome) {
         c("AA_full.A") := paste0(get("AA_full.A"), get("AA_upstr.A"))]
     AS_Table.Extended[!is.na(get("AA_casette.A")), 
         c("AA_full.A") := paste0(get("AA_full.A"), get("AA_casette.A"))]
-    AS_Table.Extended[!is.na(get("AA_downstr.A")), 
-        c("AA_full.A") := paste0(get("AA_full.A"), get("AA_downstr.A"))]
+    AS_Table.Extended[!is.na(get("AA_downstr_A")), 
+        c("AA_full.A") := paste0(get("AA_full.A"), get("AA_downstr_A"))]
     AS_Table.Extended[, c("AA_full.B") := ""]
     AS_Table.Extended[!is.na(get("AA_upstr.B")), 
         c("AA_full.B") := paste0(get("AA_full.B"), get("AA_upstr.B"))]
     AS_Table.Extended[!is.na(get("AA_casette.B")), 
         c("AA_full.B") := paste0(get("AA_full.B"), get("AA_casette.B"))]
-    AS_Table.Extended[!is.na(get("AA_downstr.B")), 
-        c("AA_full.B") := paste0(get("AA_full.B"), get("AA_downstr.B"))]
+    AS_Table.Extended[!is.na(get("AA_downstr_B")), 
+        c("AA_full.B") := paste0(get("AA_full.B"), get("AA_downstr_B"))]
     
     write.fst(as.data.frame(AS_Table.Extended), 
         file.path(reference_path,"fst","Splice.Extended.fst"))
@@ -2347,14 +2348,14 @@ gen_splice <- function(reference_path, genome) {
 }
 
 # FetchAH_FTP <- function(ah_record, reference_path, localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
-  # ah.record = ah[names(ah) == ah_record]
+  # ah_record = ah[names(ah) == ah_record]
   
   # Best to fetch from URL
   # if(!dir.exists(file.path(reference_path, "resource"))) dir.create(file.path(reference_path, "resource"))
 
   # transcripts.gtf = file.path(normalizePath(reference_path), "resource", "transcripts.gtf")       
   # if(!file.exists(transcripts.gtf)) {
-      # url = ah.record$sourceurl
+      # url = ah_record$sourceurl
       # assert_that(substr(url,1,3) == "ftp",
         # msg = paste("ftp site not found for", ah_record))
       # urlfile = basename(url)
@@ -2465,8 +2466,8 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
 
     exon.DT = exon.DT[, c("seqnames", "start", "end", "strand", "transcript_id")]
 
-    exon.gr = makeGRangesFromDataFrame(as.data.frame(exon.DT))
-    exon.DT[, c("seq") := as.character(getSeq(genome, exon.gr))]
+    exon_gr = makeGRangesFromDataFrame(as.data.frame(exon.DT))
+    exon.DT[, c("seq") := as.character(getSeq(genome, exon_gr))]
 
     gc()
 
@@ -2578,14 +2579,14 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
             get("strand") == "-" & get("end") - get("start") > 1000, 
             c("start") := get("end") - 1000 ]
         
-        intron.short.gr = makeGRangesFromDataFrame(as.data.frame(intron.part.short))
-        intron.part.short[, c("seq") := as.character(getSeq(genome, intron.short.gr))]    
+        intron.short_gr = makeGRangesFromDataFrame(as.data.frame(intron.part.short))
+        intron.part.short[, c("seq") := as.character(getSeq(genome, intron.short_gr))]    
         intron.part.upstream[exon.DT, 
             on = c("transcript_id", "seqnames", "start", "end", "strand"), 
-            c("seq") := get("i.seq")]
+            c("seq") := get("i_seq")]
         intron.part.upstream[intron.part.short, 
             on = c("intron_id", "type"), 
-            c("seq") := get("i.seq")]
+            c("seq") := get("i_seq")]
 
         # Test introns by translation
         setorder(intron.part.upstream, transcript_id, elem_number)
@@ -2624,8 +2625,8 @@ DetermineNMD <- function(exon_list, intron_list, genome, threshold = 50) {
         # Exclude introns preceding any ORF exons:
         intron.part = intron.part[get("intron_id") %in% IRT$intron_id]
 
-        intron.gr = makeGRangesFromDataFrame(as.data.frame(intron.part))
-        intron.part[, c("seq") := as.character(getSeq(genome, intron.gr))]
+        intron_gr = makeGRangesFromDataFrame(as.data.frame(intron.part))
+        intron.part[, c("seq") := as.character(getSeq(genome, intron_gr))]
 
         intron.MLE.DT = as.data.table(
             rbind(

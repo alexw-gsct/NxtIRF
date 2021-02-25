@@ -25,6 +25,7 @@ Imports:
 	dplyr,
 	AnnotationHub,
 	assertthat,
+	BiocFileCache,
 	BiocGenerics,
 	Biostrings,
 	BiocParallel,
@@ -36,17 +37,18 @@ Imports:
 	GenomicRanges,
 	heatmaply,
 	matrixStats,
+	openssl,
 	parallel,
 	plotly,
+	rappdirs,
 	rtracklayer,
 	RColorBrewer,
 	stringr,
 	SummarizedExperiment,
 	S4Vectors,
-	IRanges,
-	DESeq2, limma
+	IRanges
 LinkingTo: Rcpp, RcppArmadillo, zlibbioc, RcppProgress
-Suggests: knitr, rmarkdown
+Suggests: knitr, rmarkdown, DESeq2, limma, Rsubread
 VignetteBuilder: knitr
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 SystemRequirements: C++11
