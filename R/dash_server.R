@@ -235,7 +235,7 @@ dash_server = function(input, output, session) {
             # seqinfo
             settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
             if(settings$ah_genome != "") {
-                genome = FetchAH(settings$ah_genome, ah = ah)
+                genome = .fetch_AH(settings$ah_genome, ah = ah)
             } else {
                 genome = rtracklayer::TwoBitFile(
                     file.path(settings_loadref$loadref_path, "resource", "genome.2bit"))

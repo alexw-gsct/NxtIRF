@@ -135,7 +135,7 @@ download_NxtIRF_example <- function(destination_dir = tempdir()) {
     files = c("UT_1.bam", "UT_2.bam", "UT_3.bam", "D2_1.bam", "D2_2.bam", "D2_3.bam")
     
     for(sample_file in files) {
-        cache_file = parse_valid_file(file.path(resource_path, sample_file))
+        cache_file = .parse_valid_file(file.path(resource_path, sample_file))
         if(file.exists(cache_file)) {
             file.copy(cache_file, file.path(destination_dir, sample_file))
             message(paste(sample_file, "downloaded to", destination_dir))

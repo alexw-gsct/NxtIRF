@@ -166,7 +166,7 @@ plot_view_ref_fn <- function(view_chr, view_start, view_end,
     reduced.DT[get("type") != "CDS", c("type") := "exon"]
     
     # add introns to reduced.DT
-    introns.DT = as.data.table(grlGaps(
+    introns.DT = as.data.table(.grlGaps(
         split(makeGRangesFromDataFrame(as.data.frame(reduced.DT)),
             reduced.DT$transcript_id)
     ))
@@ -805,7 +805,7 @@ prepare_covplot_data <- function(reference_path,
 
     settings = readRDS(file.path(reference_path, "settings.Rds"))
     if(settings$ah_genome != "") {
-        genome = FetchAH(settings$ah_genome, ah = ah)
+        genome = .fetch_AH(settings$ah_genome, ah = ah)
     } else {
         assert_that(file.exists(),
             msg = paste(file.path(reference_path, "resource", "genome.2bit"),
