@@ -21,7 +21,7 @@
 #' @importFrom fst read.fst write.fst
 #' @importFrom genefilter rowttests
 #' @importFrom grDevices colorRampPalette
-#' @importFrom GenomeInfoDb sortSeqlevels seqinfo seqlengths
+#' @importFrom GenomeInfoDb sortSeqlevels seqinfo seqlengths seqlevels<- seqlevels
 #' @importFrom GenomicRanges GRanges reduce findOverlaps makeGRangesFromDataFrame makeGRangesListFromDataFrame mcols split strand flank setdiff seqnames psetdiff disjoin mcols<- strand<-
 #' @importFrom heatmaply heatmaply
 #' @importFrom matrixStats rowSds
@@ -31,6 +31,6 @@
 #' @importFrom RColorBrewer brewer.pal.info
 #' @importFrom stringr str_locate
 #' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay
-#' @importFrom S4Vectors coolcat metadata Rle metadata<- SimpleList
+#' @importFrom S4Vectors coolcat metadata Rle metadata<- SimpleList from to
 #' @importFrom IRanges IRanges Views RleList
 NULL
