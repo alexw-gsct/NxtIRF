@@ -231,7 +231,7 @@ CollateData <- function(Experiment, reference_path, output_path,
 
     settings = readRDS(file.path(reference_path, "settings.Rds"))
     if(settings$ah_genome != "") {
-        genome = FetchAH(settings$ah_genome, localHub = localHub)
+        genome = .fetch_AH(settings$ah_genome, localHub = localHub)
     } else {
         genome = rtracklayer::TwoBitFile(file.path(reference_path, 
             "resource", "genome.2bit"))

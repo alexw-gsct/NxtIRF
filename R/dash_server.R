@@ -235,7 +235,7 @@ dash_server = function(input, output, session) {
             # seqinfo
             settings = readRDS(file.path(settings_loadref$loadref_path, "settings.Rds"))
             if(settings$ah_genome != "") {
-                genome = FetchAH(settings$ah_genome, ah = ah)
+                genome = .fetch_AH(settings$ah_genome, ah = ah)
             } else {
                 genome = rtracklayer::TwoBitFile(
                     file.path(settings_loadref$loadref_path, "resource", "genome.2bit"))
@@ -452,7 +452,7 @@ dash_server = function(input, output, session) {
             ah.filtered = ah.filtered[ah.filtered$species == input$newrefAH_Species]
 
             queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
-            query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+            query_index = which(vapply(queryfirst, function(x) grepl("release", x), logical(1)))
             choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
             choices = c("", sort(choices))
             # updateSelectInput(session = session, inputId = "newrefAH_Version_Trans", 
@@ -526,7 +526,7 @@ dash_server = function(input, output, session) {
             ah.filtered = ah.filtered[ah.filtered$genome == input$newrefAH_Assembly]
 
             queryfirst = tstrsplit(ah.filtered[1]$sourceurl, split="/", fixed=TRUE)
-            query_index = which(sapply(queryfirst, function(x) grepl("release", x)))
+            query_index = which(vapply(queryfirst, function(x) grepl("release", x), logical(1)))
             choices = unlist(unique(tstrsplit(ah.filtered$sourceurl, split="/", fixed=TRUE)[query_index]))
             choices = c("", sort(choices))
             update_select_without_clearing(session, "newrefAH_Version_Genome", choices, input)

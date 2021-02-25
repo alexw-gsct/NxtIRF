@@ -135,7 +135,7 @@ download_NxtIRF_example <- function(destination_dir = tempdir()) {
     files = c("UT_1.bam", "UT_2.bam", "UT_3.bam", "D2_1.bam", "D2_2.bam", "D2_3.bam")
     
     for(sample_file in files) {
-        cache_file = parse_valid_file(file.path(resource_path, sample_file))
+        cache_file = .parse_valid_file(file.path(resource_path, sample_file))
         if(file.exists(cache_file)) {
             file.copy(cache_file, file.path(destination_dir, sample_file))
             message(paste(sample_file, "downloaded to", destination_dir))
@@ -148,5 +148,13 @@ download_NxtIRF_example <- function(destination_dir = tempdir()) {
         message(paste("All files successfully downloaded to", destination_dir))
     } else {
         message(paste("One or more example files could not be downloaded to", destination_dir))        
+    }
+}
+
+dash_progress <- function(message = "", total_items = 1) {
+    assert_that(total_items = round(total_items) & total_items > 0,
+        msg = "dash_progress needs at least 1 item")
+    if(!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::incProgress(1/total_items, message = message)
     }
 }
