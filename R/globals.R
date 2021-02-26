@@ -2,6 +2,14 @@ globalVariables(c(":=","."))
 
 is.nan.data.frame <- function(x) do.call(cbind, lapply(x, is.nan))
 
+#' Converts an IGV-style coordinate to a GenomicRanges object
+#'
+#' IGV-style coordinates typically have the syntax `seqnames:start-end/strand`\cr\cr
+#' For example: "chr3:10550-10730/+" or "X:51231-51330/-"
+#' @param coordinates A vector of strings containing the coordinates
+#'   to be converted
+#' @return A GRanges object that corresponds to the given coordinates
+#' @md
 #' @export
 NxtIRF.CoordToGR = function(coordinates) {
 	temp = tstrsplit(coordinates,split="/")
@@ -16,7 +24,6 @@ NxtIRF.CoordToGR = function(coordinates) {
 		strand = strand))
 }
 
-#' @export
 NxtIRF.CoordToInt = function(coordinates, type = "") {
 	temp = tstrsplit(coordinates,split="/")
 	strand = as.character(temp[[2]])
@@ -91,6 +98,8 @@ make.path.relative = function(base, target) {
 
 # GGPLOT themes
 
+#' A theme object for white background figures without a legend
+#' @seealso [NxtIRF::theme_white_legend]
 #' @export
 theme_white = theme(axis.line.x = element_line(colour = "black"),
 			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
@@ -108,6 +117,8 @@ theme_white = theme(axis.line.x = element_line(colour = "black"),
 			# axis.title.y=element_blank()
             )
 
+#' A theme object for white background figures with a legend
+#' @seealso [NxtIRF::theme_white]
 #' @export
 theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
 			panel.grid.major = element_line(size = rel(0.5), colour="grey"),
@@ -125,6 +136,8 @@ theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
 			# axis.title.y=element_blank()
             )
 
+#' Downloads NxtIRF example BAM files for the vignette
+#' @param destination_dir The path to store the downloaded BAM files
 #' @export
 download_NxtIRF_example <- function(destination_dir = tempdir()) {
     assert_that(dir.exists(dirname(destination_dir)),

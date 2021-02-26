@@ -1,4 +1,4 @@
-
+#' Launches the NxtIRF Graphics User Interface using Shiny Dashboard
 #' @export
 nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 

@@ -102,6 +102,31 @@ Find_IRFinder_Output <- function(sample_path, ...) {
     return(FindSamples(sample_path, c(".txt.gz", ".cov"), c("irf_file", "cov_file"), ...))
 }
 
+#' A wrapper function to call NxtIRF/IRFinder
+#'
+#' This function calls IRFinder on one or more BAM files.
+#' @param bamfiles The file names of 1 or more BAM files
+#' @param sample_names The sample names of the given BAM files. Must
+#'   be a vector of the same length as `bamfiles`
+#' @param reference_path The directory of the NxtIRF reference
+#' @param output_path The directory where NxtIRF/IRFinder output
+#'   should be stored
+#' @param n_threads The number of threads to use. On Linux / Windows, this will
+#'   use OpenMP from within the C++ subroutine. On Macs, BiocParallel
+#'   MulticoreParam will be used on single-threaded NxtIRF/IRFinder
+#' @param run_featureCounts Whether this function will run 
+#'   `Rsubread::featureCounts()` on the BAM files. If so, the output will be
+#'   saved to "main.FC.Rds" in the output directory as a list object
+#' @param localHub Set as TRUE to disable AnnotationHub online mode
+#' @param ah An AnnotationHub object.
+#' @return None. `IRFinder()` will save output to `output_path`. \cr\cr
+#'   sample.txt.gz: The main IRFinder output file containing the quantitation
+#'   of IR and splice junctions, as well as QC information\cr\cr
+#'   sample.cov: Contains coverage information in compressed binary. This
+#'   format is 5-10X faster than BigWig format (see [GetCoverage()])\cr\cr
+#'   main.FC.Rds: A single file containing gene counts for the whole dataset
+#'   (only if `run_featureCounts == TRUE`)
+#' @md
 #' @export
 IRFinder <- function(
         bamfiles = "Unsorted.bam", 
@@ -1021,8 +1046,8 @@ CollateData <- function(Experiment, reference_path, output_path,
                 junc[get("SO_R") < get("SO_I"), c("SO_R") := get("SO_I")]
 
                 # Finally, for extreme cases, make SO_L = SL if underestimates
-                junc[get("SO_L") < SL, c("SO_L") := SL]
-                junc[get("SO_R") < SR, c("SO_R") := SR]
+                junc[get("SO_L") < get("SL"), c("SO_L") := get("SL")]
+                junc[get("SO_R") < get("SR"), c("SO_R") := get("SR")]
 
                 junc[, c("SO_I") := NULL]
 
@@ -1330,7 +1355,7 @@ CollateData <- function(Experiment, reference_path, output_path,
                 path = file.path(norm_output_path, "temp")))
             file.DT[, c("index") := 
                 as.numeric(tstrsplit(file.DT, split=".", fixed = TRUE)[[2]])]
-            setorder(file.DT, index)
+            setorder(file.DT, "index")
             mat = NULL
             for(x in seq_len(n_jobs)) {
                 temp = t(fread(file.path(file.path(norm_output_path, "temp"), 
@@ -1446,164 +1471,176 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
     # Includes iterative filtering for IR events with highest mean PSI
         # To annotate IR events of major isoforms
 
-  item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
-    "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
-  files.todo = file.path(normalizePath(fst_path), paste(item.todo, "fst", sep="."))
-  assert_that(all(file.exists(files.todo)),
+    item.todo = c("rowEvent", "Included", "Excluded", "Depth", "Coverage", 
+        "minDepth", "Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc")
+    files.todo = file.path(normalizePath(fst_path), paste(item.todo, "fst", sep="."))
+    assert_that(all(file.exists(files.todo)),
     msg = "FST File generation appears incomplete. Suggest run CollateData() again")
 
-  assert_that(file.exists(file.path(fst_path, "colData.Rds")),
-    msg = "colData.Rds does not exist in given path")
-  colData.Rds = readRDS(file.path(fst_path, "colData.Rds"))
-  assert_that("df.anno" %in% names(colData.Rds),
-    msg = "colData.Rds must contain df.anno containing annotations")
+    assert_that(file.exists(file.path(fst_path, "colData.Rds")),
+        msg = "colData.Rds does not exist in given path")
+    colData.Rds = readRDS(file.path(fst_path, "colData.Rds"))
+    assert_that("df.anno" %in% names(colData.Rds),
+        msg = "colData.Rds must contain df.anno containing annotations")
 
-  if(missing(colData)) {    
-      colData = colData.Rds$df.anno
-  } else {
-      assert_that("sample" %in% colnames(colData),
-        msg = "'sample' must be a column name in colData containing sample names")
-      assert_that(all(colData$sample %in% colData.Rds$df.anno$sample),
-        msg = "some samples in colData were not found")
-  }
-  colData = as.data.frame(colData)
-  # colnames(colData)[1] = "sample"
-  remove_na = NULL
-  if(ncol(colData) > 1) {
-    for(i in seq(2, ncol(colData))) {
-      if(is(colData[,i], "character")) {
-        colData[,i] = factor(unlist(colData[,i]))      
-      } else if(is(colData[,i], "logical")) {
-        colData[,i] <- factor(unlist(ifelse(colData[,i], "TRUE","FALSE")))                
-      } else if(all(is.na(unlist(colData[,i])))) {
-        remove_na = append(remove_na, i)
-      }
+    if(missing(colData)) {    
+        colData = colData.Rds$df.anno
+    } else {
+        assert_that("sample" %in% colnames(colData),
+            msg = "'sample' must be a column name in colData containing sample names")
+        assert_that(all(colData$sample %in% colData.Rds$df.anno$sample),
+            msg = "some samples in colData were not found")
     }
-  }
+    colData = as.data.frame(colData)
+    
+    remove_na = NULL
+    if(ncol(colData) > 1) {
+        for(i in seq(2, ncol(colData))) {
+            if(is(colData[,i], "character")) {
+                colData[,i] = factor(unlist(colData[,i]))      
+            } else if(is(colData[,i], "logical")) {
+                colData[,i] <- factor(unlist(ifelse(colData[,i], "TRUE","FALSE")))                
+            } else if(all(is.na(unlist(colData[,i])))) {
+                remove_na = append(remove_na, i)
+            }
+        }
+    }
     if(!is.null(remove_na)) {
         colData = colData[,-remove_na]
     }
   
-  rowData = read.fst(files.todo[1])
-  Included = as.matrix(read.fst(files.todo[2], columns = colData$sample))
-  Excluded = as.matrix(read.fst(files.todo[3], columns = colData$sample))
-  Depth = as.matrix(read.fst(files.todo[4], columns = colData$sample))
-  Coverage = as.matrix(read.fst(files.todo[5], columns = colData$sample))
-  minDepth = as.matrix(read.fst(files.todo[6], columns = colData$sample))
-  Up_Inc = as.matrix(read.fst(files.todo[7], columns = colData$sample))
-  Down_Inc = as.matrix(read.fst(files.todo[8], columns = colData$sample))
-  Up_Exc = as.matrix(read.fst(files.todo[9], columns = colData$sample))
-  Down_Exc = as.matrix(read.fst(files.todo[10], columns = colData$sample))
+    rowData = read.fst(files.todo[1])
+    Included = as.matrix(read.fst(files.todo[2], columns = colData$sample))
+    Excluded = as.matrix(read.fst(files.todo[3], columns = colData$sample))
+    Depth = as.matrix(read.fst(files.todo[4], columns = colData$sample))
+    Coverage = as.matrix(read.fst(files.todo[5], columns = colData$sample))
+    minDepth = as.matrix(read.fst(files.todo[6], columns = colData$sample))
+    Up_Inc = as.matrix(read.fst(files.todo[7], columns = colData$sample))
+    Down_Inc = as.matrix(read.fst(files.todo[8], columns = colData$sample))
+    Up_Exc = as.matrix(read.fst(files.todo[9], columns = colData$sample))
+    Down_Exc = as.matrix(read.fst(files.todo[10], columns = colData$sample))
 
-  rownames(Up_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
-  rownames(Down_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
-  rownames(Up_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
-  rownames(Down_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
+    rownames(Up_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
+    rownames(Down_Inc) = rowData$EventName[rowData$EventType %in% c("IR", "MXE", "SE")]
+    rownames(Up_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
+    rownames(Down_Exc) = rowData$EventName[rowData$EventType %in% c("MXE")]
   
-  # Annotate NMD direction
-  rowData = as.data.table(rowData)
-  rowData[, NMD_direction := 0]
-  rowData[Inc_Is_NMD & !Exc_Is_NMD, NMD_direction := 1]
-  rowData[!Inc_Is_NMD & Exc_Is_NMD, NMD_direction := -1]
-  rowData = as.data.frame(rowData)
-  
-  se = SummarizedExperiment::SummarizedExperiment(assays = S4Vectors::SimpleList(
-        Included = Included, Excluded = Excluded, Depth = Depth, Coverage = Coverage, minDepth = minDepth
-    ),
-    rowData = rowData, colData = as.data.frame(colData[, -1, drop=FALSE], row.names = colData$sample))
-  rownames(se) = SummarizedExperiment::rowData(se)$EventName
+    # Annotate NMD direction
+    rowData = as.data.table(rowData)
+    rowData[, get("NMD_direction") := 0]
+    rowData[get("Inc_Is_NMD") & !get("Exc_Is_NMD"), c("NMD_direction") := 1]
+    rowData[!get("Inc_Is_NMD") & get("Exc_Is_NMD"), c("NMD_direction") := -1]
+    rowData = as.data.frame(rowData)
 
-  S4Vectors::metadata(se)$Up_Inc = Up_Inc
-    S4Vectors::metadata(se)$Down_Inc = Down_Inc
-    S4Vectors::metadata(se)$Up_Exc = Up_Exc
-    S4Vectors::metadata(se)$Down_Exc = Down_Exc
+    se = SummarizedExperiment(
+        assays = SimpleList(
+            Included = Included, Excluded = Excluded, 
+            Depth = Depth, Coverage = Coverage, minDepth = minDepth
+        ),
+        rowData = rowData, colData = as.data.frame(colData[, -1, drop=FALSE], 
+        row.names = colData$sample)
+    )
+    rownames(se) = rowData(se)$EventName
 
-  if("df.files" %in% names(colData.Rds) &&
-    "cov_file" %in% colnames(colData.Rds$df.files)) {
-        S4Vectors::metadata(se)$cov_file = colData.Rds$df.files$cov_file
-        names(S4Vectors::metadata(se)$cov_file) = colData.Rds$df.files$sample       
+    metadata(se)$Up_Inc = Up_Inc
+    metadata(se)$Down_Inc = Down_Inc
+    metadata(se)$Up_Exc = Up_Exc
+    metadata(se)$Down_Exc = Down_Exc
+
+    if("df.files" %in% names(colData.Rds) &&
+        "cov_file" %in% colnames(colData.Rds$df.files)) {
+        metadata(se)$cov_file = colData.Rds$df.files$cov_file
+        names(metadata(se)$cov_file) = colData.Rds$df.files$sample       
     }
 
     if(RemoveOverlapping == TRUE) {
+        # Iterative filtering of IR
+        tryCatch({
+            junc_PSI = fst::read.fst(file.path(
+                normalizePath(fst_path), "junc_PSI.fst"
+            ))
+            rownames(junc_PSI) = junc_PSI$rownames
+            junc_PSI = junc_PSI[,-1,drop=FALSE]
 
-# Iterative filtering of IR
-    tryCatch({
-        junc_PSI = fst::read.fst(file.path(
-            normalizePath(fst_path), "junc_PSI.fst"
-        ))
-        rownames(junc_PSI) = junc_PSI$rownames
-        junc_PSI = junc_PSI[,-1,drop=FALSE]
+            se.IR = se[rowData(se)$EventType == "IR",,drop = FALSE]
+            se.IR = se.IR[rowData(se.IR)$EventRegion %in% rownames(junc_PSI),
+                ,drop = FALSE]
+            junc_PSI = junc_PSI[rowData(se.IR)$EventRegion,, drop = FALSE]
 
-        se.IR = se[SummarizedExperiment::rowData(se)$EventType == "IR",]
-        se.IR = se.IR[SummarizedExperiment::rowData(se.IR)$EventRegion %in% rownames(junc_PSI),]
-        junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR)$EventRegion,, drop = FALSE]
-        
-        if(nrow(se.IR) > 0) {
-            message("Iterating through IR events to determine introns of main isoforms")
-            
-            se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
-            se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
+            if(nrow(se.IR) > 0) {
+                message("Iterating through IR events to determine introns of main isoforms")
 
-            OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
-            junc_PSI.group = as.data.table(junc_PSI)
-            junc_PSI.group$group = to(OL)
-            junc_PSI.group$means = rowMeans(junc_PSI)
-            junc_PSI.group[, max_means := max(means), by = "group"]
-
-            se.IR.final = se.IR[junc_PSI.group$means == junc_PSI.group$max_means,]
-            se.IR.excluded = se.IR[junc_PSI.group$means != junc_PSI.group$max_means,]
-
-            final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
-            excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
-
-            OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
-            include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
-
-            # Iteration to find events not overlapping with se.IR.final
-
-            iteration = 0
-            while(length(include) > 0 & length(final.gr) > 0) {
-                iteration = iteration + 1
-                message(paste("Iteration", iteration))
-                se.IR.excluded = se.IR.excluded[include,]
-                junc_PSI = junc_PSI[SummarizedExperiment::rowData(se.IR.excluded)$EventRegion,, drop = FALSE]
                 se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
-                se.IR.gr.reduced = GenomicRanges::reduce(se.IR.gr)
+                se.IR.gr.reduced = reduce(se.IR.gr)
 
-                OL = GenomicRanges::findOverlaps(se.IR.gr, se.IR.gr.reduced)
+                OL = findOverlaps(se.IR.gr, se.IR.gr.reduced)
                 junc_PSI.group = as.data.table(junc_PSI)
                 junc_PSI.group$group = to(OL)
                 junc_PSI.group$means = rowMeans(junc_PSI)
-                junc_PSI.group[, max_means := max(means), by = "group"]
-                
-                if(length(which(junc_PSI.group$means == junc_PSI.group$max_means)) > 0) {
-                    se.IR.final = rbind(se.IR.final, se.IR.excluded[junc_PSI.group$means == junc_PSI.group$max_means,])
-                    se.IR.excluded = se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,]
+                junc_PSI.group[, c("max_means") := max(get("means")), 
+                    by = "group"]
 
-                    final.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.final)$EventRegion)
-                    excluded.gr = NxtIRF.CoordToGR(SummarizedExperiment::rowData(se.IR.excluded)$EventRegion)
+                se.IR.final = se.IR[
+                    junc_PSI.group$means == junc_PSI.group$max_means,,drop = FALSE]
+                se.IR.excluded = se.IR[
+                    junc_PSI.group$means != junc_PSI.group$max_means,,drop = FALSE]
 
-                    OL = GenomicRanges::findOverlaps(excluded.gr, final.gr)
-                    include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
-                } else {
-                    final.gr = c()
-                    include = c()
+                final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
+                excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
+
+                OL = findOverlaps(excluded.gr, final.gr)
+                include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
+
+                # Iteration to find events not overlapping with se.IR.final
+
+                iteration = 0
+                while(length(include) > 0 & length(final.gr) > 0) {
+                    iteration = iteration + 1
+                    message(paste("Iteration", iteration))
+                    se.IR.excluded = se.IR.excluded[include,,drop = FALSE]
+                    junc_PSI = junc_PSI[rowData(se.IR.excluded)$EventRegion,, drop = FALSE]
+                    se.IR.gr = NxtIRF.CoordToGR(rownames(junc_PSI))
+                    se.IR.gr.reduced = reduce(se.IR.gr)
+
+                    OL = findOverlaps(se.IR.gr, se.IR.gr.reduced)
+                    junc_PSI.group = as.data.table(junc_PSI)
+                    junc_PSI.group$group = to(OL)
+                    junc_PSI.group$means = rowMeans(junc_PSI)
+                    junc_PSI.group[,  c("max_means") := max(get("means")), 
+                        by = "group"]
+
+                    if(length(which(junc_PSI.group$means == junc_PSI.group$max_means)) > 0) {
+                        se.IR.final = rbind(se.IR.final, 
+                            se.IR.excluded[junc_PSI.group$means == junc_PSI.group$max_means,
+                                ,drop = FALSE])
+                        se.IR.excluded = 
+                            se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,
+                                ,drop = FALSE]
+
+                        final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
+                        excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
+
+                        OL = findOverlaps(excluded.gr, final.gr)
+                        include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
+                    } else {
+                        final.gr = c()
+                        include = c()
+                    }
                 }
             }
-        }
-      
-          se = rbind(se.IR[rownames(se.IR) %in% rownames(se.IR.final),],
-            se[SummarizedExperiment::rowData(se)$EventType != "IR",])
-        
-      }, error = function(e) {
-        message("Iterative filtering of IR appears to have run into an error. Using RemoveOverlapping = FALSE")
-      })
+
+            se = rbind(se.IR[rownames(se.IR) %in% rownames(se.IR.final),,drop = FALSE],
+                se[rowData(se)$EventType != "IR",,drop = FALSE])
+
+        }, error = function(e) {
+            message(paste("Iterative filtering of IR appears to have run into an error.",
+                "Using RemoveOverlapping = FALSE"))
+        })
     }
   
-  # Encapsulate as NxtSE object
-  
-  se = as(se, "NxtSE")
-  return(se)
+    # Encapsulate as NxtSE object
+    se = as(se, "NxtSE")
+    return(se)
 }
 
 #' Filtering for IR and Alternative Splicing Events
@@ -1660,141 +1697,135 @@ MakeSE = function(fst_path, colData, RemoveOverlapping = TRUE) {
 #'
 #' @export
 runFilter <- function(filterClass, filterType, filterVars, filterObject) {
-# Internal function
-  # filterClass: can be one of 'Annotation', 'Data', 'Runtime'
-  # filterType:
+    # filterClass: can be one of 'Annotation', 'Data', 'Runtime'
+    # filterType:
     # - Annotation:
     # - Data:
-        # - Depth: 1-minimum, 2-minCond, 3-pcTRUE
-        # - Coverage: 1-minimum, 1a-minDepth, 2-minCond, 3-pcTRUE
-        # - Consistency: 1-maximum, 1a-minDepth, 2-minCond, 3-pcTRUE
-                        # - for Consistency, maximum is the max(abs(log2_delta)) between comparison and calculated value
-    
-    Inc_Is_Protein_Coding <- Exc_Is_Protein_Coding <- EventType <- Inc_Is_NMD <- Exc_Is_NMD <- Inc_TSL <- 
-    Exc_TSL <- NULL
-    
+    # -     Depth: 1-minimum, 2-minCond, 3-pcTRUE
+    # -     Coverage: 1-minimum, 1a-minDepth, 2-minCond, 3-pcTRUE
+    # -     Consistency: 1-maximum, 1a-minDepth, 2-minCond, 3-pcTRUE
+    # - for Consistency, maximum is the max(abs(log2_delta)) between comparison and calculated value
+
     filterResult = rep(TRUE, nrow(filterObject))
-  if(!("pcTRUE" %in% names(filterVars))) {
-    usePC = 100
-  } else {
-    usePC = filterVars$pcTRUE
-  }
-  if(!("minDepth" %in% names(filterVars))) {
-    minDepth = 0
-  } else {
-    minDepth = filterVars$minDepth
-  }
-    rowData = as.data.frame(SummarizedExperiment::rowData(filterObject))
-    colData = as.data.frame(SummarizedExperiment::colData(filterObject))
-  use_cond = ifelse(!is.null(names(filterVars)) && "condition" %in% names(filterVars) && 
-    filterVars$condition %in% colnames(colData), TRUE, FALSE)
-  if(filterClass == "Data") {
-    if(filterType == "Depth") {
-      message("Running Depth filter")
-            if(!("minimum" %in% names(filterVars))) {
-                minimum = 20
-            } else {
-                minimum = filterVars$minimum
+    usePC = ifelse("pcTRUE" %in% names(filterVars),
+        filterVars$pcTRUE, 100)
+    minDepth = ifelse("minDepth" %in% names(filterVars),
+        filterVars$minDepth, 0)
+
+    rowData = as.data.frame(rowData(filterObject))
+    colData = as.data.frame(colData(filterObject))
+    use_cond = ifelse(
+            !is.null(names(filterVars)) && 
+            "condition" %in% names(filterVars) && 
+            filterVars$condition %in% colnames(colData), 
+        TRUE, FALSE)
+    if(filterClass == "Data") {
+        if(filterType == "Depth") {
+            message("Running Depth filter")
+            minimum = ifelse("minimum" %in% names(filterVars),
+                filterVars$minimum, 20)
+            if(use_cond == TRUE) {
+                cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
+                cond_vars = unique(cond_vec)
             }
-      if(use_cond == TRUE) {
-        cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
-        cond_vars = unique(cond_vec)
-      }
-      depth = as.matrix(SummarizedExperiment::assay(filterObject, "Depth"))
-      sum_res = rep(0, nrow(filterObject))
-      if(use_cond == TRUE) {
-        for(cond in cond_vars) {
-          depth.subset = depth[, which(cond_vec == cond)]
-          sum = rowSums(depth.subset >= minimum)
-          sum_res = sum_res + ifelse(sum * 100 / ncol(depth.subset) >= usePC, 1, 0)
-        }
-        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
-        if(n_TRUE == -1) n_TRUE = length(cond_vars)
-        res = (sum_res >= n_TRUE)
-      } else {
-        sum = rowSums(depth >= minimum)
-        res = ifelse(sum * 100 / ncol(depth) >= usePC, TRUE, FALSE)
-      }
-      if("EventTypes" %in% names(filterVars)) {
-        res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
-      }
-      return(res)
-    } else if(filterType == "Coverage") {
-      message("Running Coverage filter")
-            if(!("minimum" %in% names(filterVars))) {
-                minimum = 20
+            depth = as.matrix(assay(filterObject, "Depth"))
+            sum_res = rep(0, nrow(filterObject))
+            if(use_cond == TRUE) {
+                for(cond in cond_vars) {
+                    depth.subset = depth[, which(cond_vec == cond)]
+                    sum = rowSums(depth.subset >= minimum)
+                    sum_res = sum_res + 
+                        ifelse(sum * 100 / ncol(depth.subset) >= usePC, 1, 0)
+                }
+                n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), 
+                    as.numeric(filterVars$minCond), -1)
+                if(n_TRUE == -1) n_TRUE = length(cond_vars)
+                res = (sum_res >= n_TRUE)
             } else {
-                minimum = filterVars$minimum
+                sum = rowSums(depth >= minimum)
+                res = ifelse(sum * 100 / ncol(depth) >= usePC, TRUE, FALSE)
             }
-      if(use_cond == TRUE) {
-        cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
-        cond_vars = unique(cond_vec)
-      }
-      cov = as.matrix(SummarizedExperiment::assay(filterObject, "Coverage"))
-      depth = as.matrix(SummarizedExperiment::assay(filterObject, "minDepth"))
-      cov[depth < minDepth] = 1    # do not test if depth below threshold
-      
-      sum_res = rep(0, nrow(filterObject))
-      if(use_cond == TRUE) {
-        for(cond in cond_vars) {
-          cov.subset = cov[, which(cond_vec == cond)]
-          sum = rowSums(cov.subset >= minimum / 100)
-          sum_res = sum_res + ifelse(sum * 100 / ncol(cov.subset) >= usePC, 1, 0)
-        }
-        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
-        if(n_TRUE == -1) n_TRUE = length(cond_vars)
-        res = (sum_res >= n_TRUE)
-      } else {
-        sum = rowSums(cov >= minimum / 100)
-        res = ifelse(sum * 100 / ncol(cov) >= usePC, TRUE, FALSE)
-      }
-      if("EventTypes" %in% names(filterVars)) {
-        res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
-      }
-      return(res)
-    } else if(filterType == "Consistency") {    # requires: 
-      message("Running Consistency filter")
-            if(!("maximum" %in% names(filterVars))) {
-                maximum = 1
-            } else {
-                maximum = filterVars$maximum
+            if("EventTypes" %in% names(filterVars)) {
+                res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
             }
-      if(use_cond == TRUE) {
-        cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
-        cond_vars = unique(cond_vec)
-      }
-      Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)[
-        SummarizedExperiment::rowData(filterObject)$EventName[
-            SummarizedExperiment::rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
-        ],
-      ]
-      Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)[
-        SummarizedExperiment::rowData(filterObject)$EventName[
-            SummarizedExperiment::rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
-        ],
-      ]
-        IntronDepth = as.matrix(SummarizedExperiment::assay(filterObject, "Included"))
-        IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE"),]
-      minDepth.Inc = Up_Inc + Down_Inc
-      Up_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
-      Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]    # do not test if depth below threshold
-     
-            Excluded = as.matrix(SummarizedExperiment::assay(filterObject, "Excluded"))
-            Excluded = Excluded[rowData$EventType %in% c("MXE"),]
-      Up_Exc = as.matrix(S4Vectors::metadata(filterObject)$Up_Exc)
-      Down_Exc = as.matrix(S4Vectors::metadata(filterObject)$Down_Exc)
-      minDepth.Exc = Up_Exc + Down_Exc
-            Up_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]    # do not test if depth below threshold
-      Down_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]    # do not test if depth below threshold
+            return(res)
+        } else if(filterType == "Coverage") {
+            message("Running Coverage filter")
+            minimum = ifelse("minimum" %in% names(filterVars),
+                filterVars$minimum, 20)
+            if(use_cond == TRUE) {
+                cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
+                cond_vars = unique(cond_vec)
+            }
+            cov = as.matrix(assay(filterObject, "Coverage"))
+            depth = as.matrix(assay(filterObject, "minDepth"))
             
-      sum_res = rep(0, nrow(filterObject))
-      if(use_cond == TRUE) {
-        for(cond in cond_vars) {
-          Up_Inc.subset = Up_Inc[, which(cond_vec == cond)]
-          Down_Inc.subset = Down_Inc[, which(cond_vec == cond)]
+            # do not test if depth below threshold
+            cov[depth < minDepth] = 1    
+
+            sum_res = rep(0, nrow(filterObject))
+            if(use_cond == TRUE) {
+                for(cond in cond_vars) {
+                    cov.subset = cov[, which(cond_vec == cond)]
+                    sum = rowSums(cov.subset >= minimum / 100)
+                    sum_res = sum_res + 
+                        ifelse(sum * 100 / ncol(cov.subset) >= usePC, 1, 0)
+                }
+                n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), 
+                    as.numeric(filterVars$minCond), -1)
+                if(n_TRUE == -1) n_TRUE = length(cond_vars)
+                res = (sum_res >= n_TRUE)
+            } else {
+                sum = rowSums(cov >= minimum / 100)
+                res = ifelse(sum * 100 / ncol(cov) >= usePC, TRUE, FALSE)
+            }
+            if("EventTypes" %in% names(filterVars)) {
+                res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
+            }
+            return(res)
+        } else if(filterType == "Consistency") {    # requires: 
+            message("Running Consistency filter")
+            maximum = ifelse("maximum" %in% names(filterVars),
+                filterVars$maximum, 1)
+
+            if(use_cond == TRUE) {
+                cond_vec = unlist(colData[, which(colnames(colData) == filterVars$condition)])
+                cond_vars = unique(cond_vec)
+            }
+            Up_Inc = as.matrix(S4Vectors::metadata(filterObject)$Up_Inc)[
+                rowData(filterObject)$EventName[
+                    rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
+                ],
+            ]
+            Down_Inc = as.matrix(S4Vectors::metadata(filterObject)$Down_Inc)[
+                rowData(filterObject)$EventName[
+                    rowData(filterObject)$EventType %in% c("IR", "MXE", "SE")
+                ],
+            ]
+            IntronDepth = as.matrix(assay(filterObject, "Included"))
+            IntronDepth = IntronDepth[rowData$EventType %in% c("IR", "MXE", "SE"),]
+            minDepth.Inc = Up_Inc + Down_Inc
+            # do not test if depth below threshold
+            Up_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]
+            Down_Inc[minDepth.Inc < minDepth] = IntronDepth[minDepth.Inc < minDepth]
+
+            Excluded = as.matrix(assay(filterObject, "Excluded"))
+            Excluded = Excluded[rowData$EventType %in% c("MXE"),]
+            Up_Exc = as.matrix(S4Vectors::metadata(filterObject)$Up_Exc)
+            Down_Exc = as.matrix(S4Vectors::metadata(filterObject)$Down_Exc)
+            minDepth.Exc = Up_Exc + Down_Exc
+            # do not test if depth below threshold
+            Up_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]    
+            Down_Exc[minDepth.Exc < minDepth] = Excluded[minDepth.Exc < minDepth]
+
+            sum_res = rep(0, nrow(filterObject))
+            if(use_cond == TRUE) {
+                for(cond in cond_vars) {
+                    Up_Inc.subset = Up_Inc[, which(cond_vec == cond)]
+                    Down_Inc.subset = Down_Inc[, which(cond_vec == cond)]
                     IntronDepth.subset = IntronDepth[, which(cond_vec == cond)]
-          Up_Exc.subset = Up_Exc[, which(cond_vec == cond)]
-          Down_Exc.subset = Down_Exc[, which(cond_vec == cond)]
+                    Up_Exc.subset = Up_Exc[, which(cond_vec == cond)]
+                    Down_Exc.subset = Down_Exc[, which(cond_vec == cond)]
                     Excluded.subset = Excluded[, which(cond_vec == cond)]
 
                     sum_inc = rowSums(
@@ -1805,16 +1836,21 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
                         abs(log2(Up_Exc.subset + 1) - log2(Excluded.subset +1)) < maximum &
                         abs(log2(Down_Exc.subset + 1) - log2(Excluded.subset +1)) < maximum
                     )
-                    sum_inc = c(sum_inc, rep(ncol(Up_Inc.subset), sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
-                    sum_exc = c(rep(ncol(Up_Inc.subset), sum(rowData$EventType == "IR")),
-                        sum_exc, rep(ncol(Up_Inc.subset), sum(!(rowData$EventType %in% c("IR", "MXE")))))
-          sum = 0.5 * (sum_inc + sum_exc)
-          sum_res = sum_res + ifelse(sum * 100 / ncol(Up_Inc.subset) >= usePC, 1, 0)
-        }
-        n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), as.numeric(filterVars$minCond), -1)
-        if(n_TRUE == -1) n_TRUE = length(cond_vars)
-        res = (sum_res >= n_TRUE)
-      } else {
+                    sum_inc = c(sum_inc, rep(ncol(Up_Inc.subset), 
+                        sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
+                    sum_exc = c(rep(ncol(Up_Inc.subset), 
+                        sum(rowData$EventType == "IR")),
+                    sum_exc, rep(ncol(Up_Inc.subset), 
+                        sum(!(rowData$EventType %in% c("IR", "MXE")))))
+                    sum = 0.5 * (sum_inc + sum_exc)
+                    sum_res = sum_res + 
+                        ifelse(sum * 100 / ncol(Up_Inc.subset) >= usePC, 1, 0)
+                }
+                n_TRUE = ifelse(!is.na(suppressWarnings(as.numeric(filterVars$minCond))), 
+                    as.numeric(filterVars$minCond), -1)
+                if(n_TRUE == -1) n_TRUE = length(cond_vars)
+                res = (sum_res >= n_TRUE)
+            } else {
                 sum_inc = rowSums(
                     abs(log2(Up_Inc + 1) - log2(IntronDepth +1)) < filterVars$maximum &
                     abs(log2(Down_Inc + 1) - log2(IntronDepth +1)) < filterVars$maximum
@@ -1823,50 +1859,59 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
                     abs(log2(Up_Exc + 1) - log2(Excluded +1)) < filterVars$maximum &
                     abs(log2(Down_Exc + 1) - log2(Excluded +1)) < filterVars$maximum
                 )
-                sum_inc = c(sum_inc, rep(ncol(Up_Inc), sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
-                sum_exc = c(rep(ncol(Up_Inc), sum(rowData$EventType == "IR")),
-                    sum_exc, rep(ncol(Up_Inc), sum(!(rowData$EventType %in% c("IR", "MXE")))))
+                sum_inc = c(sum_inc, rep(ncol(Up_Inc), 
+                    sum(!(rowData$EventType %in% c("IR", "MXE", "SE")))))
+                sum_exc = c(
+                    rep(ncol(Up_Inc), sum(rowData$EventType == "IR")),
+                    sum_exc, 
+                    rep(
+                        ncol(Up_Inc), 
+                        sum(!(rowData$EventType %in% c("IR", "MXE")))
+                    )
+                )
                 sum = 0.5 * (sum_inc + sum_exc)
-        res = ifelse(sum * 100 / ncol(Up_Inc) >= usePC, TRUE, FALSE)
-      }
-      if("EventTypes" %in% names(filterVars)) {
-        res[!(SummarizedExperiment::rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
-      }
-      return(res)
-
-    }
-  } else if(filterClass == "Annotation") {
-    if(filterType == "Protein_Coding") {
-      # returns if any of included or excluded is protein_coding
-      rowSelected = as.data.table(rowData)
-      rowSelected = rowSelected[Inc_Is_Protein_Coding == TRUE | Exc_Is_Protein_Coding == TRUE]
-      rowSelected = rowSelected[EventType != "IR" | Inc_Is_Protein_Coding == TRUE] # filter for CDS introns
-      res = rowData$EventName %in% rowSelected$EventName
-    } else if(filterType == "NMD_Switching") {
-      rowSelected = as.data.table(rowData)
-      rowSelected = rowSelected[!is.na(Inc_Is_NMD) & !is.na(Exc_Is_NMD)]
-      rowSelected = rowSelected[Inc_Is_NMD != Exc_Is_NMD]
-      res = rowData$EventName %in% rowSelected$EventName
-    } else if(filterType == "Transcript_Support_Level") {
-      if(!("minimum" %in% names(filterVars))) {
+                res = ifelse(sum * 100 / ncol(Up_Inc) >= usePC, TRUE, FALSE)
+            }
+            if("EventTypes" %in% names(filterVars)) {
+                res[!(rowData(filterObject)$EventType %in% filterVars$EventTypes)] = TRUE
+            }
+            return(res)
+        }
+    } else if(filterClass == "Annotation") {
+        if(filterType == "Protein_Coding") {
+            # returns if any of included or excluded is protein_coding
+            rowSelected = as.data.table(rowData)
+            rowSelected = rowSelected[
+                get("Inc_Is_Protein_Coding") == TRUE | 
+                get("Exc_Is_Protein_Coding") == TRUE]
+            rowSelected = rowSelected[get("EventType") != "IR" | 
+                get("Inc_Is_Protein_Coding") == TRUE] # filter for CDS introns
+            res = rowData$EventName %in% rowSelected$EventName
+        } else if(filterType == "NMD_Switching") {
+            rowSelected = as.data.table(rowData)
+            rowSelected = rowSelected[!is.na(get("Inc_Is_NMD")) & !is.na(get("Exc_Is_NMD"))]
+            rowSelected = rowSelected[get("Inc_Is_NMD") != get("Exc_Is_NMD")]
+            res = rowData$EventName %in% rowSelected$EventName
+        } else if(filterType == "Transcript_Support_Level") {
+            if(!("minimum" %in% names(filterVars))) {
                 minimum = 1
             } else {
                 minimum = filterVars$minimum
             }
-      rowSelected = as.data.table(rowData)
-      rowSelected = rowSelected[Inc_TSL != "NA" & Exc_TSL != "NA"]
-      rowSelected[, Inc_TSL := as.numeric(Inc_TSL)]
-      rowSelected[, Exc_TSL := as.numeric(Exc_TSL)]
-      rowSelected = rowSelected[Inc_TSL <= minimum & Exc_TSL <= minimum]
-      res = rowData$EventName %in% rowSelected$EventName
+            rowSelected = as.data.table(rowData)
+            rowSelected = rowSelected[get("Inc_TSL") != "NA" & get("Exc_TSL") != "NA"]
+            rowSelected[, c("Inc_TSL") := as.numeric(get("Inc_TSL"))]
+            rowSelected[, c("Exc_TSL") := as.numeric(get("Exc_TSL"))]
+            rowSelected = rowSelected[get("Inc_TSL") <= minimum & get("Exc_TSL") <= minimum]
+            res = rowData$EventName %in% rowSelected$EventName
+        }
+        if("EventTypes" %in% names(filterVars)) {
+            res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
+        }
+        return(res)
+    } else {
+        return(filterResult)
     }
-    if("EventTypes" %in% names(filterVars)) {
-      res[!(rowData$EventType %in% filterVars$EventTypes)] = TRUE
-    }
-    return(res)
-  } else {
-    return(filterResult)
-  }
 }
 
 #' Convenience function to apply a list of filters to a SummarizedExperiment object
