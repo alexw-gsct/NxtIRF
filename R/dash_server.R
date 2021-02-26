@@ -1592,7 +1592,7 @@ dash_server = function(input, output, session) {
 
     observeEvent(settings_SE$se, {
         req(settings_SE$se)
-        req(is(settings_SE$se, "SummarizedExperiment"))
+        req(is(settings_SE$se, "NxtSE"))
         output$se_expr_infobox <- renderUI({
             ui_infobox_expr(2)
         })
@@ -1622,7 +1622,7 @@ dash_server = function(input, output, session) {
     
     conditionList = reactive({
         req(settings_SE$se)
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             colnames(SummarizedExperiment::colData(settings_SE$se))
         } else {
             c("")
@@ -1638,7 +1638,7 @@ dash_server = function(input, output, session) {
     filter8 <- filterModule_server("filter8", reactive_filter8, conditionList)
     
     se.filterModule <- reactive({
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             settings_SE$se
         } else {
             NULL
@@ -1647,10 +1647,10 @@ dash_server = function(input, output, session) {
 
     processFilters <- function() {
         message("Refreshing filters")
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             filterSummary = rep(TRUE, nrow(settings_SE$se))
             if(is_valid(settings_SE$filters)) {
-                for(i in 1:8) {
+                for(i in seq_len(8)) {
                     print(settings_SE$filters[[i]]$filterVars)
                     print(settings_SE$filters[[i]]$trigger)
                     if(!is.null(settings_SE$filters[[i]]$trigger)) {

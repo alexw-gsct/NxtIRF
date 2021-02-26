@@ -32,9 +32,6 @@ isoforms below this values are excluded}
 \item{logit_max}{(default = 5). This function works by converting all PSI values as logit(PSI), taking the average,
 then converting back to PSI using inverse logit. Because logit(0) == -Inf and logit(1) = Inf,
 this function caps logit values using logit_max}
-
-\item{sample_list}{(default = \code{colnames(se)}) A list of sample names referring to the subset
-of samples in the given experiment to be included in the returned data frame}
 }
 \value{
 A a 3 column data frame, with the first column containing \code{event_list} list of ASE events,

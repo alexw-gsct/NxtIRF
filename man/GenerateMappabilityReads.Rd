@@ -20,7 +20,7 @@ GenerateMappabilityReads(
 \item{fasta}{The path to the user-supplied genome fasta file}
 
 \item{ah_genome}{The name of the AnnotationHub record containing the genome 2bit file.
-Leave blank to use user-supplied `fasta` file.}
+Leave blank to use user-supplied \code{fasta} file.}
 
 \item{reference_path}{The directory to store the reference files}
 
@@ -33,26 +33,26 @@ reads}
 
 \item{verbose}{Whether additional status messages are shown}
 
-\item{localHub}{See `?AnnotationHub::AnnotationHub()`. Setting `TRUE` will run `AnnotationHub()`
+\item{localHub}{See \code{?AnnotationHub::AnnotationHub()}. Setting \code{TRUE} will run \code{AnnotationHub()}
 in offline mode}
 
-\item{ah}{An AnnotationHub object containing the records `ah_genome` and/or `ah_transcriptome`
+\item{ah}{An AnnotationHub object containing the records \code{ah_genome} and/or \code{ah_transcriptome}
 records to be used.}
 }
 \value{
-None. Output reads are stored in `MappabilityReads.genome.fa`
-  in the given reference path. If from an AnnotationHub object, `genome`
-  is replaced by the name of the AnnotationHub record
+None. Output reads are stored in \code{MappabilityReads.genome.fa}
+in the given reference path. If from an AnnotationHub object, \code{genome}
+is replaced by the name of the AnnotationHub record
 }
 \description{
 This function generates sequential reads from a supplied FASTA file. These
-reads of length `read_len = 70` are generated from a starting point spaced 
-`read_stride = 10` nucleotides apart, alternating between forward and reverse
-strand, and contains a single nucleotide error `error_pos = 35` nucleotides
+reads of length \code{read_len = 70} are generated from a starting point spaced
+\code{read_stride = 10} nucleotides apart, alternating between forward and reverse
+strand, and contains a single nucleotide error \code{error_pos = 35} nucleotides
 from the start of the read.\cr\cr
 This function replicates the functionality of generateReadsError.pl in
 the original IRFinder
 }
 \seealso{
-https://github.com/williamritchie/IRFinder/blob/master/bin/util/generateReadsError.pl
+\url{https://github.com/williamritchie/IRFinder/blob/master/bin/util/generateReadsError.pl}
 }

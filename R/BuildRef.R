@@ -45,9 +45,9 @@
 #'   followed by alignment of the produced fasta file to an aligner of choice (e.g. STAR, HISAT2).
 #'   The aligned sequences (as BAM file) should then be analysed using `GenerateMappabilityBED()`,
 #'   which will provide the Mappability file to be used here.
-#' @param BlackListRef A BED file (3 unnamed columns containing chromosome, start and end 
+#' @param BlacklistRef A BED file (3 unnamed columns containing chromosome, start and end 
 #'   coordinates) of regions to be otherwise excluded from IR analysis. Leave blank to not use a 
-#'   `BlackListRef` file.
+#'   `BlacklistRef` file.
 #' @param UseExtendedTranscripts Should IRFinder include non-protein-coding transcripts such as
 #'   anti-sense and lincRNAs? Setting `FALSE` (default IRFinder) will exclude transcripts other than 
 #'   `protein_coding` and `processed_transcript` transcripts from IR analysis.
@@ -1318,21 +1318,21 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     IRF_file = file.path(reference_path, "IRFinder.ref.gz")
     # Concatenate all 4 reference files into one file
     fwrite(list(">ref-cover.bed"), IRF_file, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(ref.cover, IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(list(">ref-read-continues.ref"), IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(readcons, IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(list(">ref-ROI.bed"), IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(ref.ROI, IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(list(">ref-sj.ref"), IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)
     fwrite(ref.sj, IRF_file, append = TRUE, 
-        sep="\t", eol = "\n", col.names = F, scipen = 50)    
+        sep="\t", eol = "\n", col.names = FALSE, scipen = 50)    
 
 }
 
@@ -2398,7 +2398,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 #' @return None. Output reads are stored in `MappabilityReads.genome.fa`
 #'   in the given reference path. If from an AnnotationHub object, `genome`
 #'   is replaced by the name of the AnnotationHub record 
-#' @seealso https://github.com/williamritchie/IRFinder/blob/master/bin/util/generateReadsError.pl
+#' @seealso <https://github.com/williamritchie/IRFinder/blob/master/bin/util/generateReadsError.pl>
+#' @md
 #' @export
 GenerateMappabilityReads <- function(fasta = "genome.fa", ah_genome = "", 
     reference_path, read_len = 70, read_stride = 10, error_pos = 35,

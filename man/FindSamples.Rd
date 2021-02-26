@@ -12,16 +12,16 @@ FindSamples(
 )
 }
 \arguments{
-\item{sample_path:}{The path in which to recursively search for files
+\item{sample_path}{The path in which to recursively search for files
 that match the given \code{suffix}}
 
-\item{suffix:}{A vector of or or more strings that specifies the file suffix
+\item{suffix}{A vector of or or more strings that specifies the file suffix
 (e.g. '.bam' denotes BAM files, whereas ".txt.gz" denotes gzipped txt files).}
 
-\item{suffix_type:}{A vector of string that determines the column
+\item{suffix_type}{A vector of string that determines the column
 names of the files retrieved by \code{suffix}. Must be the same length as \code{suffix}}
 
-\item{use_subdir:}{Whether to assume the directory name containing
+\item{use_subdir}{Whether to assume the directory name containing
 the found files denote the sample name. If \code{FALSE}, the base name
 of the file is assumed to be the sample name. See below example.}
 }

@@ -27,7 +27,9 @@ due to multiple testing issues, please filter the object using `apply_filter()`}
 
 \item{test_denom}{The condition in which to test against for differential ASE. Usually the "control" condition}
 
-\item{batch1, }{batch2 One or two columns containing batch information to normalise against (can be omitted)}
+\item{batch1, batch2}{One or two columns containing batch information to normalise against (can be omitted)}
+
+\item{n_threads}{The number of threads to use for DESeq2}
 
 \item{filter_antiover}{Whether to filter out IR events that overlap antisense genes (for unstranded RNAseq protocols)}
 

@@ -7,16 +7,16 @@
 runFilter(filterClass, filterType, filterVars, filterObject)
 }
 \arguments{
-\item{filterClass:}{One of either \code{Annotation} or \code{Data}}
+\item{filterClass}{One of either \code{Annotation} or \code{Data}}
 
-\item{filterType:}{For filterClass \code{Annotation}, either one of 
+\item{filterType}{For filterClass \code{Annotation}, either one of 
 \code{Protein_Coding}, \code{NMD_Switching}, \code{Transcript_Support_Level}.
 For filterClass \code{Data}, either one of
 \code{Depth}, \code{Coverage}, \code{Consistency}.}
 
-\item{filterVars:}{A list of parameters, as explained below}
+\item{filterVars}{A list of parameters, as explained below}
 
-\item{filterObject:}{the SummarizedExperiment to filter}
+\item{filterObject}{the SummarizedExperiment to filter}
 }
 \value{
 A vector of type \code{logical} designating which events to retain \code{TRUE} and which

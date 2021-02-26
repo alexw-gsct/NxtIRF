@@ -12,6 +12,12 @@ prepare_covplot_data(
 }
 \arguments{
 \item{reference_path}{The directory containing the NxtIRF reference}
+
+\item{localHub}{See `?AnnotationHub::AnnotationHub()`. Setting `TRUE` will run `AnnotationHub()`
+in offline mode}
+
+\item{ah}{An AnnotationHub object containing the records `ah_genome` and/or `ah_transcriptome`
+records to be used.}
 }
 \value{
 A list, containing the genome, gene_list, elem.DT (containing information about

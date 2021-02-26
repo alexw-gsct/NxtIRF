@@ -50,6 +50,10 @@ followed by alignment of the produced fasta file to an aligner of choice (e.g. S
 The aligned sequences (as BAM file) should then be analysed using \code{GenerateMappabilityBED()},
 which will provide the Mappability file to be used here.}
 
+\item{BlacklistRef}{A BED file (3 unnamed columns containing chromosome, start and end
+coordinates) of regions to be otherwise excluded from IR analysis. Leave blank to not use a
+\code{BlacklistRef} file.}
+
 \item{UseExtendedTranscripts}{Should IRFinder include non-protein-coding transcripts such as
 anti-sense and lincRNAs? Setting \code{FALSE} (default IRFinder) will exclude transcripts other than
 \code{protein_coding} and \code{processed_transcript} transcripts from IR analysis.}
@@ -61,10 +65,6 @@ in offline mode}
 records to be used.}
 
 \item{BPPARAM}{A BPPARAM object for BiocParallel multi-threading.}
-
-\item{BlackListRef}{A BED file (3 unnamed columns containing chromosome, start and end
-coordinates) of regions to be otherwise excluded from IR analysis. Leave blank to not use a
-\code{BlackListRef} file.}
 }
 \value{
 Nothing. The created reference will be written to the given directory. This includes:

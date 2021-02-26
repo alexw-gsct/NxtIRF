@@ -39,6 +39,8 @@ prepare_covplot_data()}
 \item{tracks}{The names of individual samples (if condition is not set), or the names of the different
 conditions to be plotted.}
 
+\item{track_names}{The names of the tracks to be displayed. Defaults to \code{tracks}}
+
 \item{condition}{The name of the column (of SummarizedExperiment::colData(se) containing the conditions to be contrasted.
 If this is not set, \code{tracks} are assumed to be names of individual samples}
 

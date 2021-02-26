@@ -9,6 +9,10 @@ download_NxtIRF_example(destination_dir = tempdir())
 \arguments{
 \item{destination_dir}{The path to store the downloaded BAM files}
 }
+\value{
+None. This function downloads BAM files to the given 
+  `destination_dir`
+}
 \description{
 Downloads NxtIRF example BAM files for the vignette
 }

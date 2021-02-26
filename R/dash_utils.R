@@ -346,7 +346,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
     
     if(is_valid(condition) & is_valid(norm_event)) {
         max_tracks = 0
-        for(i in 1:4) {
+        for(i in seq_len(4)) {
             if(length(tracks) >= i && is_valid(tracks[[i]])) {
                 track_samples = tracks[[i]]
                 colData = SummarizedExperiment::colData(se)
@@ -433,7 +433,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
                 }
             }
         } else {
-            for(i in 1:4) {
+            for(i in seq_len(4)) {
                 if(length(data.list) >= i && !is.null(data.list[[i]])) {
                     df = as.data.frame(data.list[[i]])
                     gp_track[[i]] = ggplot() + 
@@ -464,7 +464,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
             }
         }
     } else if(!is_valid(condition)){
-        for(i in 1:4) {
+        for(i in seq_len(4)) {
             if(length(tracks) >= i && is_valid(tracks[[i]])) {
                 track_samples = tracks[[i]]
                 filename = avail_files[which(names(avail_files) == track_samples)]
@@ -607,6 +607,7 @@ plot_cov_fn <- function(view_chr, view_start, view_end, view_strand,
 #' @param strand Whether to show coverage of both strands "*" (default), or from the "+" or "-" strand only.
 #' @param tracks The names of individual samples (if condition is not set), or the names of the different
 #'   conditions to be plotted.
+#' @param track_names The names of the tracks to be displayed. Defaults to `tracks`
 #' @param condition The name of the column (of SummarizedExperiment::colData(se) containing the conditions to be contrasted.
 #'   If this is not set, `tracks` are assumed to be names of individual samples
 #' @param selected_transcripts Transcript ID or transcript names of transcripts to be displayed on the gene annotation 
@@ -794,6 +795,10 @@ Plot_Coverage <- function(se, Event, cov_data,
 #' Generates the requisite data for Plot_Coverage()
 #'
 #' @param reference_path The directory containing the NxtIRF reference
+#' @param localHub See `?AnnotationHub::AnnotationHub()`. Setting `TRUE` will run `AnnotationHub()`
+#'   in offline mode
+#' @param ah An AnnotationHub object containing the records `ah_genome` and/or `ah_transcriptome`
+#'   records to be used.
 #' @return A list, containing the genome, gene_list, elem.DT (containing information about
 #'   introns, exons and UTRs, and transcripts.DT which contains a list of transcripts
 #' @export
@@ -820,7 +825,6 @@ prepare_covplot_data <- function(reference_path,
         elem.DT = loadViewRef(reference_path),
         transcripts.DT = loadTranscripts(reference_path)
     )
-    
     return(data)
 }
 
@@ -1013,8 +1017,6 @@ make_matrix <- function(se, event_list, sample_list = colnames(se),
 #' @param se A NxtIRF SummarizedExperiment
 #' @param event_list A character vector containing the row names of ASE events (as given by the 
 #'   `EventName` column of differential ASE results table using `limma_ASE()` or `DESeq_ASE()`)
-#' @param sample_list (default = `colnames(se)`) A list of sample names referring to the subset
-#'   of samples in the given experiment to be included in the returned data frame
 #' @param condition The name of the column containing the condition values in `SummarizedExperiment::colData(se)`
 #' @param nom_DE The condition to be contrasted, e.g. `nom_DE = "treatment"`
 #' @param denom_DE The condition to be contrasted against, e.g. `denom_DE = "control"`

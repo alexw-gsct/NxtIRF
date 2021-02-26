@@ -4,11 +4,19 @@
 \name{NxtSE-class}
 \alias{NxtSE-class}
 \alias{NxtSE}
+\alias{coerce,SummarizedExperiment,NxtSE-method}
 \title{The NxtSE class}
 \usage{
 NxtSE(...)
 }
+\arguments{
+\item{...}{Additional parameters to pass into `SummarizedExperiment()`}
+}
+\value{
+A validated NxtSE object
+}
 \description{
-The NxtSE class inherits from the \linkS4class{SummarizedExperiment} class and is defined to 
+The NxtSE class inherits from the \linkS4class{SummarizedExperiment} 
+class and is defined to 
 represent that it is constructed from `MakeSE()`.
 }

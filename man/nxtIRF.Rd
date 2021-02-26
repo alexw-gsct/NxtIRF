@@ -4,8 +4,15 @@
 \alias{nxtIRF}
 \title{Launches the NxtIRF Graphics User Interface using Shiny Dashboard}
 \usage{
-nxtIRF(offline = FALSE, BPPARAM = BiocParallel::bpparam())
+nxtIRF(offline = FALSE)
+}
+\arguments{
+\item{offline}{Whether to run in offline mode (i.e. local mode for 
+AnnotationHub). Set as `FALSE` to run online mode}
+}
+\value{
+None
 }
 \description{
-Launches the NxtIRF Graphics User Interface using Shiny Dashboard
+This function launches the NxtIRF interactive app using Shiny Dashboard
 }

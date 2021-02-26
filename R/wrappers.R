@@ -464,7 +464,7 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
     raw_list = IRF_RLEList_From_Cov(normalizePath(file), strand)
     final_list = list()
     if(length(raw_list) > 0) {
-      for(i in 1:length(raw_list)) {
+      for(i in seq_len(length(raw_list))) {
         final_list[[i]] = S4Vectors::Rle(raw_list[[i]]$values, raw_list[[i]]$length)
       }
     } else {

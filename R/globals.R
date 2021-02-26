@@ -138,6 +138,9 @@ theme_white_legend = theme(axis.line.x = element_line(colour = "black"),
 
 #' Downloads NxtIRF example BAM files for the vignette
 #' @param destination_dir The path to store the downloaded BAM files
+#' @return None. This function downloads BAM files to the given 
+#'   `destination_dir`
+#" @md
 #' @export
 download_NxtIRF_example <- function(destination_dir = tempdir()) {
     assert_that(dir.exists(dirname(destination_dir)),

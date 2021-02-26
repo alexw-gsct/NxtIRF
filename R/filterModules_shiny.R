@@ -10,7 +10,7 @@ filterModule_UI <- function(id, label = "Counter") {
         condition = "['Transcript_Support_Level'].indexOf(input.filterType) >= 0",
             shinyWidgets::sliderTextInput(ns("slider_TSL_min"), 
                 "TSL Threshold", 
-                choices = 1:5, selected = 1)
+                choices = seq_len(5), selected = 1)
         ),
         conditionalPanel(ns = ns,
             condition = "['Consistency'].indexOf(input.filterType) >= 0",
@@ -33,7 +33,7 @@ filterModule_UI <- function(id, label = "Counter") {
             tagList(
                 shinyWidgets::sliderTextInput(ns("slider_mincond"), 
                     "Minimum Conditions Satisfy Criteria", 
-                    choices = c(as.character(1:8), "All"), selected = "All"),
+                    choices = c(as.character(seq_len(8)), "All"), selected = "All"),
                 selectInput(ns("select_conds"), "Condition", width = '100%',
                     choices = c("(none)")),
                 sliderInput(ns("slider_pcTRUE"), 

@@ -16,7 +16,7 @@ setClass("NxtSE",
 setMethod("show", "NxtSE",
     function(object)
 {
-    callNextMethod(object)    
+    callNextMethod(object)
 })
 
 #' @exportMethod coerce
@@ -27,8 +27,15 @@ setAs("SummarizedExperiment", "NxtSE", function(from) {
 
 #' The NxtSE class
 #'
-#' The NxtSE class inherits from the \linkS4class{SummarizedExperiment} class and is defined to 
+#' The NxtSE class inherits from the \linkS4class{SummarizedExperiment} 
+#' class and is defined to 
 #' represent that it is constructed from `MakeSE()`.
+#' @param ... Additional parameters to pass into `SummarizedExperiment()`
+#' @return A validated NxtSE object
+#' @docType class
+#' @aliases
+#' coerce,SummarizedExperiment,NxtSE-method
+#' @md
 #' @export
 NxtSE <- function(...) {
     se <- SummarizedExperiment(...)
@@ -41,9 +48,17 @@ NxtSE <- function(...) {
 #' @importFrom methods new
 #' @importFrom BiocGenerics nrow ncol
 .se_to_nxtse <- function(se) {
-    # Check NxtSE validity:
-    if(!all(c("Included", "Excluded", "Depth", "Coverage", "minDepth") %in% SummarizedExperiment::assayNames(se))) {
-        warning("Object was not created by MakeSE(), returning SummarizedExperiment object instead")
+    # Simple test to make sure se is a SummarizedExperiment made by NxtIRF::MakeSE()
+    if(!all(c("Included", "Excluded", "Depth", "Coverage", "minDepth") %in% 
+        names(assays(se)))) {
+        warning(paste("Object was not created by MakeSE(),",
+            "returning SummarizedExperiment object instead"))
+        return(se)
+    }
+    if(!all(c("Up_Inc", "Down_Inc", "Up_Exc", "Down_Exc") %in%
+            names(S4Vectors::metadata(se)))) {
+        warning(paste("Object was not created by MakeSE(),",
+            "returning SummarizedExperiment object instead"))
         return(se)
     }
     out <- new("NxtSE", se, 
