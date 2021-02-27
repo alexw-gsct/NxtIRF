@@ -34,7 +34,7 @@
 #' @importFrom rtracklayer import export TwoBitFile track
 #' @importFrom RColorBrewer brewer.pal.info
 #' @importFrom stringr str_locate
-#' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay rowData<- colData<-
+#' @importFrom SummarizedExperiment SummarizedExperiment rowData colData assay assays rowData<- colData<-
 #' @importFrom S4Vectors coolcat metadata Rle metadata<- SimpleList from to
 #' @importFrom IRanges IRanges Views RleList
 NULL

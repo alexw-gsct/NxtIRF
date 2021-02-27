@@ -90,16 +90,32 @@ the genome sequence \code{ah_genome} and gene annotations \code{ah_transcriptome
 }
 \examples{
 ## create an AnnotationHub object
-ah = AnnotationHub::AnnotationHub()
+ah <- AnnotationHub::AnnotationHub()
 
 ## filter for entries containing c("Homo Sapiens", "Ensembl", "release-94")
-records = AnnotationHub::query(ah, c("Homo Sapiens", "Ensembl", "release-94"))
+records <- AnnotationHub::query(ah, c("Homo Sapiens", "Ensembl", "release-94"))
 
 ## display summary of filtered records
 print(records)
+
+## Run BuildReference using 'AH65745' as human genome, and 'AH64631' as gene annotations:
+\donttest{
+BuildReference(fasta = "", gtf = "",
+    ah_genome = "AH65745", ah_transcriptome = "AH64631",
+    reference_path = "./Reference",
+    genome_type = "hg38")
+}
+
+## Run BuildReference using custom supplied FASTA and GTF files as 
+##   Ensembl FTP links:
+\donttest{
+BuildReference(
+    fasta = "ftp://ftp.ensembl.org/pub/release-75/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz", 
+    gtf = "ftp://ftp.ensembl.org/pub/release-75/gtf/homo_sapiens/Homo_sapiens.GRCh37.75.gtf.gz",
+    reference_path = "./Reference",
+    genome_type = "hg19")
+}
 }
 \seealso{
-\code{\link[=GenerateMappabilityReads]{GenerateMappabilityReads()}}, \code{\link[=GenerateMappabilityBED]{GenerateMappabilityBED()}}, [AnnotationHub())]
-
-[AnnotationHub())]: R:AnnotationHub())
+\code{\link[=GenerateMappabilityReads]{GenerateMappabilityReads()}}, \code{\link[=GenerateMappabilityBED]{GenerateMappabilityBED()}}, \code{\link[=AnnotationHub]{AnnotationHub()}}
 }

@@ -52,9 +52,9 @@ Suggests: knitr, rmarkdown, DESeq2, limma, Rsubread
 VignetteBuilder: knitr
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 SystemRequirements: C++11
-Collate: Imports.R
+Collate: AllImports.R
 	RcppExports.R
-	Classes.R
+	AllClasses.R
 	globals.R
 	wrappers.R
 	BuildRef.R
