@@ -10,13 +10,13 @@
 NxtSE(...)
 }
 \arguments{
-\item{...}{Additional parameters to pass into `SummarizedExperiment()`}
+\item{...}{Additional parameters to pass into \code{SummarizedExperiment()}}
 }
 \value{
 A validated NxtSE object
 }
 \description{
-The NxtSE class inherits from the \linkS4class{SummarizedExperiment} 
-class and is defined to 
-represent that it is constructed from `MakeSE()`.
+The NxtSE class inherits from the \linkS4class{SummarizedExperiment}
+class and is defined to
+represent that it is constructed from \code{MakeSE()}.
 }
