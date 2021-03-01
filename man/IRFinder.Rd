@@ -50,3 +50,27 @@ main.FC.Rds: A single file containing gene counts for the whole dataset
 \description{
 This function calls IRFinder on one or more BAM files.
 }
+\examples{
+\donttest{
+ # Run IRFinder on single BAM file, do not run featureCounts:
+IRFinder(
+    bamfiles = "sample1.bam",
+    sample_names = "sample1",
+    reference_path = "./Reference",
+    output_path = "./IRFinder_Output",
+    run_featureCounts = FALSE
+)
+
+ # Run IRFinder on multiple BAM file, run featureCounts, use 4 threads:
+   IRFinder(
+       bamfiles = c("UT1.bam", "UT2.bam", "UT3.bam",
+           "Rx1.bam", "Rx2.bam", "Rx3.bam"),
+       sample_names = c("UT1", "UT2", "UT3",
+           "Rx1", "Rx2", "Rx3"),
+       reference_path = "./Reference",
+       output_path = "./IRFinder_Output",
+       run_featureCounts = TRUE,
+       n_threads = 4
+   )
+}
+}

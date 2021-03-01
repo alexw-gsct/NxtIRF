@@ -36,24 +36,17 @@ The sample name is assumed to be the name of the file minus its suffix
 of the parent directory (\code{use_subdir = TRUE}). See example below.
 }
 \examples{
-\dontrun{
- # If your sample files are contained like this:
- #   /path/to/project/samples/Apple.BAM and /path/to/project/samples/Banana.BAM
- df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-  use_subdir = FALSE)
- # returns df with 
- #   df$sample = c("Apple", "Banana")
- #   df$path = c("/path/to/project/samples/Apple.BAM",
- #     "/path/to/project/samples/Banana.BAM")
+\donttest{
+ # Return all BAM files using file names as sample names
+ df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
+     suffix_type = "bam_file", use_subdir = FALSE)
 
- # Alternately, if your sample files are contained like this:
- #   /path/to/project/samples/Apple/Aligned.BAM and
- #   /path/to/project/samples/Banana/Aligned.BAM
- df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-  use_subdir = TRUE)
- # returns df with 
- #   df$sample = c("Apple", "Banana"), 
- #   df$path = c("/path/to/project/samples/Apple/Aligned.BAM",
- #     "/path/to/project/samples/Banana/Aligned.BAM")
+#'  # Return all COV files using directory names as sample names
+ df = FindSamples(sample_path = './IRFinder_output', suffix = ".cov",
+     suffix_type = "COV_file", use_subdir = TRUE)
+
+#'  # Return all IRFinder output and COV files using file names as sample names
+ df = FindSamples(sample_path = './IRFinder_output', suffix = c(".txt.gz",".cov"),
+     suffix_type = c("IRF_file", "COV_file"), use_subdir = FALSE)
 }
 }

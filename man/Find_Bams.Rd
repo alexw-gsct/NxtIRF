@@ -18,6 +18,15 @@ the sample name, and the second column being the BAM file path.
 \description{
 Runs FindSamples to find BAM files. Assumes file names are names of samples.
 }
+\examples{
+\donttest{
+ # Return all BAM files using file names as sample names
+ df = Find_Bams(sample_path = './BAM_folder', use_subdir = FALSE)
+ # is equivalent to:
+ df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
+     suffix_type = "BAM", use_subdir = FALSE)
+}
+}
 \seealso{
 \code{\link[=FindSamples]{FindSamples()}}
 }
