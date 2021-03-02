@@ -253,7 +253,9 @@ dash_server = function(input, output, session) {
                     message(paste("Populating drop-down box with", 
                         length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
                     updateSelectInput(session = session, inputId = "chr_cov", 
-                        choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+                        choices = c("(none)", 
+                        as.character(sort(unique(settings_Cov$gene_list$seqnames)))),
+                        selected = "(none)")								          
                     updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
                         choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")
                     settings_Cov$loaded_reference = settings_loadref$loadref_path
@@ -1592,7 +1594,7 @@ dash_server = function(input, output, session) {
 
     observeEvent(settings_SE$se, {
         req(settings_SE$se)
-        req(is(settings_SE$se, "SummarizedExperiment"))
+        req(is(settings_SE$se, "NxtSE"))
         output$se_expr_infobox <- renderUI({
             ui_infobox_expr(2)
         })
@@ -1622,7 +1624,7 @@ dash_server = function(input, output, session) {
     
     conditionList = reactive({
         req(settings_SE$se)
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             colnames(SummarizedExperiment::colData(settings_SE$se))
         } else {
             c("")
@@ -1638,7 +1640,7 @@ dash_server = function(input, output, session) {
     filter8 <- filterModule_server("filter8", reactive_filter8, conditionList)
     
     se.filterModule <- reactive({
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             settings_SE$se
         } else {
             NULL
@@ -1647,10 +1649,10 @@ dash_server = function(input, output, session) {
 
     processFilters <- function() {
         message("Refreshing filters")
-        if(is(settings_SE$se, "SummarizedExperiment")) {
+        if(is(settings_SE$se, "NxtSE")) {
             filterSummary = rep(TRUE, nrow(settings_SE$se))
             if(is_valid(settings_SE$filters)) {
-                for(i in 1:8) {
+                for(i in seq_len(8)) {
                     print(settings_SE$filters[[i]]$filterVars)
                     print(settings_SE$filters[[i]]$trigger)
                     if(!is.null(settings_SE$filters[[i]]$trigger)) {

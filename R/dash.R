@@ -1,6 +1,11 @@
-
+#' Launches the NxtIRF Graphics User Interface using Shiny Dashboard
+#' 
+#' This function launches the NxtIRF interactive app using Shiny Dashboard
+#' @param offline Whether to run in offline mode (i.e. local mode for 
+#'   AnnotationHub). Set as `FALSE` to run online mode
+#' @return None
 #' @export
-nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
+nxtIRF <- function(offline = FALSE) {
 
 	assert_that(interactive(),
 		msg = "NxtIRF App can only be run in interactive mode (i.e. RStudio).")
@@ -33,7 +38,5 @@ nxtIRF <- function(offline = FALSE, BPPARAM = BiocParallel::bpparam()) {
 			)
 		)
 	)
-	
 	runApp(shinyApp(ui_dash, dash_server))
-		
 }

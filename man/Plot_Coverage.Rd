@@ -39,6 +39,8 @@ prepare_covplot_data()}
 \item{tracks}{The names of individual samples (if condition is not set), or the names of the different
 conditions to be plotted.}
 
+\item{track_names}{The names of the tracks to be displayed. Defaults to \code{tracks}}
+
 \item{condition}{The name of the column (of SummarizedExperiment::colData(se) containing the conditions to be contrasted.
 If this is not set, \code{tracks} are assumed to be names of individual samples}
 
@@ -71,8 +73,8 @@ by condition}
 }
 \value{
 A list containing two objects. final_plot is the plotly object. ggplot is a list of ggplot tracks.
-ggplot[\link{n}] is the nth track (this function supports up to 4 tracks). ggplot[\link{5}] contains the T-test track if valid.
-ggplot[\link{6}] always contains the genome track.
+\code{ggplot[[n]]} is the nth track (this function supports up to 4 tracks). \code{ggplot[[5]]} contains the T-test track if valid.
+\code{ggplot[[6]]} always contains the genome track.
 }
 \description{
 This function generates a coverage plot illustrating differential expression of intron retention

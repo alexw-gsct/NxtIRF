@@ -30,7 +30,7 @@ DE_assert <- function(colData, test_factor, test_nom, test_denom, batch1, batch2
 #' @param test_factor A string for the column name which contains the contrasting variable
 #' @param test_nom The condition in which to test for differential ASE. Usually the "treatment" condition
 #' @param test_denom The condition in which to test against for differential ASE. Usually the "control" condition
-#' @param batch1, batch2 One or two columns containing batch information to normalise against (can be omitted)
+#' @param batch1,batch2 One or two columns containing batch information to normalise against (can be omitted)
 #' @param filter_antiover Whether to filter out IR events that overlap antisense genes (for unstranded RNAseq protocols)
 #' @param filter_antinear Whether to filter out IR events near but not overlapping antisense genes 
 #'   (for unstranded RNAseq protocols)
@@ -175,11 +175,11 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.ASE = res.limma
     
     res.ASE[res.inc, on = "EventName",
-      paste("Inc", colnames(res.inc)[1:6], sep=".") := 
+      paste("Inc", colnames(res.inc)[seq_len(6)], sep=".") := 
         list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
       
     res.ASE[res.exc, on = "EventName",
-      paste("Exc", colnames(res.exc)[1:6], sep=".") := 
+      paste("Exc", colnames(res.exc)[seq_len(6)], sep=".") := 
         list(i.logFC, i.AveExpr, i.t, i.P.Value, i.adj.P.Val, i.B)]
       
     setorder(res.ASE, -B)
@@ -196,6 +196,34 @@ limma_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.ASE
 }
 
+#' Use DESeq2 to test for differential ASE (Alternative Splice Event)
+#'
+#' @param se The SummarizedExperiment object created by `MakeSE()`. To reduce runtime and false negatives
+#'   due to multiple testing issues, please filter the object using `apply_filter()`
+#' @param test_factor A string for the column name which contains the contrasting variable
+#' @param test_nom The condition in which to test for differential ASE. Usually the "treatment" condition
+#' @param test_denom The condition in which to test against for differential ASE. Usually the "control" condition
+#' @param batch1,batch2 One or two columns containing batch information to normalise against (can be omitted)
+#' @param n_threads The number of threads to use for DESeq2
+#' @param filter_antiover Whether to filter out IR events that overlap antisense genes (for unstranded RNAseq protocols)
+#' @param filter_antinear Whether to filter out IR events near but not overlapping antisense genes 
+#'   (for unstranded RNAseq protocols)
+#' @param filter_annotated_IR Whether to filter out IR events that are already annotated exons
+#'   (after doing so, all IR events will be unannotated - i.e. constitutionally spliced introns))
+#' @return A data table containing the following:
+#'   EventName: The name of the ASE event\cr\cr
+#'   EventType: The type of event. IR = intron retention, MXE = mutually exclusive event, SE = skipped exon,
+#'     AFE = alternate first exon, ALE = alternate last exon, A5SS / A3SS = alternate 5' / 3' splice site\cr\cr
+#'   EventRegion: The genomic coordinates the event occupies.\cr\cr  
+#'   NMD_direction: Indicates whether one isoform is a NMD substrate. +1 means included isoform is NMD, 
+#'     -1 means the excluded isoform is NMD, and 0 means neither (or both) are NMD substrates\cr\cr
+#'   AvgPSI_nom, Avg_PSI_denom: the average percent spliced in / percent intron retention levels for the
+#'   two conditions being contrasted\cr\cr
+#'   baseMean, log2FoldChange, lfcSE, stat, pvalue, padj: 
+#'   DESeq2 results columns See `?DESeq2::results`\cr\cr
+#'   inc/exc_(baseMean, log2FoldChange, lfcSE, stat, pvalue, padj): 
+#'   DESeq2 results for differential testing for
+#'   raw included / excluded counts only\cr\cr
 #' @export
 DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2 = "",
     n_threads = 1,
@@ -203,7 +231,8 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     
     NxtIRF.CheckPackageInstalled("DESeq2", "1.30.0")
     test_assert = FALSE
-    test_assert = DE_assert(SummarizedExperiment::colData(se), test_factor, test_nom, test_denom, batch1, batch2)
+    test_assert = DE_assert(colData(se), 
+        test_factor, test_nom, test_denom, batch1, batch2)
 
     if(!test_assert) {
         return(NULL)
@@ -219,26 +248,27 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
       message(paste("DESeq_ASE:", "Using SnowParam", BPPARAM_mod$workers, "threads"))
     } else {
       BPPARAM_mod = BiocParallel::MulticoreParam(n_threads)
-      message(paste("DESeq_ASE:", "Using MulticoreParam", BPPARAM_mod$workers, "threads"))
+      message(paste("DESeq_ASE:", "Using MulticoreParam", 
+        BPPARAM_mod$workers, "threads"))
     }
 
     se_use = se
     if(filter_antiover) {
-        se_use = se_use[!grepl("anti-over", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("anti-over", rowData(se_use)$EventName),]
     }
     if(filter_antinear) {
-        se_use = se_use[!grepl("anti-near", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("anti-near", rowData(se_use)$EventName),]
     }
     if(filter_annotated_IR) {
-        se_use = se_use[!grepl("known-exon", SummarizedExperiment::rowData(se_use)$EventName),]
+        se_use = se_use[!grepl("known-exon", rowData(se_use)$EventName),]
     }
     
     # Inc / Exc mode
-    countData = rbind(SummarizedExperiment::assay(se_use, "Included"), 
-        SummarizedExperiment::assay(se_use, "Excluded"))
-    rowData = as.data.frame(SummarizedExperiment::rowData(se_use))
+    countData = rbind(assay(se_use, "Included"), 
+        assay(se_use, "Excluded"))
+    rowData = as.data.frame(rowData(se_use))
     
-    colData = SummarizedExperiment::colData(se_use)
+    colData = colData(se_use)
     rownames(colData) = colnames(se_use)
     colnames(countData) = rownames(colData)
     rownames(countData) = c(
@@ -346,11 +376,11 @@ DESeq_ASE <- function(se, test_factor, test_nom, test_denom, batch1 = "", batch2
     res.ASE = as.data.table(res.ASE)
     
     res.ASE[res.inc, on = "EventName",
-      paste("Inc", colnames(res.inc)[1:6], sep=".") := 
+      paste("Inc", colnames(res.inc)[seq_len(6)], sep=".") := 
         list(i.baseMean, i.log2FoldChange, i.lfcSE, i.stat, i.pvalue, i.padj)]
       
     res.ASE[res.exc, on = "EventName",
-      paste("Exc", colnames(res.exc)[1:6], sep=".") := 
+      paste("Exc", colnames(res.exc)[seq_len(6)], sep=".") := 
         list(i.baseMean, i.log2FoldChange, i.lfcSE, i.stat, i.pvalue, i.padj)]
     
     res.ASE = res.ASE[!is.na(pvalue)]

@@ -7,14 +7,29 @@
 Find_IRFinder_Output(sample_path, ...)
 }
 \arguments{
-\item{sample_path:}{The path in which to recursively search for BAM files}
+\item{sample_path}{The path in which to recursively search for BAM files}
+
+\item{...}{Additional parameters to pass into \code{FindSamples()}}
 }
 \value{
 A 3-column data frame with the first column containing
-  the sample name, and the second column being the IRFinder main output path,
-  and the third column being the COV file path.
+the sample name, and the second column being the IRFinder main output path,
+and the third column being the COV file path.
 }
 \description{
-Runs FindSamples to find IRFinder .txt.gz and .cov files. 
+Runs FindSamples to find IRFinder .txt.gz and .cov files.
 Assumes file names are names of samples.
+}
+\examples{
+ # Return all BAM files using file names as sample names
+ df = Find_IRFinder_Output(sample_path = './IRFinder_output', 
+     use_subdir = FALSE)
+ # is equivalent to:
+ df = FindSamples(sample_path = './IRFinder_output', 
+     suffix = c(".txt.gz", ".cov"),
+     c("irf_file", "cov_file"),
+      use_subdir = FALSE)
+}
+\seealso{
+\code{\link[=FindSamples]{FindSamples()}}
 }

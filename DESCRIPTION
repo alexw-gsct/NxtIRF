@@ -13,7 +13,7 @@ Description: NxtIRF is the next evolution for Intron Retention detection for RNA
     visualisation.
 License: MIT + file LICENSE
 Imports:
-	methods, stats, utils, boot,
+	methods, stats, utils, boot, graphics,
 	Rcpp (>= 1.0.5),
 	data.table,
 	shiny,
@@ -52,9 +52,9 @@ Suggests: knitr, rmarkdown, DESeq2, limma, Rsubread
 VignetteBuilder: knitr
 biocViews: Software, Transcriptomics, RNASeq, AlternativeSplicing, Coverage, DifferentialSplicing
 SystemRequirements: C++11
-Collate: Imports.R
+Collate: AllImports.R
 	RcppExports.R
-	Classes.R
+	AllClasses.R
 	globals.R
 	wrappers.R
 	BuildRef.R

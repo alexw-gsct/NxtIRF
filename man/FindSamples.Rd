@@ -12,16 +12,16 @@ FindSamples(
 )
 }
 \arguments{
-\item{sample_path:}{The path in which to recursively search for files
+\item{sample_path}{The path in which to recursively search for files
 that match the given \code{suffix}}
 
-\item{suffix:}{A vector of or or more strings that specifies the file suffix
+\item{suffix}{A vector of or or more strings that specifies the file suffix
 (e.g. '.bam' denotes BAM files, whereas ".txt.gz" denotes gzipped txt files).}
 
-\item{suffix_type:}{A vector of string that determines the column
+\item{suffix_type}{A vector of string that determines the column
 names of the files retrieved by \code{suffix}. Must be the same length as \code{suffix}}
 
-\item{use_subdir:}{Whether to assume the directory name containing
+\item{use_subdir}{Whether to assume the directory name containing
 the found files denote the sample name. If \code{FALSE}, the base name
 of the file is assumed to be the sample name. See below example.}
 }
@@ -36,24 +36,14 @@ The sample name is assumed to be the name of the file minus its suffix
 of the parent directory (\code{use_subdir = TRUE}). See example below.
 }
 \examples{
-\dontrun{
- # If your sample files are contained like this:
- #   /path/to/project/samples/Apple.BAM and /path/to/project/samples/Banana.BAM
- df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-  use_subdir = FALSE)
- # returns df with 
- #   df$sample = c("Apple", "Banana")
- #   df$path = c("/path/to/project/samples/Apple.BAM",
- #     "/path/to/project/samples/Banana.BAM")
+ # Return all BAM files using file names as sample names
+ df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
+     suffix_type = "bam_file", use_subdir = FALSE)
 
- # Alternately, if your sample files are contained like this:
- #   /path/to/project/samples/Apple/Aligned.BAM and
- #   /path/to/project/samples/Banana/Aligned.BAM
- df = FindSamples(sample_path = '/path/to/project/samples', suffix = ".BAM",
-  use_subdir = TRUE)
- # returns df with 
- #   df$sample = c("Apple", "Banana"), 
- #   df$path = c("/path/to/project/samples/Apple/Aligned.BAM",
- #     "/path/to/project/samples/Banana/Aligned.BAM")
-}
+ # Return all COV files using directory names as sample names
+ df = FindSamples(sample_path = './IRFinder_output', suffix = ".cov",
+     suffix_type = "COV_file", use_subdir = TRUE)
+
+ df = FindSamples(sample_path = './IRFinder_output', suffix = c(".txt.gz",".cov"),
+     suffix_type = c("IRF_file", "COV_file"), use_subdir = FALSE)
 }

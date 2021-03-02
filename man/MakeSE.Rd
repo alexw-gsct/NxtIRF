@@ -4,17 +4,17 @@
 \alias{MakeSE}
 \title{Constructs a SummarizedExperiment object from the collated data}
 \usage{
-MakeSE(fst_path, colData, RemoveOverlapping = TRUE)
+MakeSE(collate_path, colData, RemoveOverlapping = TRUE)
 }
 \arguments{
-\item{fst_path}{The output path given to CollateData() pointing to the
+\item{collate_path}{The output path given to CollateData() pointing to the
 collated data}
 
 \item{colData}{A data frame containing the sample annotation information. Note
 that the first column must contain the sample names. If the names of only a subset
-of samples are given, then `MakeSE()` will construct the SE object based only on
-the samples given. Omit `colData` to generate an SE object based on the whole dataset.
-The colData can be set later using `SummarizedExperiment::colData()`}
+of samples are given, then \code{MakeSE()} will construct the SE object based only on
+the samples given. Omit \code{colData} to generate an SE object based on the whole dataset.
+The colData can be set later using \code{SummarizedExperiment::colData()}}
 
 \item{RemoveOverlapping}{(default = TRUE) Whether to filter out overlapping introns
 of IR events belonging to minor isoforms. MakeSE will try to identify which junctions
@@ -23,18 +23,29 @@ in an iterative approach, until no non-overlapping introns remain. This is impor
 to make sure IR events are not 'double-counted'}
 }
 \value{
-A SummarizedExperiment object containing the following assays:
-  "Included", "Excluded" : contains the IntronDepth and SpliceJunction counts of IR events.
-  For alternative splicing events, they represent counts of Included and Excluded isoforms.
-  For mutually exclusive events, Included represents counts for selection of the upstream
-  cassette exon. For alternative 5' or 3' events and for alternate first / last exons, 
-  Included represents splicing of the shorter splice junction.
-  Other assays for advanced users include:
-  "Depth": Sum of included and excluded counts
-  "Coverage": Fraction of the intron covered by bases
-  "MinDepth": Intron depth for IR events, or the count of the minor isoform for AS events
+A NxtIRF SummarizedExperiment (\code{NxtSE}) object containing the following assays:
+"Included", "Excluded" : contains the IntronDepth and SpliceJunction counts of IR events.
+For alternative splicing events, they represent counts of Included and Excluded isoforms.
+For mutually exclusive events, Included represents counts for selection of the upstream
+cassette exon. For alternative 5' or 3' events and for alternate first / last exons,
+Included represents splicing of the shorter splice junction.
+Other assays for advanced users include:
+"Depth": Sum of included and excluded counts
+"Coverage": Fraction of the intron covered by bases
+"MinDepth": Intron depth for IR events, or the count of the minor isoform for AS events
 }
 \description{
 This function creates a SummarizedExperiment object from the data collated
 from IRFinder output using CollateData().
+}
+\examples{
+# Simplest use:
+se = MakeSE(collate_path = "./NxtIRF_output")
+
+# use colData of selected samples:
+colData = data.frame(
+    samples = c("UT1","UT2", "Rx1", "Rx2"),
+    treatment = c("Ctrl", "Ctrl", "Treated", "Treated")
+)
+se = MakeSE(collate_path = "./NxtIRF_output", colData = colData)
 }

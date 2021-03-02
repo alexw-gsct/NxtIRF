@@ -7,12 +7,24 @@
 Find_Bams(sample_path, ...)
 }
 \arguments{
-\item{sample_path:}{The path in which to recursively search for BAM files}
+\item{sample_path}{The path in which to recursively search for BAM files}
+
+\item{...}{Additional parameters to pass into \code{FindSamples()}}
 }
 \value{
 A 2-column data frame with the first column containing
-  the sample name, and the second column being the BAM file path.
+the sample name, and the second column being the BAM file path.
 }
 \description{
 Runs FindSamples to find BAM files. Assumes file names are names of samples.
+}
+\examples{
+ # Return all BAM files using file names as sample names
+ df = Find_Bams(sample_path = './BAM_folder', use_subdir = FALSE)
+ # is equivalent to:
+ df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
+     suffix_type = "BAM", use_subdir = FALSE)
+}
+\seealso{
+\code{\link[=FindSamples]{FindSamples()}}
 }

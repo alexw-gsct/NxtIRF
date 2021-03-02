@@ -338,7 +338,6 @@ run_FeatureCounts = function(s_bam, sample_names, s_output, reference_path, stra
     saveRDS(res, paste0(s_output, ".FC.Rds"))
 }
 
-#' @export
 merge_FeatureCounts = function(record_1 = "main.FC.Rds", 
         record_2 = "addit.FC.Rds", overwrite = FALSE) {
     assert_that(all(file.exists(c(record_1, record_2))),
@@ -386,8 +385,9 @@ merge_FeatureCounts = function(record_1 = "main.FC.Rds",
     return(res)
 }
 
-#' @export
-run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, read_stride = 10, error_pos = 35) {
+
+run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, 
+    read_len = 70, read_stride = 10, error_pos = 35) {
   return(
     IRF_GenerateMappabilityReads(normalizePath(genome.fa), 
         file.path(normalizePath(dirname(out.fa)), out.fa),
@@ -397,7 +397,6 @@ run_IRFinder_GenerateMapReads = function(genome.fa = "", out.fa, read_len = 70, 
   )
 }
 
-#' @export
 run_IRFinder_MapExclusionRegions = function(bamfile = "", output_file, threshold = 4, includeCov = FALSE) {
   s_bam = normalizePath(bamfile)
   assert_that(file.exists(s_bam),
@@ -410,8 +409,6 @@ run_IRFinder_MapExclusionRegions = function(bamfile = "", output_file, threshold
   )
 }
 
-
-#' @export
 run_Gunzip = function(infile = "", outfile) {
   file_to_read = normalizePath(infile)
   assert_that(file.exists(file_to_read),
@@ -423,7 +420,6 @@ run_Gunzip = function(infile = "", outfile) {
   IRF_gunzip(file_to_read, outfile)
 }
 
-#' @export
 get_multi_DT_from_gz = function(infile = "", block_headers = c("Header1", "Header2")) {
   file_to_read = normalizePath(infile)
   assert_that(file.exists(file_to_read),
@@ -444,18 +440,31 @@ get_multi_DT_from_gz = function(infile = "", block_headers = c("Header1", "Heade
   return(df.list)
 }
 
+#' Calls NxtIRF's C++ function to retrieve coverage
+#'
+#' This function returns an RLE or RLEList containing coverage data from the
+#' given COV file
+#' @param file The file name of the COV file
+#' @param seqname Either blank, or a character string denoting the chromosome 
+#'  name
+#' @param start The 0-based start coordinate 
+#' @param end The 0-based end coordinate
+#' @param strand An integer denoting ths strand: "+" = 0, "-" = 1, "*" = 2
+#' @return If seqname is left as "", returns an RLEList of the whole BAM file.
+#'   If seqname and coordinates are given, returns an RLE containing the
+#'   chromosome coordinate. Coordinates outside the given range will be set to 0
 #' @export
 GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
-  assert_that(as.numeric(strand) %in% c(0,1,2),
-                          msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
-  assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
-                          msg = "Null or negative regions not allowed")
+    assert_that(as.numeric(strand) %in% c(0,1,2),
+        msg = "Invalid strand. Must be either 0 (+), 1 (-) or 2(*)")
+    assert_that(as.numeric(start) <= as.numeric(end) | end == 0,
+        msg = "Null or negative regions not allowed")
   message(paste("Fetching file=",file,"coords", seqname, start, end, strand))                       
   if(seqname == "") {
     raw_list = IRF_RLEList_From_Cov(normalizePath(file), strand)
     final_list = list()
     if(length(raw_list) > 0) {
-      for(i in 1:length(raw_list)) {
+      for(i in seq_len(length(raw_list))) {
         final_list[[i]] = S4Vectors::Rle(raw_list[[i]]$values, raw_list[[i]]$length)
       }
     } else {
@@ -475,6 +484,11 @@ GetCoverage = function(file, seqname = "", start = 0, end = 0, strand = 2) {
   
 }
 
+#' Validates the given file as a valid COV file
+#' @param coverage_files A vector containing the file names of files to be
+#'   checked
+#' @return `TRUE` if all files are valid COV files. `FALSE` otherwise
+#' @md
 #' @export
 IsCOV = function(coverage_files) {
     for(i in coverage_files) {
