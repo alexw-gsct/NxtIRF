@@ -63,19 +63,17 @@ to the considered isoform is above \code{filterVars$minDepth}.
 We highly recommend using the default filters, which can be acquired using \code{get_default_filters()}
 }
 \examples{
-\donttest{
 # Get NxtIRF recommended filters
 filters = get_default_filters()
 # Generate the NxtSE SummarizedExperiment object
 se = MakeSE("NxtIRF_output")
 # Filter the SummarizedExperiment using the first default filter ("Depth")
 se.depthfilter = se[runFilter(
-    filterClass = filters[[1]]$filterClass,
-    filterType = filters[[1]]$filterType,
-    filterVars = filters[[1]]$filterVars,
-    filterObject = se
-    ,]
-}
+        filterClass = filters[[1]]$filterClass,
+        filterType = filters[[1]]$filterType,
+        filterVars = filters[[1]]$filterVars,
+        filterObject = se
+    ), ]
 }
 \seealso{
 \code{\link[=get_default_filters]{get_default_filters()}}, \code{\link[=apply_filters]{apply_filters()}}

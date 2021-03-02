@@ -24,7 +24,11 @@
 #' @importFrom genefilter rowttests
 #' @importFrom grDevices colorRampPalette
 #' @importFrom GenomeInfoDb sortSeqlevels seqinfo seqlengths seqlevels<- seqlevels
-#' @importFrom GenomicRanges GRanges reduce findOverlaps makeGRangesFromDataFrame makeGRangesListFromDataFrame mcols split strand flank setdiff seqnames psetdiff disjoin mcols<- strand<-
+#' @importFrom GenomicRanges GRanges reduce findOverlaps 
+#' @importFrom GenomicRanges makeGRangesFromDataFrame 
+#' @importFrom GenomicRanges makeGRangesListFromDataFrame mcols split strand 
+#' @importFrom GenomicRanges flank setdiff seqnames psetdiff disjoin mcols<- 
+#' @importFrom GenomicRanges strand<- seqnames<-
 #' @importFrom heatmaply heatmaply
 #' @importFrom matrixStats rowSds
 #' @importFrom openssl md5

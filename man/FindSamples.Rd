@@ -36,17 +36,14 @@ The sample name is assumed to be the name of the file minus its suffix
 of the parent directory (\code{use_subdir = TRUE}). See example below.
 }
 \examples{
-\donttest{
  # Return all BAM files using file names as sample names
  df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
      suffix_type = "bam_file", use_subdir = FALSE)
 
-#'  # Return all COV files using directory names as sample names
+ # Return all COV files using directory names as sample names
  df = FindSamples(sample_path = './IRFinder_output', suffix = ".cov",
      suffix_type = "COV_file", use_subdir = TRUE)
 
-#'  # Return all IRFinder output and COV files using file names as sample names
  df = FindSamples(sample_path = './IRFinder_output', suffix = c(".txt.gz",".cov"),
      suffix_type = c("IRF_file", "COV_file"), use_subdir = FALSE)
-}
 }

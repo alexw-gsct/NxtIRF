@@ -253,7 +253,9 @@ dash_server = function(input, output, session) {
                     message(paste("Populating drop-down box with", 
                         length(unique(settings_Cov$gene_list$gene_display_name)),"genes"))
                     updateSelectInput(session = session, inputId = "chr_cov", 
-                        choices = c("(none)", sort(unique(settings_Cov$gene_list$seqnames))), selected = "(none)")    								          
+                        choices = c("(none)", 
+                        as.character(sort(unique(settings_Cov$gene_list$seqnames)))),
+                        selected = "(none)")								          
                     updateSelectizeInput(session = session, inputId = "genes_cov", server = TRUE,
                         choices = c("(none)", settings_Cov$gene_list$gene_display_name), selected = "(none)")
                     settings_Cov$loaded_reference = settings_loadref$loadref_path

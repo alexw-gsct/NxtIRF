@@ -14,6 +14,7 @@ BuildReference(
   nonPolyARef = "",
   MappabilityRef = "",
   BlacklistRef = "",
+  convert_chromosome_names,
   UseExtendedTranscripts = TRUE,
   localHub = FALSE,
   ah = AnnotationHub(localHub = localHub),
@@ -54,11 +55,17 @@ which will provide the Mappability file to be used here.}
 coordinates) of regions to be otherwise excluded from IR analysis. Leave blank to not use a
 \code{BlacklistRef} file.}
 
+\item{convert_chromosome_names}{An optional 2-column data frame containing
+conversion (first column being the chromosome names of the source reference,
+and the second being the desired chromosome names).
+See \url{https://github.com/dpryan79/ChromosomeMappings} for a list of
+chromosome conversion resources}
+
 \item{UseExtendedTranscripts}{Should IRFinder include non-protein-coding transcripts such as
 anti-sense and lincRNAs? Setting \code{FALSE} (default IRFinder) will exclude transcripts other than
 \code{protein_coding} and \code{processed_transcript} transcripts from IR analysis.}
 
-\item{localHub}{See \code{?AnnotationHub::AnnotationHub()}. Setting \code{TRUE} will run \code{AnnotationHub()}
+\item{localHub}{See \code{\link[=AnnotationHub]{AnnotationHub()}}. Setting \code{TRUE} will run \code{AnnotationHub()}
 in offline mode}
 
 \item{ah}{An AnnotationHub object containing the records \code{ah_genome} and/or \code{ah_transcriptome}

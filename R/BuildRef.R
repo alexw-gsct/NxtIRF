@@ -48,10 +48,15 @@
 #' @param BlacklistRef A BED file (3 unnamed columns containing chromosome, start and end
 #'   coordinates) of regions to be otherwise excluded from IR analysis. Leave blank to not use a
 #'   `BlacklistRef` file.
+#' @param convert_chromosome_names An optional 2-column data frame containing 
+#'   conversion (first column being the chromosome names of the source reference,
+#'   and the second being the desired chromosome names). 
+#'   See <https://github.com/dpryan79/ChromosomeMappings> for a list of
+#'   chromosome conversion resources
 #' @param UseExtendedTranscripts Should IRFinder include non-protein-coding transcripts such as
 #'   anti-sense and lincRNAs? Setting `FALSE` (default IRFinder) will exclude transcripts other than
 #'   `protein_coding` and `processed_transcript` transcripts from IR analysis.
-#' @param localHub See `?AnnotationHub::AnnotationHub()`. Setting `TRUE` will run `AnnotationHub()`
+#' @param localHub See [AnnotationHub()]. Setting `TRUE` will run `AnnotationHub()`
 #'   in offline mode
 #' @param ah An AnnotationHub object containing the records `ah_genome` and/or `ah_transcriptome`
 #'   records to be used.
@@ -96,6 +101,7 @@
 BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         ah_genome = "", ah_transcriptome = "", reference_path = "./Reference",
         genome_type = "", nonPolyARef = "", MappabilityRef = "", BlacklistRef = "",
+        convert_chromosome_names,
         UseExtendedTranscripts = TRUE,
         localHub = FALSE, ah = AnnotationHub(localHub = localHub),
         BPPARAM = BiocParallel::bpparam()) {
@@ -125,35 +131,81 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
     .prep_ref_path(reference_path)
 
+    if(!missing(convert_chromosome_names)) {
+        convert_chromosome_names = as.data.frame(convert_chromosome_names)
+        convert_chromosome_names = convert_chromosome_names[
+            !duplicated(convert_chromosome_names[,1]),]
+        convert_chromosome_names = convert_chromosome_names[
+            !duplicated(convert_chromosome_names[,2]),]
+        convert_chromosome_names = convert_chromosome_names[
+            as.vector(convert_chromosome_names[,1]) != "",]
+        convert_chromosome_names = convert_chromosome_names[
+            as.vector(convert_chromosome_names[,2]) != "",]
+        convert_chromosome_names = as.data.table(convert_chromosome_names)
+        colnames(convert_chromosome_names) = c("Original", "New")
+    }
+    
     N <- 8
     dash_progress("Reading Reference Files", N)
     if (ah_genome != "") {
-        genome <- .fetch_fasta(
-            ah_genome = ah_genome,
-            reference_path = reference_path, ah = ah
-        )
+        if(!missing(convert_chromosome_names)) {
+            genome <- .fetch_fasta(
+                ah_genome = ah_genome,
+                reference_path = reference_path, ah = ah,
+                convert_chromosome_names = convert_chromosome_names
+            )
+        } else {
+            genome <- .fetch_fasta(
+                ah_genome = ah_genome,
+                reference_path = reference_path, ah = ah
+            )        
+        }
         fasta_file <- ""
     } else {
-        genome <- .fetch_fasta(
-            fasta = fasta,
-            reference_path = reference_path, ah = ah
-        )
+        if(!missing(convert_chromosome_names)) {
+            genome <- .fetch_fasta(
+                fasta = fasta,
+                reference_path = reference_path, ah = ah,
+                convert_chromosome_names = convert_chromosome_names
+            )
+        } else {
+            genome <- .fetch_fasta(
+                fasta = fasta,
+                reference_path = reference_path, ah = ah
+            )       
+        }
         fasta_file <- fasta
     }
     if (ah_transcriptome != "") {
-        gtf_gr <- .fetch_gtf(
-            ah_transcriptome = ah_transcriptome,
-            reference_path = reference_path, ah = ah
-        )
+        if(!missing(convert_chromosome_names)) {
+            gtf_gr <- .fetch_gtf(
+                ah_transcriptome = ah_transcriptome,
+                reference_path = reference_path, ah = ah,
+                convert_chromosome_names = convert_chromosome_names
+            )
+        } else {
+            gtf_gr <- .fetch_gtf(
+                ah_transcriptome = ah_transcriptome,
+                reference_path = reference_path, ah = ah
+            )        
+        }
         gtf_file <- ""
     } else {
-        gtf_gr <- .fetch_gtf(
-            gtf = gtf,
-            reference_path = reference_path, ah = ah
-        )
+        if(!missing(convert_chromosome_names)) {
+            gtf_gr <- .fetch_gtf(
+                gtf = gtf,
+                reference_path = reference_path, ah = ah,
+                convert_chromosome_names = convert_chromosome_names
+            )
+        } else {
+            gtf_gr <- .fetch_gtf(
+                gtf = gtf,
+                reference_path = reference_path, ah = ah
+            )
+        }
         gtf_file <- gtf
     }
-
+    
     # make sure all seqnames in gtf_gr is also in supplied genome
     chrOrder <- names(seqinfo(genome))
     assert_that(
@@ -167,6 +219,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     seqlevels(gtf_gr, pruning.mode = "tidy") <- chrOrder
 
     dash_progress("Processing gtf file", N)
+    gtf_gr = .fix_gtf(gtf_gr)
     .process_gtf(gtf_gr, reference_path, genome)
     # To save memory, remove original gtf
     rm(gtf_gr)
@@ -178,7 +231,7 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
     # Finished annotating introns, now use it to build reference:
     dash_progress("Generating IRFinder Reference", N)
-    .gen_irf(reference_path, extra_files, genome)
+    .gen_irf(reference_path, extra_files, genome, convert_chromosome_names)
 
     # Annotate IR-NMD
     dash_progress("Annotating IR-NMD", N)
@@ -189,10 +242,14 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
     dash_progress("Annotating Splice Events", N)
     .gen_splice(reference_path, genome)
 
-    dash_progress("Translating AS Peptides", N)
-    .gen_splice_proteins(reference_path, genome)
-
-    message("Splice Annotations finished\n")
+    if(file.exists(file.path(reference_path, "fst", "Splice.fst"))) {
+        dash_progress("Translating AS Peptides", N)
+        .gen_splice_proteins(reference_path, genome)    
+        message("Splice Annotations finished\n")
+    } else {
+        dash_progress("No alternate splicing events detected in this reference", N)
+    }
+    
     message("Reference build finished")
     dash_progress("Reference build finished", N)
 
@@ -260,14 +317,17 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 }
 
 .fetch_fasta <- function(reference_path = "./Reference",
-                         fasta = "", ah_genome = "",
-                         localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+        fasta = "", ah_genome = "",
+        convert_chromosome_names,
+        localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
     genome <- NULL
     if (ah_genome != "") {
         assert_that(substr(ah_genome, 1, 2) == "AH",
             msg = "Given genome AnnotationHub reference is incorrect"
         )
         genome <- .fetch_AH(ah_genome, ah = ah)
+        fasta_file = ""
+
         message("done\n")
     } else {
         fasta_file = .parse_valid_file(fasta)
@@ -277,33 +337,51 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
                 "not found"
             )
         )
-        # Convert genome to TwoBitFile for easy access:
-        genome <- Biostrings::readDNAStringSet(fasta_file)
-        # Convert to local 2bit for better memory management
-        if (!dir.exists(file.path(reference_path, "resource"))) {
-            dir.create(file.path(reference_path, "resource"))
-        }
-        message("Converting genome to Twobit file", appendLF = FALSE)
-        rtracklayer::export(genome, file.path(
-            reference_path, "resource",
-            "genome.2bit"
-        ), "2bit")
-        message("done\n")
-
-        message("Connecting to genome TwoBitFile...", appendLF = FALSE)
-        genome <- rtracklayer::TwoBitFile(file.path(
-            reference_path, "resource",
-            "genome.2bit"
-        ))
-        gc()
-        message("done\n")
     }
-    genome
+    
+    if(fasta_file == "" && missing(convert_chromosome_names)) {
+        return(genome)
+    }
+    
+    if(fasta_file != "") {
+        genome <- Biostrings::readDNAStringSet(fasta_file)
+    } else {
+        genome = rtracklayer::import(genome)
+    }
+    if(!missing(convert_chromosome_names)) {
+        converter = data.table(Original = tstrsplit(names(genome), split=" ")[[1]])
+        converter[convert_chromosome_names,
+            on = "Original",
+            c("NewName") := get("i.New")]
+        chrOrder = converter$NewName
+
+        names(genome) <- chrOrder
+    }
+     # Convert to local 2bit for better memory management
+    if (!dir.exists(file.path(reference_path, "resource"))) {
+        dir.create(file.path(reference_path, "resource"))
+    }
+    message("Converting genome to TwoBitFile...", appendLF = FALSE)
+    rtracklayer::export(genome, file.path(
+        reference_path, "resource",
+        "genome.2bit"
+    ), "2bit")
+    message("done\n")
+
+    message("Connecting to genome TwoBitFile...", appendLF = FALSE)
+    genome <- rtracklayer::TwoBitFile(file.path(
+        reference_path, "resource",
+        "genome.2bit"
+    ))
+    gc()
+    message("done\n")
+    return(genome)
 }
 
 .fetch_gtf <- function(reference_path = "./Reference",
-                       gtf = "", ah_transcriptome = "",
-                       localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
+        gtf = "", ah_transcriptome = "",
+        convert_chromosome_names = convert_chromosome_names,
+        localHub = FALSE, ah = AnnotationHub(localHub = localHub)) {
     gtf_gr <- NULL
     if (ah_transcriptome != "") {
         assert_that(substr(ah_transcriptome, 1, 2) == "AH",
@@ -323,8 +401,25 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
         gtf_gr <- rtracklayer::import(gtf_file, "gtf")
         message("done\n")
     }
+    if(!missing(convert_chromosome_names)) {
+        gtf_gr = gr_convert_seqnames(gtf_gr, convert_chromosome_names)
+    }
     gc()
     gtf_gr
+}
+
+gr_convert_seqnames <- function(gr, convert_chromosome_names) {
+    if(!missing(convert_chromosome_names)) {
+        converter = data.table(Original = GenomeInfoDb::seqlevels(gr))
+        converter[convert_chromosome_names,
+            on = "Original",
+            c("NewName") := get("i.New")]
+        converter[is.na(get("NewName")),
+            c("NewName") := get("Original")]
+        chrOrder <- converter$NewName
+        GenomeInfoDb::seqlevels(gr) <- chrOrder
+    }
+    gr
 }
 
 ################################################################################
@@ -470,20 +565,53 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
   psetdiff(unlist(range(grl), use.names = TRUE), grl)
 }
 
+.fix_gtf <- function(gtf_gr) {
+    # fix gene / transcript names with '/' (which breaks IRFinder code)
+    if("gene_name" %in% names(S4Vectors::mcols(gtf_gr))) {
+        gtf_gr$gene_name <- gsub("/", "_", gtf_gr$gene_name)
+    } else {
+        gtf_gr$gene_name <- gtf_gr$gene_id
+    }
+    
+    if("transcript_name" %in% names(S4Vectors::mcols(gtf_gr))) {
+        gtf_gr$transcript_name <- gsub("/", "_", gtf_gr$transcript_name)
+    } else {
+        gtf_gr$transcript_name <- gtf_gr$transcript_id
+    }
+    if(!("gene_biotype" %in% names(S4Vectors::mcols(gtf_gr)))) {
+        gtf_gr$gene_biotype = "protein_coding"
+    }
+    if(!("transcript_biotype" %in% names(S4Vectors::mcols(gtf_gr)))) {
+        gtf_gr$transcript_biotype = "protein_coding"
+    }
+    if(!("transcript_support_level" %in% names(S4Vectors::mcols(gtf_gr)))) {
+        gtf_gr$transcript_support_level = 1
+    }
+    return(gtf_gr)
+}
+
 ################################################################################
 .process_gtf <- function(gtf_gr, reference_path, genome) {
     # Extracting and saving Genes, Transcripts, Exons, Proteins
     # and saving as .fst files for faster random access
     message("Processing gtf file...", appendLF = FALSE)
 
-
     ########################################################
     # Genes
-    # fix gene / transcript names with '/' (which breaks IRFinder code)
-    gtf_gr$gene_name <- gsub("/", "_", gtf_gr$gene_name)
-    gtf_gr$transcript_name <- gsub("/", "_", gtf_gr$transcript_name)
-
+    
     Genes <- gtf_gr[gtf_gr$type == "gene"]
+    if(length(Genes) == 0) {
+        Genes = as.data.table(gtf_gr)
+        Genes = Genes[,
+        c("start", "end", "width") := list(
+            min(get("start")),
+            max(get("end")),
+            max(get("end")) - min(get("start")) + 1
+        ), by = c("seqnames", "strand", "gene_id", "gene_name", "gene_biotype")]
+        Genes = unique(Genes, by = c("seqnames", "strand", "gene_id", "gene_name", "gene_biotype"))
+        Genes$type = "gene"
+        Genes = .grDT(Genes, keep.extra.columns = TRUE)
+    }
     Genes <- GenomeInfoDb::sortSeqlevels(Genes)
     Genes <- sort(Genes)
     Genes$gene_display_name <- paste0(Genes$gene_name, " (", Genes$gene_id, ")")
@@ -517,7 +645,26 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 
     ########################################################
     # Transcripts
+    
     Transcripts <- gtf_gr[gtf_gr$type == "transcript"]
+    if(length(Transcripts) == 0) {
+        Transcripts = as.data.table(gtf_gr)
+        Transcripts = Transcripts[,
+        c("start", "end", "width") := list(
+            min(get("start")),
+            max(get("end")),
+            max(get("end")) - min(get("start")) + 1
+        ), by = c("seqnames", "strand", 
+            "gene_id", "gene_name", "gene_biotype",
+            "transcript_id", "transcript_name", "transcript_biotype")
+        ]
+        Transcripts = unique(Transcripts, by = c("seqnames", "strand", 
+            "gene_id", "gene_name", "gene_biotype",
+            "transcript_id", "transcript_name", "transcript_biotype"))
+        Transcripts$type = "transcript"
+        Transcripts = .grDT(Transcripts, keep.extra.columns = TRUE)
+    }
+    
     Transcripts <- GenomeInfoDb::sortSeqlevels(Transcripts)
     Transcripts <- sort(Transcripts)
 
@@ -968,7 +1115,8 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
 }
 
 ################################################################################
-.gen_irf <- function(reference_path, extra_files, genome) {
+.gen_irf <- function(reference_path, extra_files, genome,
+        convert_chromosome_names) {
     message("Generating ref-cover.bed ...", appendLF = FALSE)
 
     # Generating IRFinder-base references
@@ -1057,6 +1205,10 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             exclude.omnidirectional,
             rtracklayer::import(extra_files$BlacklistFile, "bed")
         )
+    }
+    if(!missing(convert_chromosome_names)) {
+        exclude.omnidirectional = gr_convert_seqnames(exclude.omnidirectional,
+            convert_chromosome_names)
     }
     # merge with any gaps <= 9
     exclude.omnidirectional <-
@@ -1491,6 +1643,9 @@ BuildReference <- function(fasta = "genome.fa", gtf = "transcripts.gtf",
             nonPolyA,
             rtracklayer::import(extra_files$nonPolyAFile, "bed")
         )
+        if(!missing(convert_chromosome_names)) {
+          nonPolyA = gr_convert_seqnames(nonPolyA, convert_chromosome_names)
+        }
         nonPolyA <- as.data.frame(nonPolyA)
         nonPolyA <- nonPolyA[, c("seqnames", "start", "end")]
         nonPolyA$name <- "NonPolyA"

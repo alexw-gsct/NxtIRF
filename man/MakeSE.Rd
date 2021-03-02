@@ -39,7 +39,6 @@ This function creates a SummarizedExperiment object from the data collated
 from IRFinder output using CollateData().
 }
 \examples{
-\donttest{
 # Simplest use:
 se = MakeSE(collate_path = "./NxtIRF_output")
 
@@ -49,5 +48,4 @@ colData = data.frame(
     treatment = c("Ctrl", "Ctrl", "Treated", "Treated")
 )
 se = MakeSE(collate_path = "./NxtIRF_output", colData = colData)
-}
 }

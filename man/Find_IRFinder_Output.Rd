@@ -21,7 +21,6 @@ Runs FindSamples to find IRFinder .txt.gz and .cov files.
 Assumes file names are names of samples.
 }
 \examples{
-\donttest{
  # Return all BAM files using file names as sample names
  df = Find_IRFinder_Output(sample_path = './IRFinder_output', 
      use_subdir = FALSE)
@@ -30,7 +29,6 @@ Assumes file names are names of samples.
      suffix = c(".txt.gz", ".cov"),
      c("irf_file", "cov_file"),
       use_subdir = FALSE)
-}
 }
 \seealso{
 \code{\link[=FindSamples]{FindSamples()}}

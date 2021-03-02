@@ -17,19 +17,17 @@
 #' @return A 2-column data frame with the first column containing
 #'   the sample name, and the second column being the file path.
 #' @examples
-#'\donttest{
 #'  # Return all BAM files using file names as sample names
 #'  df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
 #'      suffix_type = "bam_file", use_subdir = FALSE)
 #'
-#' #'  # Return all COV files using directory names as sample names
+#'  # Return all COV files using directory names as sample names
 #'  df = FindSamples(sample_path = './IRFinder_output', suffix = ".cov",
 #'      suffix_type = "COV_file", use_subdir = TRUE)
 #'
-#' #'  # Return all IRFinder output and COV files using file names as sample names
+#   # Return all IRFinder output and COV files using file names as sample names
 #'  df = FindSamples(sample_path = './IRFinder_output', suffix = c(".txt.gz",".cov"),
 #'      suffix_type = c("IRF_file", "COV_file"), use_subdir = FALSE)
-#' }
 #' @md
 #' @export
 FindSamples <- function(sample_path, suffix = ".txt.gz", 
@@ -79,13 +77,11 @@ FindSamples <- function(sample_path, suffix = ".txt.gz",
 #'   the sample name, and the second column being the BAM file path.
 #' @seealso [FindSamples()]
 #' @examples
-#'\donttest{
 #'  # Return all BAM files using file names as sample names
 #'  df = Find_Bams(sample_path = './BAM_folder', use_subdir = FALSE)
 #'  # is equivalent to:
 #'  df = FindSamples(sample_path = './BAM_folder', suffix = ".bam",
 #'      suffix_type = "BAM", use_subdir = FALSE)
-#' }
 #' @md
 #' @export
 Find_Bams <- function(sample_path, ...) {
@@ -104,7 +100,6 @@ Find_Bams <- function(sample_path, ...) {
 #'   and the third column being the COV file path.
 #' @seealso [FindSamples()]
 #' @examples
-#'\donttest{
 #'  # Return all BAM files using file names as sample names
 #'  df = Find_IRFinder_Output(sample_path = './IRFinder_output', 
 #'      use_subdir = FALSE)
@@ -113,7 +108,6 @@ Find_Bams <- function(sample_path, ...) {
 #'      suffix = c(".txt.gz", ".cov"),
 #'      c("irf_file", "cov_file"),
 #'       use_subdir = FALSE)
-#' }
 #' @md
 #' @export
 Find_IRFinder_Output <- function(sample_path, ...) {
@@ -166,7 +160,7 @@ Find_IRFinder_Output <- function(sample_path, ...) {
 #'        run_featureCounts = TRUE,
 #'        n_threads = 4
 #'    )
-#' }
+#'}
 #' @md
 #' @export
 IRFinder <- function(
@@ -1536,7 +1530,6 @@ CollateData <- function(Experiment, reference_path, output_path,
 #'   "MinDepth": Intron depth for IR events, or the count of the minor isoform for AS events
 #'
 #' @examples
-#'\donttest{
 #' # Simplest use:
 #' se = MakeSE(collate_path = "./NxtIRF_output")
 #'
@@ -1546,7 +1539,6 @@ CollateData <- function(Experiment, reference_path, output_path,
 #'     treatment = c("Ctrl", "Ctrl", "Treated", "Treated")
 #' )
 #' se = MakeSE(collate_path = "./NxtIRF_output", colData = colData)
-#' }
 #' @md
 #' @export
 MakeSE = function(collate_path, colData, RemoveOverlapping = TRUE) {
@@ -1609,7 +1601,7 @@ MakeSE = function(collate_path, colData, RemoveOverlapping = TRUE) {
   
     # Annotate NMD direction
     rowData = as.data.table(rowData)
-    rowData[, get("NMD_direction") := 0]
+    rowData[, c("NMD_direction") := 0]
     rowData[get("Inc_Is_NMD") & !get("Exc_Is_NMD"), c("NMD_direction") := 1]
     rowData[!get("Inc_Is_NMD") & get("Exc_Is_NMD"), c("NMD_direction") := -1]
     rowData = as.data.frame(rowData)
@@ -1667,12 +1659,15 @@ MakeSE = function(collate_path, colData, RemoveOverlapping = TRUE) {
                 se.IR.excluded = se.IR[
                     junc_PSI.group$means != junc_PSI.group$max_means,,drop = FALSE]
 
-                final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
-                excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
+                if(nrow(se.IR.excluded) > 0) {
+                    final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
+                    excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
 
-                OL = findOverlaps(excluded.gr, final.gr)
-                include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
-
+                    OL = findOverlaps(excluded.gr, final.gr)
+                    include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
+                } else {
+                    include = c()
+                }
                 # Iteration to find events not overlapping with se.IR.final
 
                 iteration = 0
@@ -1699,11 +1694,15 @@ MakeSE = function(collate_path, colData, RemoveOverlapping = TRUE) {
                             se.IR.excluded[junc_PSI.group$means != junc_PSI.group$max_means,
                                 ,drop = FALSE]
 
-                        final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
-                        excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
+                        if(nrow(se.IR.excluded) > 0) {
+                            final.gr = NxtIRF.CoordToGR(rowData(se.IR.final)$EventRegion)
+                            excluded.gr = NxtIRF.CoordToGR(rowData(se.IR.excluded)$EventRegion)
 
-                        OL = findOverlaps(excluded.gr, final.gr)
-                        include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
+                            OL = findOverlaps(excluded.gr, final.gr)
+                            include = which(!(seq_len(length(excluded.gr))) %in% sort(unique(from(OL))))
+                        } else {
+                            include = c()
+                        }
                     } else {
                         final.gr = c()
                         include = c()
@@ -1777,19 +1776,17 @@ MakeSE = function(collate_path, colData, RemoveOverlapping = TRUE) {
 #' @return A vector of type \code{logical} designating which events to retain \code{TRUE} and which
 #'   to remove \code{FALSE}.
 #' @examples
-#'\donttest{
 #' # Get NxtIRF recommended filters
 #' filters = get_default_filters()
 #' # Generate the NxtSE SummarizedExperiment object
 #' se = MakeSE("NxtIRF_output")
 #' # Filter the SummarizedExperiment using the first default filter ("Depth")
 #' se.depthfilter = se[runFilter(
-#'     filterClass = filters[[1]]$filterClass,
-#'     filterType = filters[[1]]$filterType,
-#'     filterVars = filters[[1]]$filterVars,
-#'     filterObject = se
-#'     ,]
-#' }
+#'         filterClass = filters[[1]]$filterClass,
+#'         filterType = filters[[1]]$filterType,
+#'         filterVars = filters[[1]]$filterVars,
+#'         filterObject = se
+#'     ), ]
 #' @seealso [get_default_filters()], [apply_filters()]
 #' @md
 #' @export
@@ -2013,7 +2010,7 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 
 #' Convenience function to apply a list of filters to a SummarizedExperiment object
 #'
-#' See `?runFilter` for details regarding filters
+#' See [runFilter()] for details regarding filters
 #' 
 #' @param se A SummarizedExperiment object created by `MakeSE()`
 #' @param filters A list of filters to apply. Each filter must contain the elements
@@ -2021,25 +2018,23 @@ runFilter <- function(filterClass, filterType, filterVars, filterObject) {
 #' @return A vector of logicals, with `TRUE` indicating events to be retained, and
 #'   `FALSE` for events to be filtered out
 #' @examples
-#'\donttest{
 #' # Get NxtIRF recommended filters
 #' filters = get_default_filters()
 #' # Generate the NxtSE SummarizedExperiment object
 #' se = MakeSE("NxtIRF_output")
 #' # Filter the SummarizedExperiment using the first default filter ("Depth")
 #' se.depthfilter = se[runFilter(
-#'     filterClass = filters[[1]]$filterClass,
-#'     filterType = filters[[1]]$filterType,
-#'     filterVars = filters[[1]]$filterVars,
-#'     filterObject = se
-#'     ,]
-#' }
+#'         filterClass = filters[[1]]$filterClass,
+#'         filterType = filters[[1]]$filterType,
+#'         filterVars = filters[[1]]$filterVars,
+#'         filterObject = se
+#'     ), ]
 #' # Apply all recommended filters:
 #' se.filtered = apply_filters(
 #'     se = se, 
 #'     filters = filters
 #' )
-#' @seealso [get_default_filters()], [run_filter()]
+#' @seealso [get_default_filters()], [runFilter()]
 #' @md
 #' @export
 apply_filters <- function(se, filters) {

@@ -17,22 +17,20 @@ A vector of logicals, with \code{TRUE} indicating events to be retained, and
 \code{FALSE} for events to be filtered out
 }
 \description{
-See \code{?runFilter} for details regarding filters
+See \code{\link[=runFilter]{runFilter()}} for details regarding filters
 }
 \examples{
-\donttest{
 # Get NxtIRF recommended filters
 filters = get_default_filters()
 # Generate the NxtSE SummarizedExperiment object
 se = MakeSE("NxtIRF_output")
 # Filter the SummarizedExperiment using the first default filter ("Depth")
 se.depthfilter = se[runFilter(
-    filterClass = filters[[1]]$filterClass,
-    filterType = filters[[1]]$filterType,
-    filterVars = filters[[1]]$filterVars,
-    filterObject = se
-    ,]
-}
+        filterClass = filters[[1]]$filterClass,
+        filterType = filters[[1]]$filterType,
+        filterVars = filters[[1]]$filterVars,
+        filterObject = se
+    ), ]
 # Apply all recommended filters:
 se.filtered = apply_filters(
     se = se, 
@@ -40,5 +38,5 @@ se.filtered = apply_filters(
 )
 }
 \seealso{
-\code{\link[=get_default_filters]{get_default_filters()}}, \code{\link[=run_filter]{run_filter()}}
+\code{\link[=get_default_filters]{get_default_filters()}}, \code{\link[=runFilter]{runFilter()}}
 }
