@@ -1619,20 +1619,28 @@ gr_convert_seqnames <- function(gr, convert_chromosome_names) {
             "rRNA",
             Transcripts$gene_biotype
         )])
-        rRNA$start <- rRNA$start - 1
-        rRNA$name <- with(rRNA, paste("rRNA", seqnames, start, end, strand,
-            transcript_id, gene_biotype, gene_id, gene_name,
-            sep = "/"
-        ))
-        rRNA <- rRNA[, c("seqnames", "start", "end", "name")]
+        if(nrow(rRNA) > 0) {
+            rRNA$start <- rRNA$start - 1
+            rRNA$name <- with(rRNA, paste("rRNA", seqnames, start, end, strand,
+                transcript_id, gene_biotype, gene_id, gene_name,
+                sep = "/"
+            ))
+            rRNA <- rRNA[, c("seqnames", "start", "end", "name")]
+        } else {
+            rRNA <- c()
+        }
     } else if ("gene_type" %in% names(mcols(Transcripts))) {
         rRNA <- as.data.frame(Transcripts[grepl("rRNA", Transcripts$gene_type)])
-        rRNA$start <- rRNA$start - 1
-        rRNA$name <- with(rRNA, paste("rRNA", seqnames, start, end, strand,
-            transcript_id, gene_type, gene_id, gene_name,
-            sep = "/"
-        ))
-        rRNA <- rRNA[, c("seqnames", "start", "end", "name")]
+        if(nrow(rRNA) > 0) {
+            rRNA$start <- rRNA$start - 1
+            rRNA$name <- with(rRNA, paste("rRNA", seqnames, start, end, strand,
+                transcript_id, gene_type, gene_id, gene_name,
+                sep = "/"
+            ))
+            rRNA <- rRNA[, c("seqnames", "start", "end", "name")]
+        } else {
+            rRNA <- c()
+        }
     } else {
         rRNA <- c()
     }
@@ -1678,10 +1686,13 @@ gr_convert_seqnames <- function(gr, convert_chromosome_names) {
     } else {
         Intergenic <- c()
     }
-    ref.ROI <- rbind(rRNA, nonPolyA, Intergenic) %>%
-        dplyr::arrange(seqnames, start)
+    ref.ROI <- rbind(rRNA, nonPolyA, Intergenic) 
+    if(!is.null(ref.ROI) && nrow(ref.ROI) > 0) {
+        ref.ROI = ref.ROI %>%
+            dplyr::arrange(seqnames, start)
+        ref.ROI$start <- ref.ROI$start - 1 # convert back to 0-based
+    }
 
-    ref.ROI$start <- ref.ROI$start - 1 # convert back to 0-based
     message("done\n")
 
     message("Generating ref-read-continues.ref ...", appendLF = FALSE)
@@ -1765,10 +1776,12 @@ gr_convert_seqnames <- function(gr, convert_chromosome_names) {
         append = TRUE,
         sep = "\t", eol = "\n", col.names = FALSE, scipen = 50
     )
-    fwrite(ref.ROI, IRF_file,
-        append = TRUE,
-        sep = "\t", eol = "\n", col.names = FALSE, scipen = 50
-    )
+    if(!is.null(ref.ROI) && nrow(ref.ROI) > 0) {
+        fwrite(ref.ROI, IRF_file,
+            append = TRUE,
+            sep = "\t", eol = "\n", col.names = FALSE, scipen = 50
+        )
+    }
     fwrite(list(">ref-sj.ref"), IRF_file,
         append = TRUE,
         sep = "\t", eol = "\n", col.names = FALSE, scipen = 50
